@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import {
   checkActionLineCap,
   checkActionTests,
+  checkNoNestedLocalActions,
   checkNoPackageNames,
   checkSelectionOnce,
   checkThirdPartyUses,
@@ -154,10 +155,19 @@ test('a group selects once and never recomputes the selection', () => {
   assert.deepEqual(checkSelectionOnce(ok), [])
 })
 
+test('an action the groups call may not call a local action', () => {
+  const dir = fixture({
+    workflows: { 'pr-checks.yml': job('      - uses: ./.github/actions/outer\n') },
+    actions: { outer: { 'action.yml': 'runs:\n  steps:\n    - uses: ./.github/actions/inner\n' } },
+  })
+  assert.match(checkNoNestedLocalActions(dir)[0], /outer calls a local action/)
+})
+
 test('the repository passes every contract check', () => {
   assert.deepEqual(checkActionLineCap(root), [])
   assert.deepEqual(checkNoPackageNames(root), [])
   assert.deepEqual(checkThirdPartyUses(root), [])
   assert.deepEqual(checkActionTests(root), [])
   assert.deepEqual(checkSelectionOnce(root), [])
+  assert.deepEqual(checkNoNestedLocalActions(root), [])
 })

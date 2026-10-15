@@ -192,3 +192,12 @@ export function checkSelectionOnce(root) {
   }
   return out
 }
+
+// A local `uses:` inside a composite resolves against the workspace, which may hold PR code.
+export function checkNoNestedLocalActions(root) {
+  const out = []
+  for (const a of calledActions(root)) {
+    if (a.file && /uses:\s*['"]?\.\//.test(readFileSync(a.file, 'utf8'))) out.push(`${a.name} calls a local action; compose it in the workflow instead`)
+  }
+  return out
+}
