@@ -1,0 +1,32 @@
+name: Cache
+description: actions/cache, pinned once.
+
+inputs:
+  path:
+    description: Newline-separated paths to cache
+    required: true
+  key:
+    description: Cache key
+    required: true
+  restore-keys:
+    description: Newline-separated prefixes to fall back to
+    default: ""
+  lookup-only:
+    description: Check for an entry without downloading it
+    default: "false"
+
+outputs:
+  cache-hit:
+    description: Whether the exact key was found
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - id: cache
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # 5.0.4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
+        lookup-only: ${{ inputs.lookup-only }}

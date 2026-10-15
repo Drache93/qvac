@@ -1,7 +1,16 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" scans only .github/workflows; the contract's wrappers are listed so
+    # each third-party pin they hold is bumped in that one file.
+    directories:
+      - "/"
+      - "/.github/actions/checkout"
+      - "/.github/actions/setup-node"
+      - "/.github/actions/cache"
+      - "/.github/actions/upload-artifact"
+      - "/.github/actions/download-artifact"
+      - "/.github/actions/configure-aws"
     schedule:
       interval: "weekly"
     groups:
