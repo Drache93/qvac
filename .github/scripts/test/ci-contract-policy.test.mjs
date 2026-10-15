@@ -74,6 +74,14 @@ test('a group or a called action that names a package fails', () => {
   assert.equal(checkNoPackageNames(npm).length, 1)
 })
 
+test('test files may use real package names as fixtures', () => {
+  const dir = fixture({
+    workflows: { 'pr-checks.yml': job('      - uses: ./.github/actions/lean\n') },
+    actions: { lean: { 'action.yml': lines(3), 'lean.test.mjs': "const w = 'packages/vla-ggml'\n" } },
+  })
+  assert.deepEqual(checkNoPackageNames(dir), [])
+})
+
 test('plain words that happen to be package names do not trip the check', () => {
   const dir = fixture({ workflows: { 'pr-checks.yml': job('      - run: echo "error" && exit 1\n') } })
   assert.deepEqual(checkNoPackageNames(dir), [])

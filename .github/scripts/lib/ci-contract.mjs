@@ -105,7 +105,9 @@ export function checkNoPackageNames(root, pkgs = packageDirs(root)) {
   const patterns = packageNamePatterns(pkgs)
   const sources = groupFiles(root).map((g) => [g.name, g.text])
   for (const a of calledActions(root)) {
-    for (const f of actionDirFiles(root, a.name)) sources.push([f.slice(root.length + 1), readFileSync(f, 'utf8')])
+    for (const f of actionDirFiles(root, a.name)) {
+      if (!/\.test\.[cm]?js$/.test(f)) sources.push([f.slice(root.length + 1), readFileSync(f, 'utf8')])
+    }
   }
   const out = []
   for (const [file, text] of sources) {
