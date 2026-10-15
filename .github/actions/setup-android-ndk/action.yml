@@ -1,0 +1,32 @@
+name: Setup Android NDK
+description: Select a pinned NDK, installing it if the image lacks it, and export the toolchain env.
+
+inputs:
+  ndk-version:
+    description: Exact NDK revision; runner images move "latest" mid-rollout
+    default: 29.0.14206865
+  api-level:
+    description: Android native API level
+    default: "34"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        NDK_VERSION: ${{ inputs.ndk-version }}
+        API_LEVEL: ${{ inputs.api-level }}
+      run: |
+        set -euo pipefail
+        ndk="${ANDROID_HOME:?ANDROID_HOME is unset}/ndk/${NDK_VERSION}"
+        if [ ! -d "$ndk" ]; then
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${NDK_VERSION}"
+        fi
+        revision=$(sed -n 's/^Pkg\.Revision *= *//p' "$ndk/source.properties")
+        if [ "$revision" != "$NDK_VERSION" ]; then
+          echo "::error::expected NDK ${NDK_VERSION} at $ndk, found '${revision}'"
+          exit 1
+        fi
+        for v in ANDROID_NDK ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK_LATEST_HOME; do echo "$v=$ndk" >> "$GITHUB_ENV"; done
+        echo "ANDROID_TOOLCHAIN_ROOT=$ndk/toolchains/llvm/prebuilt/linux-x86_64" >> "$GITHUB_ENV"
+        echo "ANDROID_NATIVE_API_LEVEL=$API_LEVEL" >> "$GITHUB_ENV"
