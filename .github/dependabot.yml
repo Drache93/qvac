@@ -1,8 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    # "/" scans only .github/workflows; the contract's wrappers are listed so
-    # each third-party pin they hold is bumped in that one file.
+    # "/" scans only .github/workflows, so the wrappers are listed.
     directories:
       - "/"
       - "/.github/actions/checkout"

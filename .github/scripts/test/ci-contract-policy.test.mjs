@@ -13,11 +13,6 @@ import {
   checkThirdPartyUses,
 } from '../lib/ci-contract.mjs'
 
-// Package CI contract guardrails: actions the group workflows call stay lean,
-// name no package, pin third-party actions in one wrapper, and the selection
-// runs once per group run. Fixtures prove each check fails; the last block
-// runs every check against the repository itself.
-
 const root = fileURLToPath(new URL('../../..', import.meta.url))
 
 function fixture({ workflows = {}, actions = {}, packages = ['vla-ggml', 'error'] } = {}) {

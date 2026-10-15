@@ -1,6 +1,4 @@
-// Package CI contract rules over the group workflows and the actions they call.
-// Each check returns a list of violation strings; an empty list is a pass.
-// Regex-parsed on purpose: these suites run on bare node with no dependencies.
+// Contract checks over the group workflows; each returns violations, empty is a pass.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,7 +33,6 @@ export function packageDirs(root) {
   return readdirSync(dir).filter((e) => statSync(join(dir, e)).isDirectory())
 }
 
-// Local action references: ./.github/actions/<name> and the trusted ./.workflow/ copy.
 export function localActionRefs(text) {
   const names = new Set()
   for (const m of text.matchAll(/uses:\s*['"]?\.\/(?:\.workflow\/)?\.github\/actions\/([A-Za-z0-9._/-]+?)['"]?\s*$/gm)) {
@@ -117,7 +114,6 @@ export function checkNoPackageNames(root, pkgs = packageDirs(root)) {
   return out
 }
 
-// A third-party `uses:` in a group is allowed only as actions/checkout in a job's first step.
 export function checkThirdPartyUses(root) {
   const out = []
   for (const g of groupFiles(root)) {
