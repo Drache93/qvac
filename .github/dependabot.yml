@@ -12,6 +12,8 @@ updates:
       - "/.github/actions/upload-artifact"
       - "/.github/actions/download-artifact"
       - "/.github/actions/configure-aws"
+      - "/.github/actions/setup-java"
+      - "/.github/actions/setup-android"
     schedule:
       interval: "weekly"
     groups:

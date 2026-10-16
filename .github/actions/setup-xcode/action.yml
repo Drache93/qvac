@@ -1,0 +1,8 @@
+name: Setup Xcode
+description: Select Xcode 16.1 and install CocoaPods and Ninja on hosted runners; check they are present on self-hosted Macs.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: node "$GITHUB_ACTION_PATH/setup-xcode.mjs"

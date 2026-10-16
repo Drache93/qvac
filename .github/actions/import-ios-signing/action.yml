@@ -1,0 +1,40 @@
+name: Import iOS signing
+description: Import a signing certificate into a throwaway keychain and install a provisioning profile checked against the bundle id.
+
+inputs:
+  certificate-base64:
+    description: Base64 .p12 signing certificate
+    required: true
+  certificate-password:
+    description: Password of the certificate
+    required: true
+  keychain-password:
+    description: Password for the throwaway keychain
+    required: true
+  profile-base64:
+    description: Base64 provisioning profile
+    required: true
+  bundle-id:
+    description: Bundle id the profile must be for
+    default: io.tether.test.qvac
+
+outputs:
+  profile-uuid:
+    description: UUID of the installed profile
+    value: ${{ steps.import.outputs.profile-uuid }}
+  export-method:
+    description: development, ad-hoc, enterprise or app-store, from the profile
+    value: ${{ steps.import.outputs.export-method }}
+
+runs:
+  using: composite
+  steps:
+    - id: import
+      shell: bash
+      env:
+        CERT_BASE64: ${{ inputs.certificate-base64 }}
+        CERT_PASSWORD: ${{ inputs.certificate-password }}
+        KEYCHAIN_PASSWORD: ${{ inputs.keychain-password }}
+        PROFILE_BASE64: ${{ inputs.profile-base64 }}
+        BUNDLE_ID: ${{ inputs.bundle-id }}
+      run: node "$GITHUB_ACTION_PATH/import-ios-signing.mjs"

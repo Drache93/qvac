@@ -8,6 +8,9 @@ inputs:
   pattern:
     description: Glob of artifact names, used when name is empty
     default: ""
+  artifact-ids:
+    description: Artifact ids, used when name is empty; a re-run can leave two artifacts under one name
+    default: ""
   path:
     description: Destination directory
     default: ""
@@ -28,6 +31,7 @@ runs:
       with:
         name: ${{ inputs.name }}
         pattern: ${{ inputs.pattern }}
+        artifact-ids: ${{ inputs.artifact-ids }}
         path: ${{ inputs.path }}
         merge-multiple: ${{ inputs.merge-multiple }}
         run-id: ${{ inputs.run-id }}
