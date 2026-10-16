@@ -1,0 +1,23 @@
+name: Summarize Device Farm results
+description: Tabulate runner and test() results per device from downloaded console logs, into test-case-details.json and the step summary.
+
+inputs:
+  platform:
+    description: Android or iOS
+    required: true
+  npm-name:
+    description: The package's npm name, for the headings
+    required: true
+  console-dir:
+    description: Logs from download-devicefarm-logs; the JSON is written here
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        NPM_NAME: ${{ inputs.npm-name }}
+        CONSOLE_DIR: ${{ inputs.console-dir }}
+      run: node "$GITHUB_ACTION_PATH/summarize-devicefarm-results.mjs"
