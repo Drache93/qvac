@@ -18,7 +18,7 @@ export function cancel(arns, aws) {
   return tally
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const t = cancel(JSON.parse(process.env.RUN_ARNS || '[]'), (args) => JSON.parse(execFileSync('aws', ['devicefarm', ...args, '--output', 'json'], { encoding: 'utf8' })))
   console.log(`${t.stopped} stopped, ${t.finished} already finished, ${t.failed} could not be stopped`)
 }

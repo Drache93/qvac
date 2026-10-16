@@ -20,6 +20,11 @@ test('a target gets only its models and its own key', () => {
   assert.equal(resolve({ manifestText: manifest, workdir: 'packages/x', target: 'cpp:tests' }).paths.length, 2)
 })
 
+test('a directory inside another listed one is not listed again', () => {
+  const nested = JSON.stringify({ source: 's3', models: { a: { s3Path: 'a', dest: 'model/vla/a' }, b: { s3Path: 'b', dest: 'model/vla/pi05/b' }, c: { s3Path: 'c', dest: 'model/vlax/c' } } })
+  assert.deepEqual(resolve({ manifestText: nested, workdir: 'p' }).paths, ['p/model/vla', 'p/model/vlax'])
+})
+
 test('the key moves with the manifest and nothing else', () => {
   const k = (text, v) => resolve({ manifestText: text, workdir: 'packages/x', target: 'cpp:tests', version: v }).key
   assert.equal(k(manifest), k(manifest))

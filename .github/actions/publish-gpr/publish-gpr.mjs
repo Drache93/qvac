@@ -40,7 +40,7 @@ export function linkBareAliases(dir, from, to) {
   return n
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const dir = env.WORKDIR.replace(/\/$/, '') || '.'
   if (dir.startsWith('/') || dir.includes('..') || !existsSync(dir)) throw new Error(`invalid workdir: ${dir}`)

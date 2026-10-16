@@ -10,7 +10,7 @@ export function findApk(files) {
   return files.find((f) => f.endsWith('.apk') && f.includes('release') && !f.includes('unaligned'))
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const app = resolve(process.env.APP_DIR)
   const run = (cmd, args, cwd = app) => execFileSync(cmd, args, { stdio: 'inherit', cwd })
   run('npx', ['expo', 'prebuild', '--platform', 'android', '--clean'])

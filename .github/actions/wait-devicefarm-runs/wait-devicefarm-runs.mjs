@@ -80,7 +80,7 @@ export function summary(r, arns) {
   ].join('\n')
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const arns = JSON.parse(env.RUN_ARNS || '[]')
   if (!arns.length) throw new Error('no run ARNs to wait for')

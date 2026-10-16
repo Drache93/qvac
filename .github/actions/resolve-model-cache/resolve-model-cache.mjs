@@ -17,7 +17,9 @@ export function resolve({ manifestText, workdir, target, version = 'v1' }) {
   const entries = entriesFor(manifest, target)
   const hash = createHash('sha256').update(manifestText).digest('hex').slice(0, 16)
   const prefix = `models-${basename(workdir)}-${target ? target.replace(/[^A-Za-z0-9]+/g, '-') : 'all'}-${version}-`
-  const paths = [...new Set(entries.map((e) => posix.join(workdir, dirname(e.dest))))].sort()
+  const dirs = [...new Set(entries.map((e) => posix.join(workdir, dirname(e.dest))))].sort()
+  // A directory inside another listed one is already cached with it.
+  const paths = dirs.filter((d) => !dirs.some((o) => d.startsWith(`${o}/`)))
   return { key: `${prefix}${hash}`, prefix, paths, count: entries.length }
 }
 
@@ -28,4 +30,4 @@ function main(env) {
   appendFileSync(env.GITHUB_OUTPUT, `key=${r.key}\nrestore-prefix=${r.prefix}\npaths<<EOF\n${r.paths.join('\n')}\nEOF\n`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

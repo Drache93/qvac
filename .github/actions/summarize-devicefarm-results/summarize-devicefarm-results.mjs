@@ -80,7 +80,7 @@ export function markdown({ devices, runners, cases }, title) {
   return out.join('\n')
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const c = collect(env.CONSOLE_DIR)
   writeFileSync(join(env.CONSOLE_DIR, 'test-case-details.json'), JSON.stringify({

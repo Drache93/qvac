@@ -73,4 +73,4 @@ function main(env) {
   appendFileSync(env.GITHUB_OUTPUT, `native_changed=${r.changed}\nnative_hash=${r.hash}\n`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

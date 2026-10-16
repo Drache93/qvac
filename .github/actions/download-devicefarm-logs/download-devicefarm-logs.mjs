@@ -71,7 +71,7 @@ async function download(env) {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await download(process.env)
   extract(process.env.LOG_DIR, process.env.CONSOLE_DIR)
   console.log(`Redacted presigned credentials in ${scrub(process.env.CONSOLE_DIR)} file(s)`)

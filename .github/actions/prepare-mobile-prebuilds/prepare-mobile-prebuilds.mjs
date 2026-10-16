@@ -42,7 +42,7 @@ export function prepare({ workdir, expectedDirs = [], source = '' }) {
   return list(dir)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const dirs = prepare({ workdir: env.WORKDIR, expectedDirs: (env.EXPECTED_DIRS || '').split(/\s+/).filter(Boolean), source: env.SOURCE })
   console.log(`Mobile prebuilds: ${dirs.join(' ')}`)

@@ -87,7 +87,7 @@ export function packPrebuilds({ workdir, pkg, addon, platform, pinned, token, tm
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   packPrebuilds({
     workdir: env.WORKDIR, pkg: env.PACKAGE || '', addon: env.ADDON, platform: env.PLATFORM,

@@ -31,7 +31,7 @@ export async function uploadAll({ items, project, type, aws, put, sleep, attempt
   return out
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const uploads = await uploadAll({
     items: parseFiles(env.FILES, env.NAME), project: env.PROJECT_ARN, type: env.TYPE,

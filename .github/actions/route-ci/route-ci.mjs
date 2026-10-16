@@ -32,4 +32,4 @@ function main(env) {
   appendFileSync(env.GITHUB_OUTPUT, OUTPUTS.map((o) => `${o}=${flags[o]}\n`).join(''))
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

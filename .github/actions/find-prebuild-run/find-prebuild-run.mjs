@@ -42,4 +42,4 @@ async function main(env) {
   appendFileSync(env.GITHUB_OUTPUT, `run-id=${runId}\nhit=${Boolean(runId)}\n`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.env)

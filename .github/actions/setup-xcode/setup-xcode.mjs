@@ -24,7 +24,7 @@ export function setup({ hosted, exists, run, has }) {
   if (!/iphoneos/i.test(sdks)) throw new Error('xcodebuild lists no iOS SDK')
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const run = (cmd, args, opts) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
   const has = (tool) => {
     try {

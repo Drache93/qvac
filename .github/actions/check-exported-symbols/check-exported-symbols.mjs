@@ -36,4 +36,4 @@ function main(env) {
   execFileSync('node', [VERIFIER, ...args], { stdio: 'inherit', env: childEnv })
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

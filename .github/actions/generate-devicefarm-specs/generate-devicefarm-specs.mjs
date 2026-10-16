@@ -57,7 +57,7 @@ export function generate({ platform, bundleId, groups, allTests, enablesPerf, mo
   })
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const outDir = join(env.RUNNER_TEMP, 'devicefarm-specs')
   mkdirSync(outDir, { recursive: true })

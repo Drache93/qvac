@@ -36,7 +36,7 @@ export function exportOptions({ method, teamId, bundleId, profileUuid }) {
   ].join('\n')
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const app = resolve(env.APP_DIR)
   const ios = join(app, 'ios')

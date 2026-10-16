@@ -39,3 +39,11 @@ test('a stale pinned file is fetched again, and a bad download fails', async () 
 test('a non-S3 manifest is refused', async () => {
   await assert.rejects(download({ manifest: { source: 'hf', models: {} }, workdir: '.', fetchObject: () => {} }), /"s3" only/)
 })
+
+test('a host an entry skips does not fetch it', async () => {
+  const w = mkdtempSync(join(tmpdir(), 'models-'))
+  const manifest = { source: 's3', models: { m: { s3Path: 'p/m', dest: 'm.gguf', skip: ['darwin-x64'] } } }
+  const fetch = (k, f) => writeFileSync(f, 'y')
+  assert.equal(await download({ manifest, workdir: w, host: 'darwin-x64', fetchObject: fetch }), 0)
+  assert.equal(await download({ manifest, workdir: w, host: 'darwin-arm64', fetchObject: fetch }), 1)
+})

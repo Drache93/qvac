@@ -47,7 +47,7 @@ export function check({ models, operator, tests, source, fleet }) {
   return specs * models.length
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const filter = JSON.stringify([{ attribute: 'PLATFORM', operator: 'EQUALS', values: [env.PLATFORM === 'Android' ? 'ANDROID' : 'IOS'] }])
   const fleet = JSON.parse(execFileSync('aws', ['devicefarm', 'list-devices', '--filters', filter, '--output', 'json'], { encoding: 'utf8' })).devices.map((d) => d.model)

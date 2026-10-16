@@ -24,7 +24,7 @@ export function reports(outDir, title) {
     })
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   mkdirSync(env.OUT_DIR, { recursive: true })
   const node = (args) => { try { execFileSync('node', args, { stdio: 'inherit' }) } catch { console.log(`::warning::${basename(args[0])} failed`) } }

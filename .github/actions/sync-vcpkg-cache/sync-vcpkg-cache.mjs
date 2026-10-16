@@ -43,4 +43,4 @@ function main(env) {
   console.log(`sync: copied ${syncInto(env.VCPKG_CACHE_DIR, host)} archives into ${host}`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

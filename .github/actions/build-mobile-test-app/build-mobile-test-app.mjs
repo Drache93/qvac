@@ -56,7 +56,7 @@ export function build({ platform, appDir, addonDir, npmName, dependencyPrebuilds
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   if (!LINK_OUT[env.PLATFORM]) throw new Error(`platform must be Android or iOS, got '${env.PLATFORM}'`)
   build({

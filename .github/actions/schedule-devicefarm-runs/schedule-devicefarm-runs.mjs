@@ -59,7 +59,7 @@ export function schedule({ runs, project, app, testPackage, timeout, base, aws }
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
   const event = env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')) : {}
   const base = runNameBase(env, event, env.APP_ARN)

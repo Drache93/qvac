@@ -21,11 +21,13 @@ export async function matches(file, entry) {
   return true
 }
 
-export async function download({ manifest, workdir, target, fetchObject }) {
+// An entry's `skip` lists <platform>-<arch> hosts that never need it.
+export async function download({ manifest, workdir, target, host = `${process.platform}-${process.arch}`, fetchObject }) {
   if (manifest.source !== 's3') throw new Error(`download-models supports source "s3" only, got "${manifest.source}"`)
   let fetched = 0
   for (const [name, m] of Object.entries(manifest.models || {})) {
     if (target && m.targets && !m.targets.includes(target)) continue
+    if (m.skip?.includes(host)) continue
     const file = join(workdir, m.dest)
     if (await matches(file, m)) continue
     mkdirSync(dirname(file), { recursive: true })
@@ -48,4 +50,4 @@ async function main(env) {
   console.log(`Fetched ${fetched} model files`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.env)
