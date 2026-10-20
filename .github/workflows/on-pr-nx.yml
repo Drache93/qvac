@@ -392,6 +392,7 @@ jobs:
     with:
       repository: ${{ github.event.pull_request.head.repo.full_name || inputs.repository || github.repository }}
       ref: ${{ github.event.pull_request.head.sha || inputs.ref || github.sha }}
+      base-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.config_ref_override || github.event.repository.default_branch }}
       config-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.config_ref_override || '' }}
       packages: ${{ needs.matrix.outputs.packages }}
       fabric-consumers: ${{ needs.matrix.outputs.fabricconsumers }}
