@@ -9,6 +9,8 @@ on:
       - .github/workflows/diagnose-diffusion-kv-cache.yml
       - .github/scripts/diffusion-kv-diagnostic.mjs
       - .github/scripts/collect-cuda-runtime-info.py
+      - .github/scripts/capture-diffusion-ci-diagnostics.mjs
+      - .github/scripts/test/capture-diffusion-ci-diagnostics.test.mjs
 
 permissions:
   contents: read
@@ -18,6 +20,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  artifact-smoke:
+    name: Verify diagnostic upload after a simulated failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
+        with:
+          node-version: '22'
+      - name: Test failure capture
+        run: node --test .github/scripts/test/capture-diffusion-ci-diagnostics.test.mjs
+      - name: Capture initial environment
+        run: node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-fixture before
+      - name: Simulate a failing suite
+        id: simulated-suite
+        continue-on-error: true
+        shell: bash
+        run: |
+          printf 'not ok 1 - simulated diagnostic-upload fixture\n' > diagnostic-fixture/test-output.log
+          exit 1
+      - name: Capture diagnostics after failure
+        if: always()
+        run: node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-fixture after
+      - name: Upload failure diagnostic fixture
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 4.6.2
+        with:
+          name: diffusion-nvidia-failure-upload-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostic-fixture/test/results/nvidia-diagnostics
+          if-no-files-found: error
+          retention-days: 7
+      - name: Verify expected failure and saved log
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.simulated-suite.outcome }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          test "$SUITE_OUTCOME" = failure
+          test -n "$ARTIFACT_ID"
+          cmp diagnostic-fixture/test-output.log diagnostic-fixture/test/results/nvidia-diagnostics/integration-test-output.log
+
   runner_names:
     permissions:
       contents: read
@@ -25,7 +74,8 @@ jobs:
 
   diagnose:
     needs: runner_names
-    if: github.repository == 'tetherto/qvac'
+    # Pushes validate artifact capture; dispatch explicitly repeats the GPU work.
+    if: github.repository == 'tetherto/qvac' && github.event_name == 'workflow_dispatch'
     name: KV-cache parity (${{ matrix.os }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
