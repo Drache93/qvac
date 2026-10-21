@@ -98,7 +98,7 @@ jobs:
           npm run link:platform
           npm ls --json > "$GITHUB_WORKSPACE/diagnostic-results/dependencies.json" || true
           node --version > "$GITHUB_WORKSPACE/diagnostic-results/node-version.txt"
-          "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/.bin/bare" --version > "$GITHUB_WORKSPACE/diagnostic-results/bare-version.txt"
+          "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare" --version > "$GITHUB_WORKSPACE/diagnostic-results/bare-version.txt"
 
       - name: Repeat the unchanged parity assertions on CUDA and Vulkan
         shell: bash
@@ -106,7 +106,7 @@ jobs:
           node .github/scripts/diffusion-kv-diagnostic.mjs \
             --workdir "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp" \
             --output "$GITHUB_WORKSPACE/diagnostic-results" \
-            --bare "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/.bin/bare"
+            --bare "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare"
 
       - name: Upload diagnostics even on failure
         if: always()
