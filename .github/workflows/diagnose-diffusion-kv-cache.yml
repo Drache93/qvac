@@ -74,11 +74,11 @@ jobs:
 
   diagnose:
     needs: runner_names
-    # Pushes validate artifact capture; dispatch explicitly repeats the GPU work.
-    if: github.repository == 'tetherto/qvac' && github.event_name == 'workflow_dispatch'
-    name: KV-cache parity (${{ matrix.os }})
+    # Run the branch workflow directly before it is available on main.
+    if: github.repository == 'tetherto/qvac'
+    name: Full suite and KV-cache diagnostics (${{ matrix.os }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 360
     permissions:
       contents: read
       actions: read
@@ -149,6 +149,45 @@ jobs:
           npm ls --json > "$GITHUB_WORKSPACE/diagnostic-results/dependencies.json" || true
           node --version > "$GITHUB_WORKSPACE/diagnostic-results/node-version.txt"
           "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare" --version > "$GITHUB_WORKSPACE/diagnostic-results/bare-version.txt"
+
+      - name: Capture NVIDIA environment before the full suite
+        continue-on-error: true
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin:$PATH"
+          node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-source/packages/diffusion-cpp before
+
+      - name: Run original full integration suite
+        working-directory: diagnostic-source/packages/diffusion-cpp
+        shell: bash
+        env:
+          LTX_DOWNLOAD: 'false'
+          LTX_LLM_FILE: gemma-3-12b-it-UD-Q2_K_XL.gguf
+          QVAC_PERF_RUNS: '3'
+          QVAC_PERF_WARMUP_RUNS: '0'
+        run: |
+          set -euo pipefail
+          export PATH="$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin:$PATH"
+          npm run test:integration 2>&1 | tee test-output.log
+
+      - name: Capture NVIDIA environment after the full suite
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin:$PATH"
+          node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-source/packages/diffusion-cpp after
+
+      - name: Upload full-suite diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 4.6.2
+        with:
+          name: diffusion-cpp-nvidia-full-suite-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            diagnostic-source/packages/diffusion-cpp/test/results/nvidia-diagnostics
+            diagnostic-source/packages/diffusion-cpp/test-output.log
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Repeat parity with original GPU selection, CUDA and Vulkan
         shell: bash
