@@ -1,0 +1,133 @@
+name: "Setup XDNA toolchain (XRT + IRON)"
+description: >-
+  Installs AMD XRT under /opt/xilinx/xrt and an IRON (mlir-aie + llvm-aie)
+  Python venv on a linux-x64 runner, and exports XILINX_XRT and
+  QVAC_XDNA_IRON_PYTHON so a consumer's qvac-fabric xdna-backend feature can
+  build libqvac-ggml-xdna.so and its NPU kernels. No NPU is required on the
+  runner (compile-only). XRT is built from source at the commit amd/xdna-driver
+  pins and its .deb packages are cached, since AMD publishes no Ubuntu 22.04
+  packages.
+
+inputs:
+  xrt-ref:
+    description: "Xilinx/XRT commit to build (the one amd/xdna-driver pins)"
+    required: false
+    default: "a29919c035c05d0a368ef6ce09d372976618dee1"
+  mlir-aie-version:
+    description: "mlir-aie (IRON) release; its requirement files pin llvm-aie and eudsl"
+    required: false
+    default: "1.4.3"
+
+runs:
+  using: composite
+  steps:
+    - name: Select XRT cache key
+      id: key
+      shell: bash
+      env:
+        XRT_REF: ${{ inputs.xrt-ref }}
+      run: |
+        . /etc/os-release
+        echo "key=xrt-debs-${ID}${VERSION_ID}-${{ runner.arch }}-${XRT_REF}" >> "$GITHUB_OUTPUT"
+
+    # Restore on every trigger (including fork PRs); save is a separate,
+    # trusted-only step below. Same shape as setup-rocm.
+    - name: Restore XRT packages cache
+      id: cache-xrt
+      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # 5.0.4
+      with:
+        path: ${{ runner.temp }}/xrt-debs
+        key: ${{ steps.key.outputs.key }}
+
+    - name: Build XRT packages
+      if: steps.cache-xrt.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        XRT_REF: ${{ inputs.xrt-ref }}
+      run: |
+        set -euo pipefail
+        src="$RUNNER_TEMP/xrt-src"
+        rm -rf "$src" && mkdir -p "$src"
+        git -C "$src" init -q
+        git -C "$src" remote add origin https://github.com/Xilinx/XRT.git
+        git -C "$src" fetch -q --depth 1 origin "$XRT_REF"
+        git -C "$src" checkout -q FETCH_HEAD
+        sudo DEBIAN_FRONTEND=noninteractive "$src/src/runtime_src/tools/scripts/xrtdeps.sh" -docker
+        # build.sh initializes the submodules itself.
+        (cd "$src/build" && ./build.sh -npu -opt -j "$(nproc)")
+        mkdir -p "$RUNNER_TEMP/xrt-debs"
+        shopt -s nullglob
+        debs=("$src"/build/Release/xrt_*-base.deb "$src"/build/Release/xrt_*-base-dev.deb "$src"/build/Release/xrt_*-npu.deb)
+        if [ "${#debs[@]}" -ne 3 ]; then
+          echo "::error::expected the base, base-dev and npu XRT packages, found: ${debs[*]}"
+          exit 1
+        fi
+        cp "${debs[@]}" "$RUNNER_TEMP/xrt-debs/"
+        rm -rf "$src"
+
+    - name: Save XRT packages cache (trusted contexts)
+      if: >-
+        steps.cache-xrt.outputs.cache-hit != 'true' &&
+        (github.event.pull_request.head.repo.full_name == '' ||
+         github.event.pull_request.head.repo.full_name == github.repository)
+      uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # 5.0.4
+      with:
+        path: ${{ runner.temp }}/xrt-debs
+        key: ${{ steps.key.outputs.key }}
+
+    - name: Install XRT
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$RUNNER_TEMP"/xrt-debs/*.deb uuid-dev
+        for f in share/cmake/XRT/xrt-config.cmake share/cmake/AIEBU/aiebu-config.cmake bin/xclbinutil; do
+          if [ ! -e "/opt/xilinx/xrt/$f" ]; then
+            echo "::error::/opt/xilinx/xrt/$f missing after installing XRT"
+            exit 1
+          fi
+        done
+        grep -m1 '^set(XRT_VERSION' /opt/xilinx/xrt/share/cmake/XRT/xrt-config.cmake
+
+    - name: Setup Python for IRON
+      id: python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # 6.2.0
+      with:
+        python-version: "3.12"
+        update-environment: false
+
+    - name: Create IRON venv
+      shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        MLIR_AIE_VERSION: ${{ inputs.mlir-aie-version }}
+      run: |
+        set -euo pipefail
+        venv="$RUNNER_TEMP/iron-env"
+        "$PYTHON" -m venv "$venv"
+        py="$venv/bin/python"
+        "$py" -m pip install -q --upgrade pip
+        base="https://raw.githubusercontent.com/Xilinx/mlir-aie/v${MLIR_AIE_VERSION}"
+        curl -fsSL "$base/python/requirements.txt" -o "$RUNNER_TEMP/mlir-aie-requirements.txt"
+        curl -fsSL "$base/utils/peano-requirements.txt" -o "$RUNNER_TEMP/peano-requirements.txt"
+        "$py" -m pip install -q -r "$RUNNER_TEMP/mlir-aie-requirements.txt"
+        "$py" -m pip install -q -r "$RUNNER_TEMP/peano-requirements.txt"
+        "$py" -m pip install -q "mlir_aie==${MLIR_AIE_VERSION}" \
+          -f "https://github.com/Xilinx/mlir-aie/releases/expanded_assets/v${MLIR_AIE_VERSION}/"
+        # The wheel installs the aie package under mlir_aie/python, which is
+        # not on sys.path by itself.
+        site="$("$py" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+        echo "$site/mlir_aie/python" > "$site/mlir-aie.pth"
+        "$py" -c "import aie.iron, aie.helpers.taplib, aie.iron.kernels"
+        "$py" -m pip list 2>/dev/null | grep -i -E '^(mlir.aie|llvm.aie) '
+        echo "QVAC_XDNA_IRON_PYTHON=$py" >> "$GITHUB_ENV"
+
+    - name: Export XRT environment
+      shell: bash
+      run: |
+        echo "XILINX_XRT=/opt/xilinx/xrt" >> "$GITHUB_ENV"
+        # Merge, not assign: setup-cuda and setup-rocm set the same var.
+        keep="XILINX_XRT;QVAC_XDNA_IRON_PYTHON"
+        if [ -n "${VCPKG_KEEP_ENV_VARS:-}" ]; then
+          keep="${VCPKG_KEEP_ENV_VARS%;};${keep}"
+        fi
+        echo "VCPKG_KEEP_ENV_VARS=$keep" >> "$GITHUB_ENV"

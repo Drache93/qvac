@@ -110,6 +110,16 @@ on:
         type: string
         required: false
         default: "6550da740ac8565ec2f1dc886f6ec6425af1df79588d773594163b0778832560"
+      include-xdna:
+        description: >-
+          Install AMD XRT and IRON on the linux-x64 build so a consumer's
+          qvac-fabric xdna-backend feature builds libqvac-ggml-xdna.so and its
+          NPU kernels, and verify the module's linkage and kernels after
+          install. No NPU is needed on the runner (compile-only). Only affects
+          the linux-x64 job.
+        type: boolean
+        required: false
+        default: false
       include-cuda:
         description: >-
           Install a pinned CUDA toolkit on the linux build so a consumer's
@@ -434,6 +444,10 @@ jobs:
           gfx: ${{ inputs.rocm-gfx }}
           sha256: ${{ inputs.rocm-sha256 }}
 
+      - if: ${{ inputs.include-xdna && matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        name: Setup XRT and IRON for the XDNA backend
+        uses: ./.github/actions/setup-xdna
+
       # QVAC-24442: the arm64 runner has no GPU, which is fine. The toolkit is
       # compile-only and the CUDA backend is a runtime-loaded module that never
       # engages without a device.
@@ -576,6 +590,46 @@ jobs:
             exit 1
           fi
           ls -l "${cuda_modules[0]}"
+
+      # The XDNA module links XRT's C++ API, so it is the one backend built
+      # against the system libstdc++ instead of libc++, and it loads its NPU
+      # kernels from its own directory.
+      - if: ${{ inputs.include-xdna && matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        name: Verify Linux x64 XDNA module
+        working-directory: ${{ env.WORKDIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+          xdna_modules=(prebuilds/linux-x64/**/*ggml-xdna.so)
+          if [ "${#xdna_modules[@]}" -ne 1 ]; then
+            echo "::error::expected one Linux x64 XDNA module, found ${#xdna_modules[@]}"
+            exit 1
+          fi
+          module="${xdna_modules[0]}"
+          dir="$(dirname "$module")"
+          ls -l "$module"
+          dyn="$(readelf -d "$module")"
+          echo "$dyn" | grep -E 'NEEDED|RUNPATH|RPATH'
+          for lib in libstdc++.so.6 libxrt_coreutil.so.2; do
+            echo "$dyn" | grep -q "Shared library: \[$lib\]" || { echo "::error::$module does not need $lib"; exit 1; }
+          done
+          if echo "$dyn" | grep -q -E 'Shared library: \[libc\+\+(abi)?\.so'; then
+            echo "::error::$module needs libc++; it must use libstdc++ only"
+            exit 1
+          fi
+          if nm -D --undefined-only "$module" | grep -q -E ' (ggml|gguf)_'; then
+            echo "::error::$module has undefined ggml_/gguf_ symbols; it must embed its own ggml-base"
+            exit 1
+          fi
+          for design in fused_layer gemv_n32_r4_c8; do
+            kernels=("$dir"/${design}_*.xclbin)
+            if [ "${#kernels[@]}" -eq 0 ]; then
+              echo "::error::no ${design}_*.xclbin next to $module"
+              exit 1
+            fi
+          done
+          ls -l "$dir"/*.xclbin "$dir"/*.insts.bin
 
       - if: ${{ inputs.include-cuda && inputs.include-cuda-win32 && matrix.platform == 'win32' && matrix.arch == 'x64' }}
         name: Verify Windows CUDA and Vulkan modules
