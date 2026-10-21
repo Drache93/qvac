@@ -2,12 +2,10 @@ name: PR build and test
 
 # Native builds, C++ lint and tests, and desktop tests for packages on the CI contract, after trust and approval.
 on:
-  pull_request_target:
+  # TEMP rehearsal: pull_request until merge, since pull_request_target runs main's copy, which does not exist yet.
+  pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review]
     branches: [main, release-*, feature-*, tmp-*]
-  # Registers the workflow from a branch; every job is off for this event.
-  pull_request:
-    paths: [.github/workflows/pr-build-test.yml]
   workflow_dispatch:
     inputs:
       config_ref:
@@ -27,7 +25,6 @@ concurrency:
 
 jobs:
   select:
-    if: github.event_name != 'pull_request'
     permissions:
       contents: read
     uses: ./.github/workflows/_select-projects.yml
@@ -35,7 +32,7 @@ jobs:
       targets: ci:setup,build,cpp:lint,cpp:build,cpp:tests,test:integration,test:backend
       combine: desktop=test:integration+test:backend
       packages: ${{ inputs.packages }}
-      config-ref: ${{ inputs.config_ref }}
+      config-ref: ${{ inputs.config_ref || github.head_ref }}
 
   fork-approval:
     needs: select
@@ -61,7 +58,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: route
@@ -81,7 +78,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: trust
@@ -107,7 +104,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: diff
@@ -116,7 +113,7 @@ jobs:
         with:
           workdir: ${{ matrix.project.dir }}
       - id: find
-        if: steps.diff.outputs.native_changed == 'false' && toJSON(matrix.project.waits) == '[]' && github.event_name == 'pull_request_target'
+        if: steps.diff.outputs.native_changed == 'false' && toJSON(matrix.project.waits) == '[]' && github.event_name == 'pull_request'
         uses: ./.github/actions/find-prebuild-run
         with:
           github-token: ${{ github.token }}
@@ -156,7 +153,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
           sparse-checkout: |
             .github/actions
             .github/scripts
@@ -172,7 +169,7 @@ jobs:
           PROJECTS: ${{ needs.select.outputs.projects }}
           BUILD: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
           PLANS_DIR: ${{ runner.temp }}/plans
-          AWAIT: ${{ github.event_name == 'pull_request_target' && needs.route.outputs.run_prebuilds == 'true' }}
+          AWAIT: ${{ github.event_name == 'pull_request' && needs.route.outputs.run_prebuilds == 'true' }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -191,7 +188,7 @@ jobs:
     with:
       rows: ${{ needs.plan.outputs.build }}
       deps: ${{ needs.plan.outputs.deps }}
-      config-ref: ${{ inputs.config_ref }}
+      config-ref: ${{ inputs.config_ref || github.head_ref }}
 
   # Folds a package's legs into prebuilds-<slug>, and marks the run so a later push of this PR can reuse it.
   merge:
@@ -212,7 +209,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - if: env.BUILT == 'true'
@@ -226,10 +223,10 @@ jobs:
         with:
           name: prebuilds-${{ matrix.project.slug }}
           path: prebuilds
-      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request_target'
+      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request'
         shell: bash
         run: echo "$HASH" > "$RUNNER_TEMP/marker"
-      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request_target'
+      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request'
         uses: ./.github/actions/upload-artifact
         with:
           name: prebuilds-cache-pr-${{ github.event.pull_request.number }}-${{ matrix.project.slug }}-${{ env.HASH }}
@@ -247,7 +244,7 @@ jobs:
     with:
       lint-rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:lint']) }}
       deps: ${{ needs.plan.outputs.deps }}
-      config-ref: ${{ inputs.config_ref }}
+      config-ref: ${{ inputs.config_ref || github.head_ref }}
 
   cpp-tests:
     needs: [select, route, plan]
@@ -262,7 +259,7 @@ jobs:
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
       deps: ${{ needs.plan.outputs.deps }}
-      config-ref: ${{ inputs.config_ref }}
+      config-ref: ${{ inputs.config_ref || github.head_ref }}
 
   desktop:
     needs: [select, route, plan, build, merge]
@@ -278,12 +275,12 @@ jobs:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).desktop) }}
       sources: ${{ needs.plan.outputs.sources }}
       deps: ${{ needs.plan.outputs.deps }}
-      config-ref: ${{ inputs.config_ref }}
+      config-ref: ${{ inputs.config_ref || github.head_ref }}
 
   # The gate's qvac/prebuild-<key> and qvac/cpp-tests-<key>; a skip passes only when routing chose not to run.
   status:
     needs: [select, route, plan, build, merge, cpp-tests]
-    if: always() && !cancelled() && github.event_name == 'pull_request_target' && needs.select.outputs.any == 'true'
+    if: always() && !cancelled() && github.event_name == 'pull_request' && needs.select.outputs.any == 'true'
     name: status ${{ matrix.project.slug }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
