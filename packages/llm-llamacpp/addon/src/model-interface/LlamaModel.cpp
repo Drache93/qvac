@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cinttypes>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <mutex>
 #include <optional>
@@ -610,6 +611,12 @@ void LlamaModel::llamaLogCallback(
   switch (level) {
   case GGML_LOG_LEVEL_ERROR:
     priority = Priority::ERROR;
+    // The JS logger prints asynchronously, so an error logged just before
+    // GGML_ABORT (e.g. a CUDA error's device, file:line and failing call)
+    // would be lost. Write it to stderr synchronously as well.
+    if (text != nullptr) {
+      std::fputs(text, stderr);
+    }
     break;
   case GGML_LOG_LEVEL_WARN:
     priority = Priority::WARNING;
