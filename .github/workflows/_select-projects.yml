@@ -31,6 +31,9 @@ on:
       projects:
         description: JSON array of selected packages with their gate key and dependency waits
         value: ${{ jobs.select.outputs.projects }}
+      runners:
+        description: JSON map of reusable-runner-names.yml runner key to label
+        value: ${{ jobs.select.outputs.runners }}
       any:
         description: true when any package was selected
         value: ${{ jobs.select.outputs.any }}
@@ -45,6 +48,7 @@ jobs:
     outputs:
       matrices: ${{ steps.select.outputs.matrices }}
       projects: ${{ steps.select.outputs.projects }}
+      runners: ${{ steps.select.outputs.runners }}
       any: ${{ steps.select.outputs.any }}
     steps:
       # Actions and settings both come from here, so this is a full checkout of the trusted ref.

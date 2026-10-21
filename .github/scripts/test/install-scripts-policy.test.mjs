@@ -65,6 +65,12 @@ const ALLOWED = [
     reason: 'Device Farm e2e bundle for the same Expo app.',
   },
   {
+    file: '.github/workflows/mobile-tests.yml',
+    match: 'npm install',
+    count: 1,
+    reason: 'Device Farm e2e bundle for the same Expo app.',
+  },
+  {
     file: '.github/actions/run-mobile-integration-tests/upload-to-devicefarm/generate-testspec.sh',
     match: 'npm install --legacy-peer-deps',
     count: 1,
@@ -128,6 +134,10 @@ const PENDING = [
     ['.github/workflows/reusable-cpp-tests-translation-nmtcpp.yml', 1],
     ['.github/workflows/reusable-prebuilds.yml', 2],
     ['.github/actions/cpp-lint/action.yaml', 1],
+    // The CI contract's job templates, carrying the vla sites above over unchanged.
+    ['.github/workflows/_build.yml', 2],
+    ['.github/workflows/_cpp.yml', 3],
+    ['.github/workflows/_desktop.yml', 1],
   ].map(([file, count]) => ({
     file,
     match: 'npm install',

@@ -37,7 +37,7 @@ jobs:
       packages: ${{ inputs.packages }}
       config-ref: ${{ inputs.config_ref }}
 
-  approve:
+  fork-approval:
     needs: select
     if: needs.select.outputs.any == 'true'
     permissions:
@@ -68,7 +68,7 @@ jobs:
         uses: ./.github/actions/route-ci
 
   trust:
-    needs: [select, approve]
+    needs: [select, fork-approval]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -327,7 +327,7 @@ jobs:
 
   # Not named qvac-merge-guard: that is the required check's job, and a second one would share its context.
   summary:
-    needs: [select, approve, route, trust, reuse, plan, build, merge, cpp-lint, cpp-tests, desktop, status]
+    needs: [select, fork-approval, route, trust, reuse, plan, build, merge, cpp-lint, cpp-tests, desktop, status]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

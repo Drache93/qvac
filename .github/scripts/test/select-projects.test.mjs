@@ -71,6 +71,7 @@ test('a target without runners gets one row per package', () => {
 test('the native provider is the dependency the gate expects prebuilds from', () => {
   const r = select({ ...args, affected: null })
   assert.equal(r.projects[0].provider, '@qvac/fabric')
+  assert.equal(r.projects[0].providerArtifact, 'fabric-prebuilds')
   assert.equal(r.matrices.build[0].slug, 'vla-ggml')
 })
 
