@@ -1,0 +1,118 @@
+name: Diagnose diffusion KV-cache parity
+
+on:
+  workflow_dispatch:
+  # Bootstrap this diagnostic before it exists on the default branch.
+  push:
+    branches: [feature-diffusion-kv-cache-diagnostics]
+    paths:
+      - .github/workflows/diagnose-diffusion-kv-cache.yml
+      - .github/scripts/diffusion-kv-diagnostic.mjs
+      - .github/scripts/collect-cuda-runtime-info.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diffusion-kv-cache-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  runner_names:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/reusable-runner-names.yml
+
+  diagnose:
+    needs: runner_names
+    if: github.repository == 'tetherto/qvac'
+    name: KV-cache parity (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      # Serialize the runner and backend comparisons to avoid adding GPU contention.
+      max-parallel: 1
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            runner: ${{ needs.runner_names.outputs.linux_ubuntu2404_x64_gpu }}
+          - os: ubuntu-22.04
+            runner: ${{ needs.runner_names.outputs.linux_ubuntu2204_x64_gpu }}
+    env:
+      SOURCE_SHA: 01a15d577893d5dbb95050e5ed0569ededf26359
+      SOURCE_RUN: '39463888415'
+      CUDA_MODULE_SHA256: bf9f638190a9739021829c4b116aa9550eba55faa15d05322316d1ca5ab3313a
+    steps:
+      - name: Manual Workspace Cleanup
+        if: runner.environment != 'github-hosted'
+        working-directory: .
+        shell: bash
+        run: rm -rf "$GITHUB_WORKSPACE" && mkdir -p "$GITHUB_WORKSPACE"
+
+      - name: Checkout diagnostic tooling
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Checkout failing source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: diagnostic-source
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
+        with:
+          node-version: '22'
+
+      - name: Download original Linux x64 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # 8.0.1
+        with:
+          name: prebuild-diffusion-cpp-linux-x64
+          run-id: ${{ env.SOURCE_RUN }}
+          github-token: ${{ github.token }}
+          path: diagnostic-source/packages/diffusion-cpp/prebuilds
+
+      - name: Verify binary and capture original runner environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostic-results
+          module="$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp/prebuilds/linux-x64/qvac__diffusion-cpp-linux-x64/libqvac-diffusion-ggml-cuda.so"
+          printf '%s  %s\n' "$CUDA_MODULE_SHA256" "$module" | sha256sum --check
+          python3 .github/scripts/collect-cuda-runtime-info.py "$module" > diagnostic-results/environment.json
+          git -C diagnostic-source rev-parse HEAD > diagnostic-results/source-sha.txt
+
+      - name: Install package dependencies and isolated Bare runtime
+        working-directory: diagnostic-source/packages/diffusion-cpp
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --ignore-scripts
+          npm install --prefix "$GITHUB_WORKSPACE/diagnostic-runtime" --ignore-scripts bare-runtime@1.35.0
+          npm run link:platform
+          npm ls --json > "$GITHUB_WORKSPACE/diagnostic-results/dependencies.json" || true
+          node --version > "$GITHUB_WORKSPACE/diagnostic-results/node-version.txt"
+          "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/.bin/bare" --version > "$GITHUB_WORKSPACE/diagnostic-results/bare-version.txt"
+
+      - name: Repeat the unchanged parity assertions on CUDA and Vulkan
+        shell: bash
+        run: |
+          node .github/scripts/diffusion-kv-diagnostic.mjs \
+            --workdir "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp" \
+            --output "$GITHUB_WORKSPACE/diagnostic-results" \
+            --bare "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/.bin/bare"
+
+      - name: Upload diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 4.6.2
+        with:
+          name: diffusion-kv-diagnostic-${{ matrix.os }}-${{ github.run_id }}
+          path: diagnostic-results
+          if-no-files-found: warn
+          retention-days: 14
