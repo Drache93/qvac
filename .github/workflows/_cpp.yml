@@ -223,12 +223,14 @@ jobs:
         with:
           key: ${{ steps.models.outputs.key }}
           path: ${{ steps.models.outputs.paths }}
+          enable-cross-os-archive: "true"
       - if: runner.environment != 'github-hosted' && env.TRUSTED != 'true'
         uses: ./.github/actions/cache-restore
         with:
           key: ${{ steps.models.outputs.key }}
           restore-keys: ${{ steps.models.outputs.restore-prefix }}
           path: ${{ steps.models.outputs.paths }}
+          enable-cross-os-archive: "true"
       - uses: ./.github/actions/download-models
         with:
           workdir: ${{ env.WORKDIR }}

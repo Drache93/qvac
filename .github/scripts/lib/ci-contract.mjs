@@ -18,6 +18,8 @@ export const GROUP_WORKFLOWS = [
 ]
 
 export const SELECT_WORKFLOW = '_select-projects.yml'
+// Shared reusable workflows that select nothing, so a group may call them as they are.
+export const SHARED_CALLEES = ['reusable-fork-approval.yml', 'create-release-tag.yml']
 export const ACTION_LINE_CAP = 60
 export const WORKFLOW_LINE_CAP = 400
 
@@ -187,7 +189,7 @@ export function checkSelectionOnce(root) {
     if (SELECTION_MARKERS.some((re) => re.test(g.text))) out.push(`${g.name} runs selection logic itself; use ${SELECT_WORKFLOW}`)
     for (const m of g.text.matchAll(/uses:\s*\.\/\.github\/workflows\/([A-Za-z0-9._-]+)/g)) {
       const callee = m[1]
-      if (callee === SELECT_WORKFLOW || callee === 'reusable-fork-approval.yml' || JOB_TEMPLATES.includes(callee)) continue
+      if (callee === SELECT_WORKFLOW || SHARED_CALLEES.includes(callee) || JOB_TEMPLATES.includes(callee)) continue
       out.push(`${g.name} calls ${callee}; keep the group's work as jobs so nothing recomputes the selection`)
     }
   }

@@ -1,0 +1,240 @@
+name: Publish to npm
+
+# Release publishing for packages on the CI contract: a push to release-<dir>-x.y.z builds and publishes that package alone.
+on:
+  push:
+    branches: [release-*, "!release-train-*"]
+    paths: ["packages/**"]
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated package names or directories to publish
+        type: string
+        required: true
+      npm_tag:
+        description: npm dist-tag override; empty uses the package's own, else latest
+        type: string
+        default: ""
+      dry_run:
+        description: Build and pack without publishing or tagging
+        type: boolean
+        default: false
+      config_ref:
+        description: Ref to take actions, scripts and package settings from; empty means the default branch
+        type: string
+        default: ""
+  # Registers the workflow from a branch; every job is off for this event.
+  pull_request:
+    paths: [.github/workflows/publish-npm.yml]
+
+permissions: {}
+
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  select:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_select-projects.yml
+    with:
+      targets: build,verify:generated,publish
+      packages: ${{ inputs.packages }}
+      mode: owners
+      config-ref: ${{ inputs.config_ref }}
+
+  logic:
+    needs: select
+    if: needs.select.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      publish_release: ${{ steps.logic.outputs.publish_release }}
+    steps:
+      - id: logic
+        uses: tetherto/qvac-actions/npm-publish-logic@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+      - name: A release branch publishes its own package alone
+        if: startsWith(github.ref_name, 'release-')
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          SLUGS: ${{ toJSON(fromJSON(needs.select.outputs.projects).*.slug) }}
+        run: |
+          [[ "$REF_NAME" =~ ^release-(.+)-([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo "::error::Expected release-<package>-x.y.z, got $REF_NAME. See docs/gitflow.md."; exit 1; }
+          pkg="${BASH_REMATCH[1]}"
+          [ "$(jq -c . <<< "$SLUGS")" = "[\"$pkg\"]" ] || { echo "::error::release-$pkg-* publishes packages/$pkg alone; this push selected $SLUGS"; exit 1; }
+
+  # git diff runs in the workspace root, so the pushed release commit is checked out there, as on the old path.
+  release-merge-guard:
+    needs: [select, logic]
+    if: startsWith(github.ref_name, 'release-')
+    name: release-merge-guard ${{ matrix.project.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.select.outputs.projects) }}
+    steps:
+      - name: Checkout source and actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/release-merge-guard
+        with:
+          base-ref: ${{ github.ref_name }}
+          base-sha: ${{ github.event.before }}
+          head-sha: ${{ github.sha }}
+          package-slug: ${{ matrix.project.slug }}
+          package-json-path: ${{ matrix.project.dir }}/package.json
+          changelog-path: ${{ matrix.project.dir }}/CHANGELOG.md
+
+  verify:
+    needs: select
+    if: toJSON(fromJSON(needs.select.outputs.matrices)['verify:generated']) != '[]'
+    name: verify:generated ${{ matrix.row.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(needs.select.outputs.matrices)['verify:generated'] }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          path: src
+          persist-credentials: "false"
+      - uses: ./.github/actions/setup-node
+        with:
+          node-version: "20"
+      - shell: bash
+        working-directory: src/${{ matrix.row.cwd }}
+        env:
+          COMMAND: ${{ matrix.row.command }}
+        run: |
+          corepack enable
+          npm install --ignore-scripts --package-lock=false
+          bash -c "$COMMAND"
+
+  build:
+    needs: [select, logic]
+    if: toJSON(fromJSON(needs.select.outputs.matrices).build) != '[]'
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
+      config-ref: ${{ inputs.config_ref }}
+
+  publish:
+    needs: [select, logic, release-merge-guard, verify, build]
+    if: >-
+      always() && !cancelled() && needs.logic.result == 'success' && toJSON(fromJSON(needs.select.outputs.matrices).publish) != '[]' &&
+      (needs.release-merge-guard.result == 'success' || needs.release-merge-guard.result == 'skipped') &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.logic.outputs.publish_release == 'true' || inputs.dry_run)
+    name: publish ${{ matrix.row.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ !inputs.dry_run && 'npm' || '' }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(needs.select.outputs.matrices).publish }}
+    outputs:
+      published_version: ${{ steps.publish.outputs.npm_published_version }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          path: src
+          persist-credentials: "false"
+      # The legs straight into place, which is what a merged bundle would hold.
+      - if: contains(matrix.row.targets, 'build')
+        uses: ./.github/actions/download-artifact
+        with:
+          pattern: prebuild-${{ matrix.row.slug }}-*
+          path: ${{ runner.temp }}/prebuilds
+          merge-multiple: "true"
+      - if: contains(matrix.row.targets, 'build')
+        uses: ./.github/actions/place-prebuilds
+        with:
+          staging: ${{ runner.temp }}/prebuilds
+          workdir: ${{ env.WORKDIR }}
+          extra-dirs: ${{ join(matrix.row.meta.prebuildExtraDirs, ' ') }}
+      - if: inputs.npm_tag != ''
+        shell: bash
+        env:
+          NPM_TAG: ${{ inputs.npm_tag }}
+        run: |
+          grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]*$' <<< "$NPM_TAG" || { echo "::error::Invalid npm dist-tag '$NPM_TAG'"; exit 1; }
+      - id: dist-tag
+        uses: tetherto/qvac-actions/npm-dist-tag-determination@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+        with:
+          workdir: ${{ env.WORKDIR }}
+          tag: ${{ matrix.row.meta.npmTagOverride || inputs.npm_tag || 'latest' }}
+      - id: publish
+        if: ${{ !inputs.dry_run }}
+        uses: tetherto/qvac-actions/publish-library-to-npm@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+        with:
+          workdir: ${{ env.WORKDIR }}
+          tag: ${{ steps.dist-tag.outputs.tag }}
+      - if: inputs.dry_run
+        shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          DIST_TAG: ${{ steps.dist-tag.outputs.tag }}
+        run: |
+          npm pack --dry-run --ignore-scripts --json > "$RUNNER_TEMP/pack.json"
+          {
+            echo "## Dry run: $(jq -r '.[0].id' "$RUNNER_TEMP/pack.json") with tag $DIST_TAG"
+            echo
+            echo '```'
+            jq -r '.[0].files[] | "\(.size)\t\(.path)"' "$RUNNER_TEMP/pack.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  create-tag:
+    needs: [select, publish]
+    if: needs.publish.result == 'success' && needs.publish.outputs.published_version != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(needs.select.outputs.matrices).publish }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/create-release-tag.yml
+    with:
+      repo_name: ${{ matrix.row.meta.repoName }}
+      published_version: ${{ needs.publish.outputs.published_version }}

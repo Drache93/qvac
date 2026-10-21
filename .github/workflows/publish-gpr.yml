@@ -1,0 +1,152 @@
+name: Publish to GitHub Packages
+
+# Prerelease builds of packages on the CI contract as @tetherto/<name>-mono. Dispatch only: a branch pushed here can be an open PR's head.
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated package names or directories to publish
+        type: string
+        required: true
+      tag:
+        description: Dist-tag; auto uses the one the branch implies
+        type: choice
+        options: [auto, latest, dev, feature, temp]
+        default: auto
+      config_ref:
+        description: Ref to take actions, scripts and package settings from; empty means the default branch
+        type: string
+        default: ""
+  # Registers the workflow from a branch; every job is off for this event.
+  pull_request:
+    paths: [.github/workflows/publish-gpr.yml]
+
+permissions: {}
+
+concurrency:
+  group: publish-gpr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  select:
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_select-projects.yml
+    with:
+      targets: build,verify:generated,publish
+      packages: ${{ inputs.packages }}
+      config-ref: ${{ inputs.config_ref }}
+
+  logic:
+    needs: select
+    if: needs.select.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      publish: ${{ steps.logic.outputs.publish_main == 'true' || steps.logic.outputs.publish_feature == 'true' || steps.logic.outputs.publish_tmp == 'true' }}
+      tag: ${{ inputs.tag != 'auto' && inputs.tag || steps.logic.outputs.gpr_tag }}
+    steps:
+      - id: logic
+        uses: tetherto/qvac-actions/npm-publish-logic@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+
+  verify:
+    needs: [select, logic]
+    if: needs.logic.outputs.publish == 'true' && toJSON(fromJSON(needs.select.outputs.matrices)['verify:generated']) != '[]'
+    name: verify:generated ${{ matrix.row.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(needs.select.outputs.matrices)['verify:generated'] }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          path: src
+          persist-credentials: "false"
+      - uses: ./.github/actions/setup-node
+        with:
+          node-version: "20"
+      - shell: bash
+        working-directory: src/${{ matrix.row.cwd }}
+        env:
+          COMMAND: ${{ matrix.row.command }}
+        run: |
+          corepack enable
+          npm install --ignore-scripts --package-lock=false
+          bash -c "$COMMAND"
+
+  build:
+    needs: [select, logic]
+    if: needs.logic.outputs.publish == 'true' && toJSON(fromJSON(needs.select.outputs.matrices).build) != '[]'
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
+      config-ref: ${{ inputs.config_ref }}
+
+  publish:
+    needs: [select, logic, verify, build]
+    if: >-
+      always() && !cancelled() && needs.logic.outputs.publish == 'true' && toJSON(fromJSON(needs.select.outputs.matrices).publish) != '[]' &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    name: publish ${{ matrix.row.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(needs.select.outputs.matrices).publish }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          path: src
+          persist-credentials: "false"
+      # The legs straight into place; this group has no merged bundle to wait for.
+      - if: contains(matrix.row.targets, 'build')
+        uses: ./.github/actions/download-artifact
+        with:
+          pattern: prebuild-${{ matrix.row.slug }}-*
+          path: ${{ runner.temp }}/prebuilds
+          merge-multiple: "true"
+      - if: contains(matrix.row.targets, 'build')
+        uses: ./.github/actions/place-prebuilds
+        with:
+          staging: ${{ runner.temp }}/prebuilds
+          workdir: ${{ env.WORKDIR }}
+          extra-dirs: ${{ join(matrix.row.meta.prebuildExtraDirs, ' ') }}
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/publish-gpr
+        with:
+          workdir: ${{ env.WORKDIR }}
+          tag: ${{ needs.logic.outputs.tag }}
+          token: ${{ github.token }}

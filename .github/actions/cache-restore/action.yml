@@ -11,6 +11,9 @@ inputs:
   restore-keys:
     description: Newline-separated prefixes to fall back to
     default: ""
+  enable-cross-os-archive:
+    description: Let Windows restore an entry saved on Linux or macOS
+    default: "false"
 
 outputs:
   cache-hit:
@@ -29,3 +32,4 @@ runs:
         path: ${{ inputs.path }}
         key: ${{ inputs.key }}
         restore-keys: ${{ inputs.restore-keys }}
+        enableCrossOsArchive: ${{ inputs.enable-cross-os-archive }}

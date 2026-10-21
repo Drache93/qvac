@@ -121,6 +121,7 @@ jobs:
           key: ${{ steps.models.outputs.key }}
           restore-keys: ${{ steps.models.outputs.restore-prefix }}
           path: ${{ steps.models.outputs.paths }}
+          enable-cross-os-archive: "true"
       - uses: ./.github/actions/download-models
         with:
           workdir: ${{ env.WORKDIR }}

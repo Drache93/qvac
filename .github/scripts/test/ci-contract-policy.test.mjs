@@ -149,7 +149,7 @@ test('a group selects once and never recomputes the selection', () => {
   const ok = fixture({
     workflows: {
       'pr-build-test.yml':
-        'jobs:\n  select:\n    uses: ./.github/workflows/_select-projects.yml\n  approve:\n    uses: ./.github/workflows/reusable-fork-approval.yml\n  build:\n    uses: ./.github/workflows/_build.yml\n',
+        'jobs:\n  select:\n    uses: ./.github/workflows/_select-projects.yml\n  approve:\n    uses: ./.github/workflows/reusable-fork-approval.yml\n  build:\n    uses: ./.github/workflows/_build.yml\n  tag:\n    uses: ./.github/workflows/create-release-tag.yml\n',
       '_select-projects.yml': job('      - run: npx nx show projects --affected\n'),
     },
   })
