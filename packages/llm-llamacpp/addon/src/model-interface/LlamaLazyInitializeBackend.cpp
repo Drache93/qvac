@@ -1,5 +1,6 @@
 #include "LlamaLazyInitializeBackend.hpp"
 
+#include <cstdio>
 #include <filesystem>
 #include <string>
 #include <unordered_set>
@@ -27,6 +28,19 @@ namespace {
 // runtime's logger: the modules keep ggml's default callback, which writes
 // every line to stderr, DEBUG included (e.g. "CUDA Graph id N reused" on each
 // decode). Install the addon callback into each module's own copy as well.
+//
+// The modules are shared by every fabric addon in the process, so whichever
+// addon installs last receives all their lines, as with llama_log_set() on
+// the runtime. ERROR lines also go to stderr synchronously: JsLogger delivers
+// asynchronously, and a CUDA error logs its details just before GGML_ABORT.
+void backendModuleLogCallback(
+    ggml_log_level level, const char* text, void* userData) {
+  if (level == GGML_LOG_LEVEL_ERROR && text != nullptr) {
+    std::fputs(text, stderr);
+  }
+  LlamaModel::llamaLogCallback(level, text, userData);
+}
+
 void setLogCallbackInBackendModules() {
   using LogSetFn = void (*)(ggml_log_callback, void*);
   std::unordered_set<std::string> modulePaths;
@@ -44,7 +58,7 @@ void setLogCallbackInBackendModules() {
     }
     if (auto* logSet =
             reinterpret_cast<LogSetFn>(dlsym(handle, "ggml_log_set"))) {
-      logSet(LlamaModel::llamaLogCallback, nullptr);
+      logSet(backendModuleLogCallback, nullptr);
     }
     dlclose(handle);
   }
