@@ -26,10 +26,6 @@ on:
         description: Comma-separated package names or directories; empty warms every package on the contract
         type: string
         default: ""
-      config_ref:
-        description: Ref to take actions, scripts and package settings from; empty means the default branch
-        type: string
-        default: ""
   # Registers the workflow from a branch; every job is off for this event.
   pull_request:
     paths: [.github/workflows/cache-warm.yml]
@@ -52,7 +48,7 @@ jobs:
       - shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run cache-warm.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f config_ref="$GITHUB_REF_NAME"  # TEMP rehearsal: config_ref
+        run: gh workflow run cache-warm.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
 
   select:
     if: github.event_name == 'workflow_dispatch'
@@ -62,7 +58,6 @@ jobs:
     with:
       targets: cache:models,cpp:build,cpp:tests
       packages: ${{ inputs.packages }}
-      config-ref: ${{ inputs.config_ref }}
 
   # One entry per package and target that restores models; a hit is still downloaded, which resets the prune clock.
   models:
@@ -87,7 +82,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
@@ -132,5 +127,4 @@ jobs:
     secrets: inherit
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
-      config-ref: ${{ inputs.config_ref }}
       trusted: true

@@ -7,7 +7,17 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const SPEC = /^(@(qvac|tetherto)\/)?[a-z0-9][a-z0-9._-]*(@[~^]?[A-Za-z0-9][A-Za-z0-9._+-]*)?$/
-const EXACT = /^[0-9]+\.[0-9]+\.[0-9]+([-+][A-Za-z0-9._-]+)*$/
+const EXACT = /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9._+-]+)?$/
+
+// The host itself, not a prefix: https://npm.pkg.github.com.evil.example would pass a startsWith.
+export function isGprRegistry(url) {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && u.host === 'npm.pkg.github.com'
+  } catch {
+    return false
+  }
+}
 
 export function specFor(pkg, addon) {
   if (/^@[^/]+\//.test(pkg)) return pkg
@@ -64,7 +74,7 @@ export function packPrebuilds({ workdir, pkg, addon, platform, pinned, token, tm
       chmodSync(npmrc, 0o600)
       writeFileSync(npmrc, `@tetherto:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=${token}\n`)
       const registry = String(run('npm', ['config', 'get', '@tetherto:registry'], { cwd: packDir, encoding: 'utf8', stdio: 'pipe' })).trim()
-      if (!registry.startsWith('https://npm.pkg.github.com')) throw new Error(`@tetherto resolves to '${registry}'; the .npmrc in ${packDir} is shadowed`)
+      if (!isGprRegistry(registry)) throw new Error(`@tetherto resolves to '${registry}'; the .npmrc in ${packDir} is shadowed`)
     }
     const meta = packOne(spec, join(packDir, 'meta'), { packDir, run })
     if (meta.name !== name) throw new Error(`resolved to ${meta.name} but the spec named ${name}`)

@@ -16,10 +16,6 @@ on:
         description: JSON map of awaited dependency key to its producing run id
         type: string
         default: "{}"
-      config-ref:
-        description: Ref the actions and scripts come from; empty means the default branch
-        type: string
-        default: ""
       trusted:
         description: Write the vcpkg and model caches; honoured only off pull requests, on the default branch
         type: boolean
@@ -49,7 +45,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
             .github/actions
             .github/scripts
@@ -138,7 +134,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
             .github/actions
             .github/scripts

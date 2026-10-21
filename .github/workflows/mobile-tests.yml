@@ -54,10 +54,6 @@ on:
         description: Comma-separated package names or directories; empty selects every package with test:mobile
         type: string
         default: ""
-      config_ref:
-        description: Ref to take actions, scripts and package settings from; empty means the default branch
-        type: string
-        default: ""
   # Registers the workflow from a branch; every job is off for this event.
   pull_request:
     paths: [.github/workflows/mobile-tests.yml]
@@ -83,7 +79,6 @@ jobs:
     with:
       targets: test:mobile
       packages: ${{ inputs.packages }}
-      config-ref: ${{ inputs.config_ref }}
 
   # Fails before any build: who dispatched, which install source, and whether the devices exist.
   check:
@@ -104,7 +99,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: trust
@@ -114,11 +109,16 @@ jobs:
       - shell: bash
         env:
           HAS_WRITE: ${{ steps.trust.outputs.has_write }}
+          SUFFIX: ${{ matrix.row.meta.devicefarmSecrets }}
           PACKAGE: ${{ inputs.package }}
           RUN_ID: ${{ inputs.prebuild_run_id }}
         run: |
           if [ "$HAS_WRITE" != 1 ]; then echo "::error::Dispatching mobile tests needs write access"; exit 1; fi
           if [ -n "$PACKAGE" ] && [ -n "$RUN_ID" ]; then echo "::error::Set package or prebuild_run_id, not both"; exit 1; fi
+          case "$SUFFIX" in
+            LLAMACPP_EMBED) ;;
+            *) echo "::error::No Device Farm project secret is mapped for '$SUFFIX'; add it to PROJECT_ARN in mobile-tests.yml"; exit 1 ;;
+          esac
       # Data only, from the ref the build will use; nothing here is executed.
       - name: Checkout test groups
         uses: ./.github/actions/checkout
@@ -158,12 +158,13 @@ jobs:
         row: ${{ fromJSON(needs.select.outputs.matrices)['test:mobile'] }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
-      PROJECT_ARN: ${{ secrets[format('AWS_DEVICE_FARM_PROJECT_ARN_{0}', matrix.row.meta.devicefarmSecrets)] }}
+      # Named one by one: indexing secrets by an expression hands every secret to the runner.
+      PROJECT_ARN: ${{ matrix.row.meta.devicefarmSecrets == 'LLAMACPP_EMBED' && secrets.AWS_DEVICE_FARM_PROJECT_ARN_LLAMACPP_EMBED || '' }}
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
             .github/actions
             scripts/perf-report

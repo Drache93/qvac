@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { isRegistrySpec, nameOf, packPrebuilds, sliceFor, specFor } from './pack-npm-prebuilds.mjs'
+import { isExact, isGprRegistry, isRegistrySpec, nameOf, packPrebuilds, sliceFor, specFor } from './pack-npm-prebuilds.mjs'
 
 // Fake npm: `npm pack <spec>` unpacks the registry entry for spec straight into dest/package.
 function fakeRun(registry, calls = []) {
@@ -35,6 +35,24 @@ test('only plain registry specs reach npm', () => {
   for (const bad of ['@qvac/a@git+https://x', '@evil/a@1', 'github:o/r', '@qvac/a@1 --x']) assert.equal(isRegistrySpec(bad), false, bad)
   assert.equal(nameOf('@qvac/a@1.0.0'), '@qvac/a')
   assert.equal(nameOf('@tetherto/a-mono'), '@tetherto/a-mono')
+})
+
+test('the GPR registry is matched by host, not by prefix', () => {
+  assert.equal(isGprRegistry('https://npm.pkg.github.com'), true)
+  assert.equal(isGprRegistry('https://npm.pkg.github.com/'), true)
+  assert.equal(isGprRegistry('https://npm.pkg.github.com.evil.example/'), false)
+  assert.equal(isGprRegistry('http://npm.pkg.github.com'), false)
+  assert.equal(isGprRegistry('not a url'), false)
+})
+
+test('an exact version is recognised quickly, even on input built to backtrack', () => {
+  assert.equal(isExact('0.33.0'), true)
+  assert.equal(isExact('0.33.0-tmp.pr-12.runid-9'), true)
+  assert.equal(isExact('1.0.0+build.5'), true)
+  assert.equal(isExact('^0.33.0'), false)
+  const start = Date.now()
+  assert.equal(isExact(`0.0.0+${'--'.repeat(5000)}!`), false)
+  assert.ok(Date.now() - start < 100)
 })
 
 test('an npmjs build lands its prebuilds/ in the package', () => {

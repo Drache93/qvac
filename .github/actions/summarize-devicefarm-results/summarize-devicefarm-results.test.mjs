@@ -6,6 +6,11 @@ import { join } from 'node:path'
 
 import { collect, device, markdown, normalize, parseTap } from './summarize-devicefarm-results.mjs'
 
+test('table cells escape backslashes before the pipes they would otherwise unescape', () => {
+  const md = markdown({ devices: ['Pixel'], runners: { 'run\\|x': { Pixel: { status: 'passed' } } }, cases: {} }, 'T')
+  assert.match(md, /\| run\\\\\\\|x \|/)
+})
+
 test('names merge across devices and runs', () => {
   assert.equal(normalize('CacheTokens (53) > 0'), 'CacheTokens (N) > 0')
   assert.equal(normalize('output matches. Found "abc"'), 'output matches')

@@ -28,7 +28,7 @@ export function exportOptions({ method, teamId, bundleId, profileUuid }) {
     kv('signingStyle', 'manual'),
     '  <key>provisioningProfiles</key>',
     '  <dict>',
-    `  ${kv(bundleId, profileUuid).replace('\n', '\n  ')}`,
+    `  ${kv(bundleId, profileUuid).replaceAll('\n', '\n  ')}`,
     '  </dict>',
     '</dict>',
     '</plist>',

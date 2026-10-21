@@ -59,7 +59,7 @@ export function collect(dir, files = readdirSync(dir)) {
   return { devices: [...devices].sort(), runners, cases }
 }
 
-const esc = (t) => t.replace(/\|/g, '\\|').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/`/g, "'")
+const esc = (t) => t.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/`/g, "'")
 const ICON = { passed: '✅', failed: '❌', skipped: '⏭️' }
 const cell = (r, ms) => (r ? `${ICON[r.status] || '–'}${r.status !== 'skipped' && ms ? ` ${Math.floor(ms / 1000)}s` : ''}` : '–')
 

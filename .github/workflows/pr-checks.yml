@@ -11,10 +11,6 @@ on:
         description: Comma-separated package names or directories; empty selects every package on the contract
         type: string
         default: ""
-      config_ref:
-        description: Ref to take actions, scripts and package settings from; empty means the default branch
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -29,7 +25,6 @@ jobs:
     with:
       targets: lint,typecheck,test:unit,verify:generated
       packages: ${{ inputs.packages }}
-      config-ref: ${{ inputs.config_ref || github.head_ref }}  # TEMP rehearsal: head_ref fallback
 
   checks:
     needs: select
@@ -45,7 +40,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ inputs.config_ref || github.head_ref || github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout pull request
