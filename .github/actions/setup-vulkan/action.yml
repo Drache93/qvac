@@ -6,10 +6,10 @@ inputs:
     description: x.y.z.n or latest; empty reads .github/config/vulkan-sdk-version.txt
     default: ""
   arch:
-    description: Build architecture; arm64 on Linux builds the SDK or restores it from S3
+    description: The runner's own architecture; arm64 on Linux builds the SDK or restores it from S3
     required: true
   sdk-root:
-    description: Preinstalled SDK path on the runner, used instead of installing
+    description: Preinstalled SDK path; empty uses the self-hosted image's own SDK where present
     default: ""
   cache-bucket:
     description: S3 bucket of the Linux arm64 SDK cache; the job holds the credentials

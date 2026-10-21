@@ -26,6 +26,12 @@ export function filesSources({ hostDir, cacheDir, trusted }) {
   return `clear${host};files,${cacheDir},readwrite`
 }
 
+// The groups check the PR out under src/; the path reaches GITHUB_ENV, so nothing else is allowed.
+export function cacheDirFor(workspace, workdir) {
+  if (!/^(src\/)?packages\/[A-Za-z0-9._-]+$/.test(workdir || '')) throw new Error(`unexpected workdir: ${workdir}`)
+  return resolve(workspace, workdir, 'vcpkg', 'cache')
+}
+
 function writable(dir) {
   try {
     if (!existsSync(dir)) {
@@ -49,8 +55,7 @@ function main(env) {
   if (env.MODE === 's3') {
     lines = [`VCPKG_BINARY_SOURCES=${s3Sources({ bucket: env.CACHE_BUCKET, platform: env.PLATFORM, arch: env.ARCH })}`]
   } else {
-    if (!/^packages\/[A-Za-z0-9._-]+$/.test(env.WORKDIR || '')) throw new Error(`unexpected workdir: ${env.WORKDIR}`)
-    const cacheDir = resolve(env.GITHUB_WORKSPACE, env.WORKDIR, 'vcpkg', 'cache')
+    const cacheDir = cacheDirFor(env.GITHUB_WORKSPACE, env.WORKDIR)
     mkdirSync(cacheDir, { recursive: true })
     const selfHosted = env.RUNNER_ENVIRONMENT !== 'github-hosted'
     const hostDir = selfHosted ? hostCandidates(env).find(writable) || '' : ''

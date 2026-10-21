@@ -83,13 +83,23 @@ async function install(env, version) {
   }
 }
 
+// Where the self-hosted images ship an SDK; a hosted runner has neither and installs one.
+export const IMAGE_ROOTS = { 'linux-x64': '/opt/vulkansdk/x86_64', 'windows-x64': 'C:\\VulkanSDK' }
+
+export function preinstalledRoot(env, exists) {
+  if (env.SDK_ROOT) return exists(env.SDK_ROOT) ? env.SDK_ROOT : ''
+  const root = IMAGE_ROOTS[`${env.RUNNER_OS === 'Windows' ? 'windows' : 'linux'}-${env.ARCH}`]
+  return root && exists(root) ? root : ''
+}
+
 async function main(env) {
   if (env.RUNNER_OS === 'macOS') return console.log('No Vulkan SDK step on macOS')
   const config = '.github/config/vulkan-sdk-version.txt'
   const version = resolveVersion(env.INPUT_VERSION, existsSync(config) ? readFileSync(config, 'utf8') : '')
   const os = env.RUNNER_OS === 'Windows' ? 'windows' : 'linux'
-  const preinstalled = Boolean(env.SDK_ROOT && existsSync(env.SDK_ROOT))
-  const r = preinstalled ? { sdk: env.SDK_ROOT } : await install(env, version)
+  const root = preinstalledRoot(env, existsSync)
+  const preinstalled = Boolean(root)
+  const r = preinstalled ? { sdk: root } : await install(env, version)
   const { lines, path } = preinstalled ? preinstalledEnv(os, r.sdk) : envFor(os, r.sdk, env)
   appendFileSync(env.GITHUB_ENV, lines.map((l) => `${l}\n`).join(''))
   if (path) appendFileSync(env.GITHUB_PATH, `${path}\n`)

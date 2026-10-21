@@ -36,7 +36,7 @@ const gh = (args) => {
   return out ? JSON.parse(out) : null
 }
 
-async function main(env) {
+export function awaitProducerFromEnv(env) {
   const lookupRun = (id) => {
     if (!id) return null
     try {
@@ -45,7 +45,7 @@ async function main(env) {
       return /\b404\b|Not Found/i.test(`${err?.stderr ?? ''}${err?.message ?? ''}`) ? null : LOOKUP_FAILED
     }
   }
-  const { code, runId } = await awaitProducer({
+  return awaitProducer({
     pkg: env.PACKAGE,
     prUpdatedEpoch: Math.floor(Date.parse(env.PR_UPDATED_AT) / 1000),
     fetchStatuses: () => flattenPages(gh([`repos/${env.REPO}/commits/${env.HEAD_SHA}/statuses`, '--paginate', '--slurp']) ?? []),
@@ -56,6 +56,10 @@ async function main(env) {
     timeoutMs: 180 * 60 * 1000,
     log: (m) => console.log(m),
   })
+}
+
+async function main(env) {
+  const { code, runId } = await awaitProducerFromEnv(env)
   if (runId) appendFileSync(env.GITHUB_OUTPUT, `run-id=${runId}\n`)
   process.exitCode = code
 }

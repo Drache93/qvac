@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { downloadUrl, envFor, preinstalledEnv, resolveVersion, sdkVersionFromReadme } from './setup-vulkan.mjs'
+import { downloadUrl, envFor, preinstalledEnv, preinstalledRoot, resolveVersion, sdkVersionFromReadme } from './setup-vulkan.mjs'
 
 test('the version comes from the input, then the config file, then latest', () => {
   assert.equal(resolveVersion('1.4.313.0', '1.3.0.0'), '1.4.313.0')
@@ -29,4 +29,13 @@ test('a preinstalled SDK exports only what the old workflow did', () => {
 
 test('the arm64 cache key version is read from the SDK README for latest', () => {
   assert.equal(sdkVersionFromReadme('see https://vulkan.lunarg.com/sdk/1.4.313.0/linux'), '1.4.313.0')
+})
+
+test('a self-hosted image SDK is used where it exists; a hosted runner installs', () => {
+  const has = (p) => p === '/opt/vulkansdk/x86_64' || p === 'C:\\VulkanSDK'
+  assert.equal(preinstalledRoot({ RUNNER_OS: 'Linux', ARCH: 'x64' }, has), '/opt/vulkansdk/x86_64')
+  assert.equal(preinstalledRoot({ RUNNER_OS: 'Windows', ARCH: 'x64' }, has), 'C:\\VulkanSDK')
+  assert.equal(preinstalledRoot({ RUNNER_OS: 'Linux', ARCH: 'x64' }, () => false), '')
+  assert.equal(preinstalledRoot({ RUNNER_OS: 'Linux', ARCH: 'arm64' }, has), '')
+  assert.equal(preinstalledRoot({ RUNNER_OS: 'Linux', ARCH: 'x64', SDK_ROOT: '/x' }, has), '')
 })

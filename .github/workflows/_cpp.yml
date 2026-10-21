@@ -1,0 +1,249 @@
+name: C++ lint and tests
+
+# cpp:lint formats and tidies the changed sources; cpp:tests builds with cpp:build, then runs on the same runner.
+on:
+  workflow_call:
+    inputs:
+      lint-rows:
+        description: JSON cpp:lint rows
+        type: string
+        default: "[]"
+      rows:
+        description: JSON cpp:tests rows, on cpp:build's runners
+        type: string
+        default: "[]"
+      deps:
+        description: JSON map of awaited dependency key to its producing run id
+        type: string
+        default: "{}"
+      config-ref:
+        description: Ref the actions and scripts come from; empty means the default branch
+        type: string
+        default: ""
+      trusted:
+        description: Write the vcpkg and model caches; honoured only off pull requests, on the default branch
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  lint:
+    if: inputs.lint-rows != '[]'
+    name: lint ${{ matrix.row.slug }}
+    runs-on: ${{ matrix.row.runner }}
+    environment: release
+    timeout-minutes: ${{ matrix.row.timeout || 120 }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(inputs.lint-rows) }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+      BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
+            .github/config
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: src
+          fetch-depth: "0"
+          persist-credentials: "false"
+      # vcpkg's S3 binary cache, which generate reads through the AWS CLI.
+      - uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-central-1
+      - uses: ./.github/actions/setup-aws-cli
+      - uses: ./.github/actions/bootstrap-vcpkg
+      - uses: ./.github/actions/cache-vcpkg
+        with:
+          mode: s3
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+          platform: ${{ matrix.row.platform }}
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          arch: ${{ matrix.row.arch }}
+      # The global bare-make pin selects system clang; the package-local one is current.
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          npm install
+          npm install --no-save --ignore-scripts bare-make
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        uses: ./.github/actions/download-artifact
+        with:
+          name: ${{ matrix.row.waits[0].artifact }}
+          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
+          path: ${{ runner.temp }}/dep-prebuilds
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        shell: bash
+        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}"
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: bare-make generate -D ENABLE_VULKAN=OFF
+      - id: format
+        continue-on-error: true
+        uses: ./.github/actions/check-cpp-format
+        with:
+          repo-dir: src
+          workdir: ${{ matrix.row.dir }}
+          base: ${{ env.BASE }}
+      - id: tidy
+        continue-on-error: true
+        uses: ./.github/actions/tidy-changed-cpp
+        with:
+          workdir: ${{ env.WORKDIR }}
+          base: ${{ env.BASE }}
+      - if: steps.format.outcome == 'failure' || steps.tidy.outcome == 'failure'
+        shell: bash
+        run: echo "::error::C++ format ${{ steps.format.outcome }}, clang-tidy ${{ steps.tidy.outcome }}" && exit 1
+
+  tests:
+    if: inputs.rows != '[]'
+    name: ${{ matrix.row.slug }} ${{ matrix.row.platform }}-${{ matrix.row.arch }}
+    runs-on: ${{ matrix.row.runner }}
+    environment: release
+    timeout-minutes: ${{ matrix.row.timeout || 60 }}
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(inputs.rows) }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+      TRUSTED: ${{ inputs.trusted && github.event_name != 'pull_request_target' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
+            .github/config
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: src
+          persist-credentials: "false"
+      - uses: ./.github/actions/setup-node
+      - if: matrix.row.commands['ci:setup']
+        shell: bash
+        working-directory: src/${{ matrix.row.commands['ci:setup'].cwd }}
+        env:
+          COMMAND: ${{ matrix.row.commands['ci:setup'].command }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GPR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: bash -c "$COMMAND"
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: npm install
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        uses: ./.github/actions/download-artifact
+        with:
+          name: ${{ matrix.row.waits[0].artifact }}
+          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
+          path: ${{ runner.temp }}/dep-prebuilds
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        shell: bash
+        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}"
+      - shell: bash
+        run: npm install -g --force bare bare-make@1.8.0
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-vulkan
+        with:
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/bootstrap-vcpkg
+      - uses: ./.github/actions/cache-vcpkg
+        with:
+          mode: files
+          workdir: ${{ env.WORKDIR }}
+          trusted: ${{ env.TRUSTED }}
+      - uses: ./.github/actions/setup-windows-host
+        with:
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/hash-vcpkg-toolchain
+      # Restore only; the save waits for the build, so a run that compiled nothing never saves an empty entry.
+      - id: vcpkg
+        uses: ./.github/actions/cache-restore
+        with:
+          key: cpp-tests-v6-${{ matrix.row.key || matrix.row.slug }}-${{ matrix.row.platform == 'win32' && 'windows' || matrix.row.platform }}-${{ matrix.row.arch }}-${{ hashFiles(format('{0}/vcpkg.json', env.WORKDIR), format('{0}/vcpkg-configuration.json', env.WORKDIR), 'src/vcpkg-overlays/triplets/**', 'src/vcpkg-overlays/toolchains/**') }}-${{ env.TOOLCHAIN_FINGERPRINT }}
+          path: ${{ env.WORKDIR }}/vcpkg/cache
+      - uses: ./.github/actions/setup-apple-clang
+      - name: cpp:build
+        shell: bash
+        working-directory: src/${{ matrix.row.commands['cpp:build'].cwd }}
+        env:
+          COMMAND: ${{ matrix.row.commands['cpp:build'].command }}
+        run: bash -c "$COMMAND"
+      - if: env.TRUSTED == 'true'
+        uses: ./.github/actions/sync-vcpkg-cache
+      - if: env.TRUSTED == 'true' && hashFiles(format('{0}/vcpkg/cache/**', env.WORKDIR)) != ''
+        uses: ./.github/actions/cache-save
+        with:
+          key: ${{ steps.vcpkg.outputs.cache-primary-key }}
+          path: ${{ env.WORKDIR }}/vcpkg/cache
+      - uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-central-1
+      - id: models
+        uses: ./.github/actions/resolve-model-cache
+        with:
+          workdir: ${{ env.WORKDIR }}
+          target: cpp:tests
+      - if: runner.environment != 'github-hosted' && env.TRUSTED == 'true'
+        uses: ./.github/actions/cache
+        with:
+          key: ${{ steps.models.outputs.key }}
+          path: ${{ steps.models.outputs.paths }}
+      - if: runner.environment != 'github-hosted' && env.TRUSTED != 'true'
+        uses: ./.github/actions/cache-restore
+        with:
+          key: ${{ steps.models.outputs.key }}
+          restore-keys: ${{ steps.models.outputs.restore-prefix }}
+          path: ${{ steps.models.outputs.paths }}
+      - uses: ./.github/actions/download-models
+        with:
+          workdir: ${{ env.WORKDIR }}
+          bucket: ${{ secrets.MODEL_S3_BUCKET }}
+          target: cpp:tests
+      - name: cpp:tests
+        shell: bash
+        working-directory: src/${{ matrix.row.cwd }}
+        env:
+          COMMAND: ${{ matrix.row.command }}
+        run: bash -c "$COMMAND"
+      - if: always()
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: cpp-test-results-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
+          path: ${{ env.WORKDIR }}/build/**/cpp-test-results.xml
+          retention-days: "30"
+          if-no-files-found: warn

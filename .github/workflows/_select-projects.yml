@@ -1,0 +1,72 @@
+name: Select projects
+
+# The only place that reads packages' CI settings, always from the trusted ref.
+on:
+  workflow_call:
+    inputs:
+      targets:
+        description: Comma-separated targets to return a matrix for
+        type: string
+        required: true
+      packages:
+        description: Comma-separated package names or directories; empty selects by change
+        type: string
+        default: ""
+      combine:
+        description: Extra matrices for targets sharing a job, e.g. desktop=test:integration+test:backend
+        type: string
+        default: ""
+      mode:
+        description: affected (changed packages and their dependents) or owners (changed packages only)
+        type: string
+        default: affected
+      config-ref:
+        description: Ref to read settings from on a manual run; empty means the default branch
+        type: string
+        default: ""
+    outputs:
+      matrices:
+        description: JSON object of target to matrix rows
+        value: ${{ jobs.select.outputs.matrices }}
+      projects:
+        description: JSON array of selected packages with their gate key and dependency waits
+        value: ${{ jobs.select.outputs.projects }}
+      any:
+        description: true when any package was selected
+        value: ${{ jobs.select.outputs.any }}
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      matrices: ${{ steps.select.outputs.matrices }}
+      projects: ${{ steps.select.outputs.projects }}
+      any: ${{ steps.select.outputs.any }}
+    steps:
+      # Actions and settings both come from here, so this is a full checkout of the trusted ref.
+      - name: Checkout actions and settings
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - shell: bash
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile --ignore-scripts --filter .
+      - id: select
+        shell: bash
+        env:
+          TARGETS: ${{ inputs.targets }}
+          PACKAGES: ${{ inputs.packages }}
+          COMBINE: ${{ inputs.combine }}
+          MODE: ${{ inputs.mode }}
+          NX_DAEMON: "false"
+          NX_NO_CLOUD: "true"
+        run: node .github/scripts/select-projects.mjs

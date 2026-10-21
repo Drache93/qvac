@@ -1,0 +1,145 @@
+name: Build native prebuilds
+
+# One native build leg per row, uploaded as prebuild-<pkg>-<platform>-<arch><tags>. Rows come from _select-projects.
+on:
+  workflow_call:
+    inputs:
+      rows:
+        description: JSON build rows
+        type: string
+        required: true
+      deps:
+        description: JSON map of awaited dependency key to its producing run id
+        type: string
+        default: "{}"
+      config-ref:
+        description: Ref the actions and scripts come from; empty means the default branch
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  build:
+    name: ${{ matrix.row.slug }} ${{ matrix.row.platform }}-${{ matrix.row.arch }}${{ matrix.row.tags }}
+    runs-on: ${{ matrix.row.runner }}
+    environment: release
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(inputs.rows) }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ inputs.config-ref || github.event.repository.default_branch }}
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
+            .github/config
+            scripts/ci
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: src
+          persist-credentials: "false"
+      - if: runner.environment == 'github-hosted'
+        uses: ./.github/actions/free-disk-space
+        with:
+          keep-android: ${{ matrix.row.platform == 'android' }}
+      - if: runner.environment == 'github-hosted'
+        uses: ./.github/actions/install-apt-packages
+        with:
+          packages: >-
+            ${{ matrix.row.platform == 'linux' && 'libxi-dev libxtst-dev libxrandr-dev' || '' }}
+            ${{ matrix.row.platform == 'android' && 'gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross lld' || '' }}
+            ${{ matrix.row.meta.linuxExtraPackages }}
+      - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
+        uses: ./.github/actions/setup-android-ndk
+      - if: runner.environment == 'github-hosted'
+        uses: ./.github/actions/setup-clang
+      - uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-central-1
+      - uses: ./.github/actions/setup-aws-cli
+      - uses: ./.github/actions/bootstrap-vcpkg
+      - uses: ./.github/actions/cache-vcpkg
+        with:
+          mode: s3
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+          platform: ${{ matrix.row.platform }}
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-windows-host
+        with:
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-apple-clang
+      - id: vulkan
+        uses: ./.github/actions/setup-vulkan
+        with:
+          arch: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+      - if: steps.vulkan.outputs.upload-archive != ''
+        shell: bash
+        run: aws s3 cp "${{ steps.vulkan.outputs.upload-archive }}" "s3://${{ secrets.MODEL_S3_BUCKET }}/${{ steps.vulkan.outputs.upload-key }}"
+      # The global bare-make pin selects system clang; the package-local one is current.
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          npm install -g --force bare-runtime bare-make@1.8.0
+          npm install
+          npm install --no-save --ignore-scripts bare-make
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        uses: ./.github/actions/download-artifact
+        with:
+          name: ${{ matrix.row.waits[0].artifact }}
+          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
+          path: ${{ runner.temp }}/dep-prebuilds
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        shell: bash
+        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}" --tags "${{ matrix.row.tags }}"
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          PLATFORM: ${{ matrix.row.platform }}
+          ARCH: ${{ matrix.row.arch }}
+          FLAGS: ${{ matrix.row.flags }}
+        run: |
+          args=(-D BUILD_TESTING=OFF)
+          if [ "$PLATFORM" = android ]; then args+=(-D ANDROID_STL=c++_shared); fi
+          if [ -n "$FLAGS" ]; then args+=("$FLAGS"); fi
+          bare-make generate --platform "$PLATFORM" --arch "$ARCH" "${args[@]}"
+          bare-make build
+          bare-make install
+      - if: failure()
+        shell: bash
+        run: for f in "$VCPKG_ROOT"/buildtrees/*/{config,install,build}-*.log; do [ -f "$f" ] && { echo "== $f"; tail -200 "$f"; }; done; true
+      - uses: ./.github/actions/strip-binaries
+        with:
+          platform: ${{ matrix.row.platform }}
+          workdir: ${{ env.WORKDIR }}
+      - uses: ./.github/actions/check-exported-symbols
+        with:
+          platform: ${{ matrix.row.platform }}
+          workdir: ${{ env.WORKDIR }}
+          provider: ${{ matrix.row.provider }}
+      - if: matrix.row.platform == 'win32'
+        uses: ./.github/actions/check-windows-runtime
+        with:
+          workdir: ${{ env.WORKDIR }}
+      - uses: ./.github/actions/upload-artifact
+        with:
+          name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}${{ matrix.row.tags }}
+          path: ${{ env.WORKDIR }}/prebuilds

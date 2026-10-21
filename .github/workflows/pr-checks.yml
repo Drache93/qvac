@@ -1,0 +1,78 @@
+name: PR checks
+
+# Lint, typecheck, unit tests and generated files for packages on the CI contract. No secrets, so forks get real results.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, release-*, feature-*, tmp-*]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    uses: ./.github/workflows/_select-projects.yml
+    with:
+      targets: lint,typecheck,test:unit,verify:generated
+
+  checks:
+    needs: select
+    if: needs.select.outputs.any == 'true'
+    name: checks (${{ matrix.project.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.select.outputs.projects) }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - name: Checkout pull request
+        uses: ./.github/actions/checkout
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: src
+          persist-credentials: "false"
+      # The node and install match the TypeScript checks these replace.
+      - uses: ./.github/actions/setup-node
+        with:
+          node-version: "22"
+      - working-directory: src/${{ matrix.project.dir }}
+        run: |
+          corepack enable
+          npm install --ignore-scripts --package-lock=false --registry=https://registry.npmjs.org/
+          npm install --global --force bare --registry=https://registry.npmjs.org/
+      - name: typecheck
+        if: contains(matrix.project.targets, 'typecheck')
+        working-directory: src/${{ matrix.project.commands.typecheck.cwd }}
+        env:
+          COMMAND: ${{ matrix.project.commands.typecheck.command }}
+        run: bash -c "$COMMAND"
+      - name: lint
+        if: contains(matrix.project.targets, 'lint')
+        working-directory: src/${{ matrix.project.commands.lint.cwd }}
+        env:
+          COMMAND: ${{ matrix.project.commands.lint.command }}
+        run: bash -c "$COMMAND"
+      - name: test:unit
+        if: contains(matrix.project.targets, 'test:unit')
+        working-directory: src/${{ matrix.project.commands['test:unit'].cwd }}
+        env:
+          COMMAND: ${{ matrix.project.commands['test:unit'].command }}
+        run: bash -c "$COMMAND"
+      - name: verify:generated
+        if: contains(matrix.project.targets, 'verify:generated')
+        working-directory: src/${{ matrix.project.commands['verify:generated'].cwd }}
+        env:
+          COMMAND: ${{ matrix.project.commands['verify:generated'].command }}
+        run: bash -c "$COMMAND"

@@ -11,6 +11,7 @@ import {
   checkNoNestedLocalActions,
   checkNoPackageNames,
   checkSelectionOnce,
+  checkWorkflowSize,
   checkThirdPartyUses,
 } from '../lib/ci-contract.mjs'
 
@@ -148,11 +149,17 @@ test('a group selects once and never recomputes the selection', () => {
   const ok = fixture({
     workflows: {
       'pr-build-test.yml':
-        'jobs:\n  select:\n    uses: ./.github/workflows/_select-projects.yml\n  approve:\n    uses: ./.github/workflows/reusable-fork-approval.yml\n',
+        'jobs:\n  select:\n    uses: ./.github/workflows/_select-projects.yml\n  approve:\n    uses: ./.github/workflows/reusable-fork-approval.yml\n  build:\n    uses: ./.github/workflows/_build.yml\n',
       '_select-projects.yml': job('      - run: npx nx show projects --affected\n'),
     },
   })
   assert.deepEqual(checkSelectionOnce(ok), [])
+})
+
+test('a group workflow is at most 400 lines', () => {
+  const big = fixture({ workflows: { 'pr-checks.yml': 'x\n'.repeat(401) } })
+  assert.match(checkWorkflowSize(big)[0], /pr-checks\.yml is 401 lines/)
+  assert.deepEqual(checkWorkflowSize(fixture({ workflows: { 'pr-checks.yml': 'x\n'.repeat(400) } })), [])
 })
 
 test('an action the groups call may not call a local action', () => {
@@ -170,4 +177,5 @@ test('the repository passes every contract check', () => {
   assert.deepEqual(checkActionTests(root), [])
   assert.deepEqual(checkSelectionOnce(root), [])
   assert.deepEqual(checkNoNestedLocalActions(root), [])
+  assert.deepEqual(checkWorkflowSize(root), [])
 })

@@ -3,6 +3,9 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
+// Per-row job bodies the groups share; they take rows as inputs and never select.
+export const JOB_TEMPLATES = ['_build.yml', '_cpp.yml', '_desktop.yml']
+
 export const GROUP_WORKFLOWS = [
   '_select-projects.yml',
   'pr-checks.yml',
@@ -11,10 +14,12 @@ export const GROUP_WORKFLOWS = [
   'cache-warm.yml',
   'publish-npm.yml',
   'publish-gpr.yml',
+  ...JOB_TEMPLATES,
 ]
 
 export const SELECT_WORKFLOW = '_select-projects.yml'
 export const ACTION_LINE_CAP = 60
+export const WORKFLOW_LINE_CAP = 400
 
 const SELECTION_MARKERS = [/nx-project-matrix/, /\bnx show projects\b/, /\bnx affected\b/, /select-projects\.mjs/]
 const FIRST_PARTY_OWNERS = new Set(['tetherto'])
@@ -182,7 +187,7 @@ export function checkSelectionOnce(root) {
     if (SELECTION_MARKERS.some((re) => re.test(g.text))) out.push(`${g.name} runs selection logic itself; use ${SELECT_WORKFLOW}`)
     for (const m of g.text.matchAll(/uses:\s*\.\/\.github\/workflows\/([A-Za-z0-9._-]+)/g)) {
       const callee = m[1]
-      if (callee === SELECT_WORKFLOW || callee === 'reusable-fork-approval.yml') continue
+      if (callee === SELECT_WORKFLOW || callee === 'reusable-fork-approval.yml' || JOB_TEMPLATES.includes(callee)) continue
       out.push(`${g.name} calls ${callee}; keep the group's work as jobs so nothing recomputes the selection`)
     }
   }
@@ -191,6 +196,13 @@ export function checkSelectionOnce(root) {
     if (SELECTION_MARKERS.some((re) => re.test(readFileSync(a.file, 'utf8')))) out.push(`${a.name} runs selection logic; only ${SELECT_WORKFLOW} may`)
   }
   return out
+}
+
+export function checkWorkflowSize(root) {
+  return groupFiles(root)
+    .map((g) => [g.name, g.text.split('\n').length - (g.text.endsWith('\n') ? 1 : 0)])
+    .filter(([, n]) => n > WORKFLOW_LINE_CAP)
+    .map(([name, n]) => `${name} is ${n} lines; a group workflow is at most ${WORKFLOW_LINE_CAP}`)
 }
 
 // A local `uses:` inside a composite resolves against the workspace, which may hold PR code.
