@@ -65,7 +65,7 @@ Text suite (single stream, concurrency, speculative decoding):
   --text-repeats <n>      measured repeats / rounds per configuration
   --concurrency <a,b>     concurrent request levels (e.g. 1,2,4,8,16)
   --spec-types <a,b>      speculative modes besides none: ${SPEC_TYPES.join(', ')}.
-                          ${W.ADDON_SPEC_TYPES.join(' and ')} run on both engines (addon: tetherto/qvac#4849);
+                          ${W.ADDON_SPEC_TYPES.join(' and ')} run on both engines (addon >= 0.63.0);
                           the rest on llama-server only. Default: ngram-simple, plus draft-mtp
                           when the model has MTP layers, plus draft-dflash / draft-simple with --draft
   --spec-draft-n-max <n>  max drafted tokens per step, on both engines (default: engine default)

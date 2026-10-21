@@ -46,7 +46,7 @@ function engineConfig (plan, job) {
   if (p.cacheTypeV != null) c['cache-type-v'] = String(p.cacheTypeV)
   if (p.fit != null) c.fit = String(p.fit)
   if (gpu && p.gpuApi != null) c.backend = String(p.gpuApi)
-  // Speculative decoding (tetherto/qvac#4849): the same keys as llama-server's flags.
+  // Speculative decoding (addon >= 0.63.0): the same keys as llama-server's flags.
   if (job.spec && job.spec !== 'none') {
     c['spec-type'] = job.spec
     if (W.DRAFT_MODEL_SPEC_TYPES.includes(job.spec)) c['spec-draft-model'] = plan.draft
@@ -106,7 +106,7 @@ async function main () {
   } catch (e) {
     // Record the failed configuration so the report shows it instead of a gap.
     let msg = String((e && e.message) || e).replace(/\s+/g, ' ').trim()
-    if (job.spec && job.spec !== 'none' && /spec/i.test(msg)) msg += ' (speculative decoding needs an addon build with tetherto/qvac#4849)'
+    if (job.spec && job.spec !== 'none' && /spec/i.test(msg)) msg += ' (speculative decoding needs @qvac/llm-llamacpp >= 0.63.0)'
     emit('TEXTROW', { ...base, warmup: false, error: `load failed: ${msg}` })
     throw e
   }

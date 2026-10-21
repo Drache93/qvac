@@ -122,7 +122,7 @@ const TEXT_PRESETS = {
 const SUITES = ['single', 'conc', 'spec']
 // llama-server --spec-type values (qvac-fabric common/speculative.cpp).
 const SPEC_TYPES = ['ngram-simple', 'ngram-map-k', 'ngram-mod', 'ngram-cache', 'draft-simple', 'draft-mtp', 'draft-dflash', 'draft-dspark']
-// The addon's `spec-type` values (tetherto/qvac#4849); the others run on llama-server only.
+// The addon's `spec-type` values (llm-llamacpp >= 0.63.0); the others run on llama-server only.
 const ADDON_SPEC_TYPES = ['draft-mtp', 'draft-dflash']
 // Speculative modes that load a separate draft model (--draft).
 const DRAFT_MODEL_SPEC_TYPES = ['draft-simple', 'draft-dflash', 'draft-dspark']

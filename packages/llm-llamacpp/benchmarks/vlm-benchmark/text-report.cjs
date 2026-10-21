@@ -171,7 +171,7 @@ function summarize ({ rows, batches }) {
   return out
 }
 
-const SPEC_NOTE = 'Modes both engines support (draft-mtp, draft-dflash; the addon\'s via tetherto/qvac#4849) run on both; ngram-* and draft-simple run on llama-server only. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).'
+const SPEC_NOTE = 'Modes both engines support (draft-mtp, draft-dflash; the addon\'s since llm-llamacpp 0.63.0) run on both; ngram-* and draft-simple run on llama-server only. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).'
 const SPEC_HEAD = kinds => ['N', 'engine · spec', ...kinds.map(k => `${k} t/s`), 'mean t/s', 'aggregate t/s', 'speedup', 'addon vs server', 'acceptance']
 function specCells (r, kinds) {
   const x = v => v == null ? '—' : v.toFixed(2) + '×'
