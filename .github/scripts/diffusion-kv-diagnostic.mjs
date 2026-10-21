@@ -9,7 +9,7 @@ export const TARGET =
   'ABot-World: CPU streaming, KV on matches resident frames across history updates'
 
 export function prepareSource(source, backend) {
-  assert(['cuda0', 'vulkan0'].includes(backend), 'Expected an explicit CUDA or Vulkan device')
+  assert(['gpu', 'cuda0', 'vulkan0'].includes(backend), 'Expected gpu, cuda0 or vulkan0')
   const registration = "const test = require('brittle')"
   assert.equal(source.split(registration).length - 1, 1, 'Test registration changed')
   const backendConfig = "config: { backend: 'gpu'"
@@ -46,7 +46,12 @@ let diagnosticInvocation = 0`
 }
 
 export function assessResult(log, status, backend) {
-  const native = backend === 'cuda0' ? 'CUDA0' : 'Vulkan0'
+  const native =
+    backend === 'gpu'
+      ? log.match(/runtime=(CUDA\d+|Vulkan\d+), params=\1/)?.[1]
+      : backend === 'cuda0'
+        ? 'CUDA0'
+        : 'Vulkan0'
   const assertions = log.match(/^# asserts = (\d+)\/(\d+) pass$/m)
   return (
     status === 0 &&
@@ -54,6 +59,7 @@ export function assessResult(log, status, backend) {
     assertions !== null &&
     Number(assertions[1]) === Number(assertions[2]) &&
     Number(assertions[2]) >= 45 &&
+    Boolean(native) &&
     log.includes(`runtime=${native}, params=${native}`) &&
     log.includes(`runtime=${native}, params=CPU`) &&
     log.includes('stream_layers=true')
@@ -74,7 +80,7 @@ function main() {
   const source = fs.readFileSync(path.join(workdir, 'test/integration/abot-world.test.js'), 'utf8')
   const staged = 'test/integration/abot-kv-diagnostic.test.js'
   const results = []
-  for (const backend of ['cuda0', 'vulkan0']) {
+  for (const backend of ['gpu', 'cuda0', 'vulkan0']) {
     const prepared = prepareSource(source, backend)
     fs.writeFileSync(path.join(workdir, staged), prepared)
     fs.writeFileSync(path.join(output, `selected-test-${backend}.js`), prepared)
@@ -98,6 +104,7 @@ function main() {
       process.stdout.write(log)
       results.push({
         backend,
+        observedBackend: log.match(/runtime=(CUDA\d+|Vulkan\d+), params=\1/)?.[1],
         repeat,
         status: child.status,
         signal: child.signal,

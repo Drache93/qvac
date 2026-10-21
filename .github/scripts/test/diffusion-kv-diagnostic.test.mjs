@@ -29,3 +29,13 @@ test('a skip, wrong backend or failed numerical assertion cannot report success'
   assert(!assessResult(good.replace('63/63', '1/1'), 0, 'cuda0'))
   assert(!assessResult(good.replace('params=CPU', 'params=CUDA0'), 0, 'cuda0'))
 })
+
+test('default GPU control preserves the original selection and requires GPU execution', () => {
+  const prepared = prepareSource(source, 'gpu')
+  assert.equal(prepared.split("config: { backend: 'gpu'").length - 1, 3)
+  const log =
+    '# tests = 1/1 pass\n# asserts = 63/63 pass\nruntime=CUDA0, params=CUDA0\nruntime=CUDA0, params=CPU\nstream_layers=true\n'
+  assert(assessResult(log, 0, 'gpu'))
+  assert(assessResult(log.replaceAll('CUDA0', 'Vulkan0'), 0, 'gpu'))
+  assert(!assessResult(log.replaceAll('CUDA0', 'CPU'), 0, 'gpu'))
+})

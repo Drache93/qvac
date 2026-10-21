@@ -100,7 +100,7 @@ jobs:
           node --version > "$GITHUB_WORKSPACE/diagnostic-results/node-version.txt"
           "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare" --version > "$GITHUB_WORKSPACE/diagnostic-results/bare-version.txt"
 
-      - name: Repeat the unchanged parity assertions on CUDA and Vulkan
+      - name: Repeat parity with original GPU selection, CUDA and Vulkan
         shell: bash
         run: |
           node .github/scripts/diffusion-kv-diagnostic.mjs \
