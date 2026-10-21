@@ -6,10 +6,12 @@ import { join } from 'node:path'
 
 import { distTag, gprName, linkBareAliases, publishVersion } from './publish-gpr.mjs'
 
-test('a release branch push or dispatch publishes latest, anything else the given tag or tmp', () => {
+test('a release branch push or dispatch publishes latest, anything else the given tag or the branch default', () => {
   assert.equal(distTag({ tag: 'dev', event: 'push', refName: 'release-vla-0.4' }), 'latest')
-  assert.equal(distTag({ tag: 'dev', event: 'workflow_dispatch', refName: 'main' }), 'dev')
-  assert.equal(distTag({ tag: '', event: 'push', refName: 'tmp-x' }), 'tmp')
+  assert.equal(distTag({ tag: 'latest', event: 'workflow_dispatch', refName: 'main' }), 'latest')
+  assert.equal(distTag({ tag: '', event: 'workflow_dispatch', refName: 'main' }), 'dev')
+  assert.equal(distTag({ tag: '', event: 'workflow_dispatch', refName: 'feature-x' }), 'feature')
+  assert.equal(distTag({ tag: '', event: 'push', refName: 'tmp-x' }), 'temp')
 })
 
 test('only latest keeps the package version', () => {

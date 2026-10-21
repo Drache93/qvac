@@ -6,7 +6,7 @@ inputs:
     description: Package directory, with prebuilds/ already placed
     required: true
   tag:
-    description: npm dist-tag; a release-* push or dispatch always publishes latest
+    description: Dist-tag; empty uses the branch default (dev, feature or temp), and a release-* ref always publishes latest
     default: ""
   name-suffix:
     description: Suffix appended to the package name

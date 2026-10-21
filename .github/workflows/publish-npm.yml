@@ -52,10 +52,8 @@ jobs:
     timeout-minutes: 5
     permissions: {}
     outputs:
-      publish_release: ${{ steps.logic.outputs.publish_release }}
+      publish_release: ${{ startsWith(github.ref_name, 'release-') }}
     steps:
-      - id: logic
-        uses: tetherto/qvac-actions/npm-publish-logic@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
       - name: A release branch publishes its own package alone
         if: startsWith(github.ref_name, 'release-')
         shell: bash
@@ -165,7 +163,7 @@ jobs:
       matrix:
         row: ${{ fromJSON(needs.select.outputs.matrices).publish }}
     outputs:
-      published_version: ${{ steps.publish.outputs.npm_published_version }}
+      published_version: ${{ steps.publish.outputs.version }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
     steps:
@@ -199,14 +197,20 @@ jobs:
           NPM_TAG: ${{ inputs.npm_tag }}
         run: |
           grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]*$' <<< "$NPM_TAG" || { echo "::error::Invalid npm dist-tag '$NPM_TAG'"; exit 1; }
+      # npm 11.5 or newer for OIDC trusted publishing; 24.14.1 ships 11.11.0.
+      - uses: ./.github/actions/setup-node
+        with:
+          node-version: "24.14.1"
+          registry-url: https://registry.npmjs.org/
+          scope: "@qvac"
       - id: dist-tag
-        uses: tetherto/qvac-actions/npm-dist-tag-determination@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+        uses: ./.github/actions/npm-dist-tag
         with:
           workdir: ${{ env.WORKDIR }}
           tag: ${{ matrix.row.meta.npmTagOverride || inputs.npm_tag || 'latest' }}
       - id: publish
         if: ${{ !inputs.dry_run }}
-        uses: tetherto/qvac-actions/publish-library-to-npm@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+        uses: ./.github/actions/publish-npm
         with:
           workdir: ${{ env.WORKDIR }}
           tag: ${{ steps.dist-tag.outputs.tag }}

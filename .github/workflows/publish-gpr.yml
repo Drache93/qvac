@@ -44,12 +44,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
+    # Prereleases come from main, feature-* and tmp-*; publish-gpr picks the tag each implies unless one is given.
     outputs:
-      publish: ${{ steps.logic.outputs.publish_main == 'true' || steps.logic.outputs.publish_feature == 'true' || steps.logic.outputs.publish_tmp == 'true' }}
-      tag: ${{ inputs.tag != 'auto' && inputs.tag || steps.logic.outputs.gpr_tag }}
+      publish: ${{ github.ref_name == 'main' || startsWith(github.ref_name, 'feature-') || startsWith(github.ref_name, 'tmp-') }}
+      tag: ${{ inputs.tag != 'auto' && inputs.tag || '' }}
     steps:
-      - id: logic
-        uses: tetherto/qvac-actions/npm-publish-logic@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+      - shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          case "$REF_NAME" in
+            main|feature-*|tmp-*) echo "Publishing a prerelease from $REF_NAME" ;;
+            *) echo "::notice::$REF_NAME is not main, feature-* or tmp-*, so nothing is published" ;;
+          esac
 
   verify:
     needs: [select, logic]

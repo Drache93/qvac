@@ -6,9 +6,10 @@ import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+// A release ref always publishes latest; otherwise the given tag, else the one the branch implies.
 export function distTag({ tag, event, refName }) {
   if (['push', 'workflow_dispatch'].includes(event) && refName.startsWith('release-')) return 'latest'
-  return tag || 'tmp'
+  return tag || (refName.startsWith('feature-') ? 'feature' : refName.startsWith('tmp-') ? 'temp' : 'dev')
 }
 
 export function publishVersion({ version, tag, pr, runId }) {
