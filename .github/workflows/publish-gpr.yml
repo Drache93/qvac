@@ -77,19 +77,22 @@ jobs:
         with:
           path: src
           persist-credentials: "false"
+      # As pr-checks runs it: Node 22, which pnpm 11 needs, a workspace install, and the target through Nx.
       - uses: ./.github/actions/setup-node
         with:
-          node-version: "20"
+          node-version: "22"
       - uses: ./.github/actions/setup-pnpm
         with:
           package-json-file: src/package.json
       - shell: bash
-        working-directory: src/${{ matrix.row.cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.row.command }}
+          PROJECT: ${{ matrix.row.project }}
+          NX_DAEMON: "false"
+          NX_NO_CLOUD: "true"
         run: |
-          npm install --ignore-scripts --package-lock=false
-          bash -c "$COMMAND"
+          pnpm install --frozen-lockfile
+          pnpm exec nx run "$PROJECT:verify:generated" --outputStyle=stream
 
   build:
     needs: [select, logic]
