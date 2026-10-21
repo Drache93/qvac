@@ -5,12 +5,22 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, release-*, feature-*, tmp-*]
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated package names or directories; empty selects every package on the contract
+        type: string
+        default: ""
+      config_ref:
+        description: Ref to take actions, scripts and package settings from; empty means the default branch
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-checks-${{ github.event.pull_request.number }}
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +28,8 @@ jobs:
     uses: ./.github/workflows/_select-projects.yml
     with:
       targets: lint,typecheck,test:unit,verify:generated
+      packages: ${{ inputs.packages }}
+      config-ref: ${{ inputs.config_ref }}
 
   checks:
     needs: select
@@ -33,14 +45,14 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ inputs.config_ref || github.event.repository.default_branch }}
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout pull request
         uses: ./.github/actions/checkout
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
       # The node and install match the TypeScript checks these replace.

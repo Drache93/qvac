@@ -609,18 +609,19 @@ test("public-pr: trusted non-PR calls do not require verified", () => {
 
 test("all ci-router callers re-run when a draft becomes ready", () => {
   // The uniform on-pr-<pkg>.yml orchestrators are consolidated into on-pr-nx.yml.
-  // The three carve-outs keep their own files and must still re-run on the
+  // Two carve-outs keep their own files, and vla is built by the CI contract's
+  // pr-build-test.yml, which routes with route-ci; all must still re-run on the
   // draft->ready transition, so they stay listed here.
   const workflowNames = [
     "on-pr-nx.yml",
     "on-pr-classification-ggml.yml",
     "on-pr-fabric.yml",
-    "on-pr-vla.yml",
+    "pr-build-test.yml",
   ];
 
   for (const workflowName of workflowNames) {
     const source = read(`.github/workflows/${workflowName}`);
-    assert.match(source, /uses:\s+\.\/\.github\/actions\/ci-router/);
+    assert.match(source, /uses:\s+\.\/\.github\/actions\/(ci-router|route-ci)/);
     assert.match(source, /ready_for_review/);
   }
   assert.match(read(".github/workflows/pr-gate-merge.yml"), /ready_for_review/);
@@ -1233,7 +1234,7 @@ test("verify-prebuilds binds a prebuild status to its producing on-pr run", () =
   for (const [pkg, workflow] of [
     ['fabric', 'on-pr-fabric.yml'],
     ['classification-ggml', 'on-pr-classification-ggml.yml'],
-    ['vla', 'on-pr-vla.yml'],
+    ['vla', 'pr-build-test.yml'],
   ]) {
     assert.match(
       lib,
@@ -1329,6 +1330,29 @@ test("publish-cpp-test-status stamps its run URL into target_url", () => {
     publish,
     /'cpp-tests': \{ resultEnv: 'CPP_TEST_RESULT', runFlagEnv: 'RUN_CPP_TESTS' \}/,
     "publish.mjs maps the cpp-tests kind to CPP_TEST_RESULT + RUN_CPP_TESTS",
+  );
+});
+
+// pr-build-test.yml is not an on-pr-* file, so the two scans above miss it. Its
+// status job posts both contexts and must meet the same bar, with route-ci's
+// result and run flags as the skip guard.
+test("pr-build-test status stamps its run URL and keeps the routing skip guard", () => {
+  const job = jobBlock(read(".github/workflows/pr-build-test.yml"), "status");
+  assert.match(
+    job,
+    /RUN_URL:\s*\$\{\{ github\.server_url \}\}\/\$\{\{ github\.repository \}\}\/actions\/runs\/\$\{\{ github\.run_id \}\}/,
+  );
+  assert.match(job, /CI_ROUTER_RESULT:\s*\$\{\{ needs\.route\.result \}\}/);
+  assert.match(job, /CONTEXT:\s*qvac\/prebuild-/);
+  assert.match(job, /RUN_PREBUILDS:\s*\$\{\{ needs\.route\.outputs\.run_prebuilds \}\}/);
+  assert.match(job, /CONTEXT:\s*qvac\/cpp-tests-/);
+  assert.match(job, /KIND:\s*cpp-tests/);
+  assert.match(job, /CPP_TEST_RESULT:\s*\$\{\{ needs\.cpp-tests\.result \}\}/);
+  assert.match(job, /RUN_CPP_TESTS:\s*\$\{\{ needs\.route\.outputs\.run_cpp_tests \}\}/);
+  assert.equal(
+    [...job.matchAll(/run:\s*node \.github\/scripts\/prebuild-status\/publish\.mjs/g)].length,
+    2,
+    "both contexts go through the shared publish script",
   );
 });
 

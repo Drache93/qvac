@@ -239,8 +239,10 @@ const versionOf = (f) => [f.package, f['cache-version'], f.group, f.paths].join(
 // consumers dropped from 100 to 55 when the per-package integration-test-<pkg>
 // workflows were consolidated into integration-test-nx.yml, which reads its
 // cache blocks from each package's project.json instead. The nxConsumers floor
-// is what guards that path, so a blind parser still cannot slip through.
-export const FLOOR = { seeds: 12, consumers: 55, nxConsumers: 10 }
+// is what guards that path, so a blind parser still cannot slip through. Seeds
+// dropped to 10 and consumers to 51 when vla moved to the CI contract, whose
+// cache-warm seeds the keys resolve-model-cache computes from the manifest.
+export const FLOOR = { seeds: 10, consumers: 51, nxConsumers: 10 }
 
 export function findParserGaps(files = listWorkflows()) {
   const gaps = []
