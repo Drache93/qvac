@@ -258,7 +258,7 @@ test('every fabric-consumer package has an on-pr workflow that detects the stack
     : new Set()
   const onContract = (pkg) =>
     (JSON.parse(read(`packages/${pkg}/project.json`)).tags ?? []).includes('ci:contract')
-  const groupWaits = /AWAIT:\s*\$\{\{ github\.event_name == 'pull_request_target'/.test(read('.github/workflows/pr-build-test.yml')) &&
+  const groupWaits = /AWAIT:\s*\$\{\{ github\.event_name == 'pull_request(?:_target)?'/.test(read('.github/workflows/pr-build-test.yml')) &&
     /overlay-prebuilds\.mjs/.test(read('.github/workflows/_build.yml'))
   const missing = CONSUMER_PACKAGES.filter(
     (pkg) =>
