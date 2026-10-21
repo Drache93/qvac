@@ -11,6 +11,7 @@ import {
   checkNoNestedLocalActions,
   checkNoPackageNames,
   checkSelectionOnce,
+  checkTemplateDepth,
   checkWorkflowSize,
   checkThirdPartyUses,
 } from '../lib/ci-contract.mjs'
@@ -170,6 +171,12 @@ test('an action the groups call may not call a local action', () => {
   assert.match(checkNoNestedLocalActions(dir)[0], /outer calls a local action/)
 })
 
+test('a job template may not call another workflow', () => {
+  const nested = fixture({ workflows: { '_build.yml': 'jobs:\n  a:\n    uses: ./.github/workflows/reusable-fork-approval.yml\n' } })
+  assert.match(checkTemplateDepth(nested)[0], /_build\.yml calls another workflow/)
+  assert.deepEqual(checkTemplateDepth(fixture({ workflows: { '_build.yml': job('      - run: echo\n') } })), [])
+})
+
 test('the repository passes every contract check', () => {
   assert.deepEqual(checkActionLineCap(root), [])
   assert.deepEqual(checkNoPackageNames(root), [])
@@ -178,4 +185,5 @@ test('the repository passes every contract check', () => {
   assert.deepEqual(checkSelectionOnce(root), [])
   assert.deepEqual(checkNoNestedLocalActions(root), [])
   assert.deepEqual(checkWorkflowSize(root), [])
+  assert.deepEqual(checkTemplateDepth(root), [])
 })

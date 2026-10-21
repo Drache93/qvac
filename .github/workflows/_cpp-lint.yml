@@ -1,0 +1,106 @@
+name: C++ lint
+
+# cpp:lint formats and tidies the package's changed sources, after bare-make generate writes compile_commands.json.
+on:
+  workflow_call:
+    inputs:
+      rows:
+        description: JSON cpp:lint rows
+        type: string
+        default: "[]"
+      deps:
+        description: JSON map of awaited dependency key to its producing run id
+        type: string
+        default: "{}"
+
+permissions: {}
+
+jobs:
+  lint:
+    if: inputs.rows != '[]'
+    name: ${{ matrix.row.slug }}
+    runs-on: ${{ matrix.row.runner }}
+    environment: release
+    timeout-minutes: ${{ matrix.row.timeout || 120 }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        row: ${{ fromJSON(inputs.rows) }}
+    env:
+      WORKDIR: src/${{ matrix.row.dir }}
+      BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
+    steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
+          sparse-checkout: |
+            .github/actions
+            .github/scripts
+            .github/config
+          persist-credentials: false
+      - name: Checkout source
+        uses: ./.github/actions/checkout
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: src
+          fetch-depth: "0"
+          persist-credentials: "false"
+      # vcpkg's S3 binary cache, which generate reads through the AWS CLI.
+      - uses: ./.github/actions/configure-aws
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-central-1
+      - uses: ./.github/actions/setup-aws-cli
+      - uses: ./.github/actions/bootstrap-vcpkg
+      - uses: ./.github/actions/cache-vcpkg
+        with:
+          mode: s3
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+          platform: ${{ matrix.row.platform }}
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          arch: ${{ matrix.row.arch }}
+      # The global bare-make pin selects system clang; the package-local one is current.
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          npm install
+          npm install --no-save --ignore-scripts bare-make
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        uses: ./.github/actions/download-artifact
+        with:
+          name: ${{ matrix.row.waits[0].artifact }}
+          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
+          path: ${{ runner.temp }}/dep-prebuilds
+      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+        shell: bash
+        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}"
+      - shell: bash
+        working-directory: ${{ env.WORKDIR }}
+        run: bare-make generate -D ENABLE_VULKAN=OFF
+      - id: format
+        continue-on-error: true
+        uses: ./.github/actions/check-cpp-format
+        with:
+          repo-dir: src
+          workdir: ${{ matrix.row.dir }}
+          base: ${{ env.BASE }}
+      - id: tidy
+        continue-on-error: true
+        uses: ./.github/actions/tidy-changed-cpp
+        with:
+          workdir: ${{ env.WORKDIR }}
+          base: ${{ env.BASE }}
+      - if: steps.format.outcome == 'failure' || steps.tidy.outcome == 'failure'
+        shell: bash
+        run: echo "::error::C++ format ${{ steps.format.outcome }}, clang-tidy ${{ steps.tidy.outcome }}" && exit 1
+

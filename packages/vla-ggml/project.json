@@ -44,7 +44,7 @@
     },
     "cpp:build": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run test:cpp:build", "cwd": "packages/vla-ggml" },
+      "options": { "command": "npm run test:cpp:build", "cwd": "packages/vla-ggml" },
       "metadata": {
         "runners": ["linux_ubuntu2404_x64", "macos_arm64_gpu", "macos_15_intel", "win_2025_x64"],
         "mode": "standard",

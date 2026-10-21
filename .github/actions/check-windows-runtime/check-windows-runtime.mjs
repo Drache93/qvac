@@ -20,12 +20,18 @@ const tryRun = (cmd, args) => {
   }
 }
 
+// Windows tools print CRLF lines, and vswhere lists the cross-compilers too: take the x64-hosted x64 tool.
+export function pickDumpbin(output) {
+  const paths = output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  return paths.find((p) => /Hostx64[\\/]x64[\\/]dumpbin\.exe$/i.test(p)) ?? ''
+}
+
 // PATH, then vswhere, then the install roots; the self-hosted fleet has Build Tools vswhere cannot see.
 function findDumpbin(env) {
-  const onPath = tryRun('where', ['dumpbin']).split('\n')[0]
+  const onPath = tryRun('where', ['dumpbin']).split(/\r?\n/)[0].trim()
   if (onPath) return onPath
   const vswhere = join(env['ProgramFiles(x86)'] ?? '', 'Microsoft Visual Studio/Installer/vswhere.exe')
-  const viaVswhere = existsSync(vswhere) ? tryRun(vswhere, ['-latest', '-prerelease', '-products', '*', '-find', '**\\dumpbin.exe']).split('\n')[0] : ''
+  const viaVswhere = existsSync(vswhere) ? pickDumpbin(tryRun(vswhere, ['-latest', '-prerelease', '-products', '*', '-find', '**\\dumpbin.exe'])) : ''
   if (viaVswhere) return viaVswhere
   for (const root of [join(env['ProgramFiles(x86)'] ?? '', 'Microsoft Visual Studio'), join(env.ProgramFiles ?? '', 'Microsoft Visual Studio')]) {
     if (!existsSync(root)) continue

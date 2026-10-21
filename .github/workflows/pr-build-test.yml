@@ -27,6 +27,8 @@ jobs:
     with:
       targets: ci:setup,build,cpp:lint,cpp:build,cpp:tests,test:integration,test:backend
       combine: desktop=test:integration+test:backend
+      # cpp:lint checks a package's own changed lines, so a dependent with no changes has nothing to lint.
+      owner-targets: cpp:lint
       packages: ${{ inputs.packages }}
 
   fork-approval:
@@ -226,19 +228,17 @@ jobs:
           name: prebuilds-cache-pr-${{ github.event.pull_request.number }}-${{ matrix.project.slug }}-${{ env.HASH }}
           path: ${{ runner.temp }}/marker
 
-  # The grant covers every job in _cpp.yml, even the one these inputs skip.
   cpp-lint:
     needs: [select, route, plan]
     if: needs.route.outputs.run_verified_checks == 'true'
     permissions:
       contents: read
       actions: read
-      packages: read
       id-token: write
-    uses: ./.github/workflows/_cpp.yml
+    uses: ./.github/workflows/_cpp-lint.yml
     secrets: inherit
     with:
-      lint-rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:lint']) }}
+      rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:lint']) }}
       deps: ${{ needs.plan.outputs.deps }}
 
   cpp-tests:
@@ -249,7 +249,7 @@ jobs:
       actions: read
       packages: read
       id-token: write
-    uses: ./.github/workflows/_cpp.yml
+    uses: ./.github/workflows/_cpp-tests.yml
     secrets: inherit
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
@@ -316,16 +316,25 @@ jobs:
         run: node .github/scripts/prebuild-status/publish.mjs
 
   # Not named qvac-merge-guard: that is the required check's job, and a second one would share its context.
+  # Reads this run's jobs, so the table shows each package, stage and failed leg, not only the reusable callers.
   summary:
     needs: [select, fork-approval, route, trust, reuse, plan, build, merge, cpp-lint, cpp-tests, desktop, status]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions: {}
+    permissions:
+      contents: read
+      actions: read
     steps:
+      - name: Checkout actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - shell: bash
         env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: |
-          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$NEEDS"
-          jq -e 'all(.[]; .result != "failure" and .result != "cancelled")' <<< "$NEEDS" > /dev/null
+          GH_TOKEN: ${{ github.token }}
+          PROJECTS: ${{ needs.select.outputs.projects }}
+          TITLE: PR build and test
+        run: node .github/scripts/summarize-run.mjs

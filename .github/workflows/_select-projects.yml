@@ -16,6 +16,10 @@ on:
         description: Extra matrices for targets sharing a job, e.g. desktop=test:integration+test:backend
         type: string
         default: ""
+      owner-targets:
+        description: Comma-separated targets selected for the changed packages only, never their dependents
+        type: string
+        default: ""
       mode:
         description: affected (changed packages and their dependents) or owners (changed packages only)
         type: string
@@ -65,6 +69,7 @@ jobs:
           TARGETS: ${{ inputs.targets }}
           PACKAGES: ${{ inputs.packages }}
           COMBINE: ${{ inputs.combine }}
+          OWNER_TARGETS: ${{ inputs.owner-targets }}
           MODE: ${{ inputs.mode }}
           NX_DAEMON: "false"
           NX_NO_CLOUD: "true"

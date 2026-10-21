@@ -1,6 +1,7 @@
 name: PR checks
 
-# Lint, typecheck, unit tests and generated files for packages on the CI contract. No secrets, so forks get real results.
+# Lint, typecheck, unit tests and generated files for the changed packages on the CI contract and their dependents,
+# run through Nx from the PR's own targets: no secrets here, so the PR's tree is safe to execute and forks get real results.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -32,6 +33,9 @@ jobs:
     name: checks (${{ matrix.project.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
     strategy:
       fail-fast: false
       matrix:
@@ -50,38 +54,38 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
-      # The node and install match the TypeScript checks these replace.
       - uses: ./.github/actions/setup-node
         with:
           node-version: "22"
       - uses: ./.github/actions/setup-pnpm
         with:
           package-json-file: src/package.json
-      - working-directory: src/${{ matrix.project.dir }}
+      # A workspace install, so a package checks against its dependencies' sources in this PR, not their published builds.
+      - working-directory: src
         run: |
-          npm install --ignore-scripts --package-lock=false --registry=https://registry.npmjs.org/
+          pnpm install --frozen-lockfile
           npm install --global --force bare --registry=https://registry.npmjs.org/
       - name: typecheck
         if: contains(matrix.project.targets, 'typecheck')
-        working-directory: src/${{ matrix.project.commands.typecheck.cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.project.commands.typecheck.command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run "$PROJECT:typecheck" --outputStyle=stream
       - name: lint
         if: contains(matrix.project.targets, 'lint')
-        working-directory: src/${{ matrix.project.commands.lint.cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.project.commands.lint.command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run "$PROJECT:lint" --outputStyle=stream
       - name: test:unit
         if: contains(matrix.project.targets, 'test:unit')
-        working-directory: src/${{ matrix.project.commands['test:unit'].cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.project.commands['test:unit'].command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run "$PROJECT:test:unit" --outputStyle=stream
       - name: verify:generated
         if: contains(matrix.project.targets, 'verify:generated')
-        working-directory: src/${{ matrix.project.commands['verify:generated'].cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.project.commands['verify:generated'].command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run "$PROJECT:verify:generated" --outputStyle=stream

@@ -134,7 +134,8 @@ const PENDING = [
     ['.github/actions/cpp-lint/action.yaml', 1],
     // The CI contract's job templates, carrying over vla's old cpp-tests and integration sites unchanged.
     ['.github/workflows/_build.yml', 2],
-    ['.github/workflows/_cpp.yml', 3],
+    ['.github/workflows/_cpp-lint.yml', 2],
+    ['.github/workflows/_cpp-tests.yml', 1],
     ['.github/workflows/_desktop.yml', 1],
   ].map(([file, count]) => ({
     file,

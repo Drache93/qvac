@@ -43,6 +43,15 @@ test('only tagged, affected packages are selected, with a row per runner', () =>
   assert.equal(r.projects[0].key, 'vla')
 })
 
+test('an owner target runs only for a package the change touched, the rest follow dependents', () => {
+  const dependent = select({ ...args, affected: ['@qvac/vla-ggml'], owners: ['@qvac/fabric'], ownerTargets: ['cpp:build'] })
+  assert.deepEqual(dependent.matrices['cpp:build'], [], 'vla only depends on the change')
+  assert.equal(dependent.matrices.build.length, BUILD_LEGS.length)
+  const owner = select({ ...args, affected: ['@qvac/vla-ggml'], owners: ['@qvac/vla-ggml'], ownerTargets: ['cpp:build'] })
+  assert.equal(owner.matrices['cpp:build'].length, 2)
+  assert.equal(select({ ...args, affected: null, owners: null, ownerTargets: ['cpp:build'] }).matrices['cpp:build'].length, 2, 'an explicit or unknown change selects every owner target')
+})
+
 test('a change touching only untagged packages selects nothing', () => {
   assert.deepEqual(select({ ...args, affected: ['@qvac/llm-llamacpp'] }).projects, [])
 })

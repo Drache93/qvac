@@ -88,7 +88,8 @@ export function rows(project, target, labels) {
 // cpp:tests runs on cpp:build's rows, in the same job.
 const ROWS_FROM = { 'cpp:tests': 'cpp:build' }
 
-export function select({ graph, affected, targets, labels, gate, changed, pr }) {
+// Owner targets run only for packages the change touched, not for their dependents; owners null means every package.
+export function select({ graph, affected, targets, labels, gate, changed, pr, owners = null, ownerTargets = [] }) {
   const tagged = Object.values(graph.nodes).filter((n) => n.data.tags?.includes(TAG))
   const chosen = tagged.filter((n) => affected === null || affected.includes(n.name))
   const out = { matrices: {}, projects: [] }
@@ -98,7 +99,7 @@ export function select({ graph, affected, targets, labels, gate, changed, pr }) 
     const dir = n.data.root.split('/').pop()
     const npm = n.data.metadata?.js?.packageName ?? n.name
     const waits = pr ? dependencyWaits(graph, n.name, changed, gate) : []
-    const own = targets.filter((t) => n.data.targets[t])
+    const own = targets.filter((t) => n.data.targets[t] && (owners === null || !ownerTargets.includes(t) || owners.includes(n.name)))
     if (!own.length) continue
     const commands = Object.fromEntries(own.map((t) => [t, { command: n.data.targets[t].options?.command ?? '', cwd: n.data.targets[t].options?.cwd ?? n.data.root }]))
     const { provider, providerArtifact } = nativeProvider(graph, n.name, gate)
@@ -184,13 +185,16 @@ function main(env) {
   const wanted = env.PACKAGES ? env.PACKAGES.split(/[\s,]+/).filter(Boolean) : null
   let changed = wanted ? [] : changedFiles(env, event)
   let affected = null
+  const ownerOf = (files) => Object.values(graph.nodes).filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`))).map((n) => n.name)
   if (wanted) affected = Object.values(graph.nodes).filter((n) => wanted.includes(n.name) || wanted.includes(n.data.root.split('/').pop())).map((n) => n.name)
-  else if (changed && env.MODE === 'owners') affected = Object.values(graph.nodes).filter((n) => changed.some((f) => f.startsWith(`${n.data.root}/`))).map((n) => n.name)
+  else if (changed && env.MODE === 'owners') affected = ownerOf(changed)
   else if (changed) affected = JSON.parse(execFileSync('pnpm', ['exec', 'nx', 'show', 'projects', '--affected', `--files=${changed.join(',') || 'none'}`, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }))
   changed ??= []
   const labels = parseRunnerLabels(readFileSync('.github/workflows/reusable-runner-names.yml', 'utf8'))
   const result = select({
     graph, affected, targets, changed, pr: Boolean(event.pull_request), labels,
+    owners: wanted || !changed ? null : ownerOf(changed),
+    ownerTargets: (env.OWNER_TARGETS || '').split(/[\s,]+/).filter(Boolean),
     gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8')),
   })
   Object.assign(result.matrices, combine(result.matrices, env.COMBINE))

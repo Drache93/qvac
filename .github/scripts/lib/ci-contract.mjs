@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 // Per-row job bodies the groups share; they take rows as inputs and never select.
-export const JOB_TEMPLATES = ['_build.yml', '_cpp.yml', '_desktop.yml']
+export const JOB_TEMPLATES = ['_build.yml', '_cpp-lint.yml', '_cpp-tests.yml', '_desktop.yml']
 
 export const GROUP_WORKFLOWS = [
   '_select-projects.yml',
@@ -205,6 +205,14 @@ export function checkWorkflowSize(root) {
     .map((g) => [g.name, g.text.split('\n').length - (g.text.endsWith('\n') ? 1 : 0)])
     .filter(([, n]) => n > WORKFLOW_LINE_CAP)
     .map(([name, n]) => `${name} is ${n} lines; a group workflow is at most ${WORKFLOW_LINE_CAP}`)
+}
+
+// Caller -> template is the deepest nesting: GitHub's run sidebar cannot show a third level.
+export function checkTemplateDepth(root) {
+  return groupFiles(root)
+    .filter((g) => JOB_TEMPLATES.includes(g.name) || g.name === SELECT_WORKFLOW)
+    .filter((g) => /\n\s+uses:\s*\.\/\.github\/workflows\//.test(g.text))
+    .map((g) => `${g.name} calls another workflow; a template is the last level of nesting`)
 }
 
 // A local `uses:` inside a composite resolves against the workspace, which may hold PR code.
