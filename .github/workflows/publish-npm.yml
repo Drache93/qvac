@@ -120,12 +120,14 @@ jobs:
       - uses: ./.github/actions/setup-node
         with:
           node-version: "20"
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          package-json-file: src/package.json
       - shell: bash
         working-directory: src/${{ matrix.row.cwd }}
         env:
           COMMAND: ${{ matrix.row.command }}
         run: |
-          corepack enable
           npm install --ignore-scripts --package-lock=false
           bash -c "$COMMAND"
 

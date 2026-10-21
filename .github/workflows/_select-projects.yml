@@ -60,10 +60,9 @@ jobs:
           filter: blob:none
           persist-credentials: false
       - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-pnpm
       - shell: bash
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile --ignore-scripts --filter .
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter .
       - id: select
         shell: bash
         env:

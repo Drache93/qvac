@@ -188,6 +188,10 @@ jobs:
         with:
           keep-android: "true"
       - uses: ./.github/actions/setup-node
+      # Target commands run through pnpm, as every project.json command does.
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          package-json-file: src/package.json
       - shell: bash
         run: npm install -g --force @expo/cli@latest
       # Prebuilds: a named run's, else a published build's; prepare-mobile-prebuilds checks either is this package's.

@@ -14,6 +14,7 @@ updates:
       - "/.github/actions/configure-aws"
       - "/.github/actions/setup-java"
       - "/.github/actions/setup-android"
+      - "/.github/actions/setup-pnpm"
     schedule:
       interval: "weekly"
     groups:

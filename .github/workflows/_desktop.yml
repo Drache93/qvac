@@ -61,6 +61,10 @@ jobs:
           path: src
           persist-credentials: "false"
       - uses: ./.github/actions/setup-node
+      # Target commands run through pnpm, as every project.json command does.
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          package-json-file: src/package.json
       - if: matrix.row.commands['ci:setup']
         shell: bash
         working-directory: src/${{ matrix.row.commands['ci:setup'].cwd }}
