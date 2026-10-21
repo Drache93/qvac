@@ -168,6 +168,7 @@ jobs:
           sparse-checkout: |
             .github/actions
             scripts/perf-report
+            scripts/test-utils
           persist-credentials: false
       - name: Checkout source
         uses: ./.github/actions/checkout

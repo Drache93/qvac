@@ -48,6 +48,7 @@ jobs:
             .github/scripts
             .github/config
             scripts/perf-report
+            scripts/test-utils
           persist-credentials: false
       - name: Checkout source
         uses: ./.github/actions/checkout
@@ -141,7 +142,8 @@ jobs:
         env:
           COMMAND: ${{ matrix.row.command }}
         run: bash -c "$COMMAND"
-      - if: always() && !cancelled()
+      - name: perf summary
+        if: always() && !cancelled()
         shell: bash
         run: |
           shopt -s nullglob
