@@ -17,7 +17,11 @@
           "name": "rpc-rdma",
           "platform": "linux"
         },
-        "vector-index"
+        "vector-index",
+        {
+          "name": "xdna-backend",
+          "platform": "linux & x64"
+        }
       ]
     },
     {
