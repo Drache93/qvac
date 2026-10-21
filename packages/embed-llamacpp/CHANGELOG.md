@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.52.0] - 2026-10-20
+
+### Changed
+
+- `@qvac/fabric` dependency bumped `^0.22.0` -> `^0.23.0`, which carries
+  `qvac-fabric` `11018.2.0` -> `11259.0.0`, a rebase onto upstream llama.cpp
+  b11259 ([#5171](https://github.com/tetherto/qvac/pull/5171)). A caret on a
+  `0.x` version locks the minor, so `^0.22.0` would not have resolved `0.23.0`
+  on its own. The native API changes, so the native addon is rebuilt against
+  the 0.23.0 headers.
+- Mobile apps must move `@qvac/fabric` and `@qvac/fabric-android-arm64` or
+  `@qvac/fabric-ios` to `0.23.0` together.
+- No API change for this package.
+
+### Removed
+
+- The RAG with TurboVec example and its desktop integration test, with the
+  `@qvac/turbovec-ggml` dev dependency they needed
+  ([#5259](https://github.com/tetherto/qvac/pull/5259)). Both packages pin
+  `@qvac/fabric` by minor, so the dev dependency held this package on the
+  previous fabric until `@qvac/turbovec-ggml` was released. Neither was
+  published, and `IdMapIndex` still lives in `@qvac/turbovec-ggml`.
+
+### Fixed
+
+- Embedding loads with `n_parallel` 1 admit every prompt in a batch again on
+  fabric b11259, which no longer lifts the sequence limit for a unified KV
+  cache. The limit is `min(256, batch_size, ctx_size)`, so a `batch_size`
+  below 256 no longer aborts the process, and a batch of many short prompts
+  is split at the limit instead of failing to decode. The context reserves
+  one output row per sequence, so a short-query workload now holds up to
+  256 vocabulary-sized output rows.
+
+## [0.51.0] - 2026-10-19
+
+### Breaking
+
+- `pooling: "rank"` is no longer a `GGMLBert` option, and a model whose GGUF
+  defaults to rank pooling no longer loads in `GGMLBert`
+  ([#4995](https://github.com/tetherto/qvac/pull/4995)). Rank pooling returns
+  one classifier score per sequence, not an embedding, so `GGMLBert` read past
+  the end of the result: the vectors were mostly zeros that changed on every
+  run, and the process could crash. The load now fails with
+  `UnsupportedEmbeddings` before the weights load. Load reranker models with
+  `Reranker`.
+
+### Added
+
+- `Reranker` scores documents by relevance to a query with a reranker
+  (cross-encoder) GGUF such as jina-reranker, bge-reranker or Qwen3-Reranker
+  ([#4995](https://github.com/tetherto/qvac/pull/4995)).
+  `run({ query, documents })` resolves to one score per document, in the
+  order given; higher is more relevant. The query is paired with each
+  document as llama-server's `/rerank` does, and the scores match fabric's
+  `llama-embedding --pooling rank`. A GGUF that declares another pooling or
+  has no classifier head is rejected before its weights load.
+- Bounded FuzzTest coverage for `parseMainGpu` and
+  `preferredBackendTypeFromString`. Linux C++ CI runs the suite after unit
+  tests. The parsers compile without `@qvac/fabric`, so ASan and LeakSanitizer
+  stay at full strength. No public addon API changes.
+
 ## [0.50.0] - 2026-10-16
 
 ### Breaking
@@ -211,7 +272,6 @@
   load's fit received that choice but the projection did not, so on Metal or
   Vulkan a MoE model's projected `gpuLayers` and `deviceBytes` could differ
   from the load.
-
 ## [0.43.0] - 2026-09-28
 
 ### Added

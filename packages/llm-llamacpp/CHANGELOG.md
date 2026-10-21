@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.64.0] - 2026-10-20
+
+### Added
+
+- Bounded FuzzTest coverage for `forLogMessage`, `toLowerAscii`, and
+  `matchesAnyStopString`. Linux C++ CI runs the suite after unit tests. The
+  targets compile without `@qvac/fabric`, so ASan and LeakSanitizer stay at
+  full strength. No public addon API changes.
+
+### Changed
+
+- `@qvac/fabric` dependency bumped `^0.22.0` -> `^0.23.0`, which carries
+  `qvac-fabric` `11018.2.0` -> `11259.0.0`, a rebase onto upstream llama.cpp
+  b11259 ([#5171](https://github.com/tetherto/qvac/pull/5171)). A caret on a
+  `0.x` version locks the minor, so `^0.22.0` would not have resolved `0.23.0`
+  on its own. The native API changes, so the native addon is rebuilt against
+  the 0.23.0 headers.
+- Mobile apps must move `@qvac/fabric` and `@qvac/fabric-android-arm64` or
+  `@qvac/fabric-ios` to `0.23.0` together.
+- Speculative decoding on multimodal prompts takes each image or audio
+  embedding sub-batch from fabric's new `mtmd_helper_embd_batch` callback
+  argument, wrapped without copying
+  ([#5171](https://github.com/tetherto/qvac/pull/5171)). No API change for
+  this package.
+
+## [0.63.0] - 2026-10-19
+
+### Added
+
+- MTP speculative decoding, ported from llama-server: `spec-type: 'draft-mtp'`
+  (with `spec-draft-n-max`, `spec-draft-n-min`, `spec-draft-p-min`, also in
+  underscore spelling) drafts with the model's own multi-token-prediction head
+  and verifies each draft in one decode, on single prompts, multimodal prompts
+  and continuous batching, with `cacheKey` conversations. Runtime stats report
+  `draftTokens` and `draftAcceptedTokens`. `spec-draft-n-max` is lowered at
+  load to fit one `ubatch-size` and each sequence's share of `batch-size`.
+  Qwen3.6-27B-MTP decodes about 2.4x faster on a single sequence on a Radeon
+  8060S ([#4849](https://github.com/tetherto/qvac/pull/4849)).
+- DFlash speculative decoding: `spec-type: 'draft-dflash'` with
+  `spec-draft-model` (absolute local path, also `spec_draft_model`), as
+  llama-server's `--spec-type draft-dflash -md <model>`. The DFlash model is
+  loaded next to the model and placed like it (`device`, `gpu-layers`);
+  drafting otherwise works as for MTP. The load's fit and `assessFit` pass it
+  to fabric as an extra model, but fabric cannot measure a DFlash model yet,
+  so neither counts its memory
+  ([#4849](https://github.com/tetherto/qvac/pull/4849)).
+
 ## [0.62.0] - 2026-10-16
 
 ### Added

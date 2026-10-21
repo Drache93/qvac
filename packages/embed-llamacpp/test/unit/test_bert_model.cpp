@@ -782,6 +782,47 @@ TEST_F(BertModelTest, ContextOverflowUsesRuntimeContextSizeForPrompts) {
   EXPECT_THROW({ model.encodeHostF32(longString); }, qvac_errors::StatusError);
 }
 
+// A sequence limit above the batch aborts llama's context, so the unified
+// fallback has to size it from the batch.
+TEST_F(BertModelTest, SmallBatchLoadsWithClampedSequenceLimit) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  std::unordered_map<std::string, std::string> config = {
+      {"device", "cpu"}, {"batch_size", "64"}};
+  BertModel model(getValidModelPath(), config);
+  model.initializeBackend(test_backends_dir);
+  model.waitForLoadInitialization();
+
+  ASSERT_TRUE(model.isLoaded());
+  EXPECT_LE(llama_n_seq_max(model.getCtx()), 64U);
+
+  const auto embeddings =
+      model.encodeHostF32(std::vector<std::string>{"First", "Second", "Third"});
+  EXPECT_EQ(embeddings.size(), 3);
+}
+
+// More short prompts than the context admits sequence ids, in a batch whose
+// token budget would hold them all.
+TEST_F(BertModelTest, ManyShortPromptsSplitAtTheSequenceLimit) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  std::unordered_map<std::string, std::string> config = {
+      {"device", "cpu"}, {"batch_size", "1024"}};
+  BertModel model(getValidModelPath(), config);
+  model.initializeBackend(test_backends_dir);
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  const std::size_t prompts = llama_n_seq_max(model.getCtx()) + 44;
+  const std::vector<std::string> input(prompts, "hi");
+  const auto embeddings = model.encodeHostF32(input);
+  EXPECT_EQ(embeddings.size(), prompts);
+}
+
 TEST_F(BertModelTest, ContextOverflowUsesRuntimeContextSizeForSequences) {
   if (!fs::exists(getValidModelPath())) {
     FAIL() << "Test model not found at: " << getValidModelPath();
@@ -983,6 +1024,34 @@ TEST_F(BertModelTest, CommonParamsParseSplitModeRowRejected) {
         "effect on any shipped backend. Use 'layer' (accepted values: 'none', "
         "'layer').\n");
   }
+}
+
+// RANK pooling yields n_cls_out scores per sequence, not an n_embd vector, so
+// encoding read past the end of llama's output buffer. Rejected before the
+// weights load.
+TEST_F(BertModelTest, RankPoolingRejected) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  std::unordered_map<std::string, std::string> config;
+  config["device"] = test_common::getTestDevice();
+  config["pooling"] = "rank";
+
+  BertModel model(getValidModelPath(), config);
+  model.initializeBackend(test_backends_dir);
+  try {
+    model.waitForLoadInitialization();
+    FAIL() << "pooling 'rank' must be rejected";
+  } catch (const qvac_errors::StatusError& error) {
+    EXPECT_EQ(error.codeString(), "[ GTE :: UnsupportedEmbeddings ]");
+    EXPECT_EQ(
+        std::string(error.what())
+            .rfind("configureParams: rank pooling returns classifier", 0),
+        0U)
+        << error.what();
+  }
+  EXPECT_FALSE(model.isLoaded());
 }
 
 TEST_F(BertModelTest, SplitDeviceSelectionPinsEligibleConsumerList) {
