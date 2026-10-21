@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { BUILD_LEGS, combine, gateKeys, parseRunnerLabels, select } from '../select-projects.mjs'
+import { BUILD_LEGS, changedFiles, combine, gateKeys, ownersOf, parseRunnerLabels, resolveRange, select } from '../select-projects.mjs'
 
 const root = fileURLToPath(new URL('../../..', import.meta.url))
 const labels = parseRunnerLabels(readFileSync(`${root}.github/workflows/reusable-runner-names.yml`, 'utf8'))
@@ -100,4 +100,44 @@ test('each row carries its own package targets and commands', () => {
 test('targets sharing a job get one combined matrix', () => {
   assert.deepEqual(combine({ a: [1], b: [2, 3] }, 'both=a+b'), { both: [1, 2, 3] })
   assert.deepEqual(combine({ a: [1] }, ''), {})
+})
+
+const pr = { base: { sha: 'b1' }, head: { sha: 'h1', repo: { full_name: 'fork/qvac' } } }
+
+test('both PR events compare from the common ancestor, so they select the same packages', () => {
+  for (const eventName of ['pull_request', 'pull_request_target']) {
+    assert.deepEqual(resolveRange({ eventName, event: { pull_request: pr }, defaultBranch: 'main' }), { base: 'b1', head: 'h1', mergeBase: true, headRepo: 'fork/qvac' })
+  }
+})
+
+test('a push compares with the tip before it, and a new branch with where it was cut', () => {
+  assert.deepEqual(resolveRange({ eventName: 'push', event: { before: 'p0', after: 'p1' }, defaultBranch: 'main' }), { base: 'p0', head: 'p1' })
+  assert.deepEqual(resolveRange({ eventName: 'push', event: { before: '0'.repeat(40), after: 'p1' }, defaultBranch: 'main' }), { base: 'origin/main', head: 'p1', mergeBase: true })
+})
+
+test('a dispatch names its packages, or compares a branch with main, and main itself selects everything', () => {
+  assert.deepEqual(resolveRange({ eventName: 'workflow_dispatch', event: {}, packages: ['vla-ggml'] }), { explicit: ['vla-ggml'] })
+  assert.deepEqual(resolveRange({ eventName: 'workflow_dispatch', event: {}, defaultBranch: 'main', ref: 'refs/heads/feature-x', sha: 's' }), { base: 'origin/main', head: 's', mergeBase: true })
+  assert.deepEqual(resolveRange({ eventName: 'workflow_dispatch', event: {}, defaultBranch: 'main', ref: 'refs/heads/main', sha: 's' }), { all: true })
+  assert.deepEqual(resolveRange({ eventName: 'schedule', event: {} }), { all: true })
+})
+
+test('the diff fetches commits and trees only, falls back to the fork for its head, and lists a move under both paths', () => {
+  const calls = []
+  const run = (args) => {
+    calls.push(args.join(' '))
+    if (args[0] === 'fetch' && args[4] === 'h1' && args[3] === 'origin') throw new Error('not on origin')
+    if (args[0] === 'merge-base') return 'mb'
+    if (args[0] === 'diff') return 'packages/a/x.c\npackages/b/x.c\n'
+    return ''
+  }
+  assert.deepEqual(changedFiles({ base: 'b1', head: 'h1', mergeBase: true, headRepo: 'fork/qvac' }, run), ['packages/a/x.c', 'packages/b/x.c'])
+  assert.ok(calls.includes('fetch --no-tags --filter=blob:none https://github.com/fork/qvac.git h1'))
+  assert.ok(calls.includes('diff --name-only --no-renames mb h1'))
+  assert.ok(!calls.some((c) => c.includes('origin/main')), 'a branch already on the checkout is not fetched')
+})
+
+test('a changed path belongs to the package whose root holds it', () => {
+  const g = { nodes: { a: { name: 'a', data: { root: 'packages/a' } }, ab: { name: 'ab', data: { root: 'packages/ab' } } } }
+  assert.deepEqual(ownersOf(g, ['packages/a/x.c', 'docs/y.md']), ['a'])
 })

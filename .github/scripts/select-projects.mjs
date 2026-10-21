@@ -154,26 +154,45 @@ export function combine(matrices, spec = '') {
 }
 
 const git = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim()
+const ZERO = /^0+$/
 
-// The pull request is compared with the point its branch left the base, not the base's tip.
-function changedFiles(env, event) {
+// Which commits a run compares. A pull request, on either PR event, is compared from its common ancestor with the
+// base, as GitHub's "Files changed" shows it. workflow_call carries its caller's event, so it needs no row of its own.
+export function resolveRange({ eventName, event, packages = [], defaultBranch, sha, ref }) {
+  if (packages.length) return { explicit: packages }
   const pr = event.pull_request
-  const before = event.before && !/^0+$/.test(event.before) ? event.before : ''
-  const [base, head] = pr ? [pr.base.sha, pr.head.sha] : [before, env.GITHUB_SHA]
-  if (!base) return null
-  try {
-    git(['fetch', '--no-tags', '--filter=blob:none', 'origin', base])
-    try {
-      git(['fetch', '--no-tags', '--filter=blob:none', 'origin', head])
-    } catch {
-      git(['fetch', '--no-tags', '--filter=blob:none', `https://github.com/${pr.head.repo.full_name}.git`, head])
-    }
-    const mergeBase = git(['merge-base', base, head])
-    return git(['diff', '--name-only', mergeBase, head]).split('\n').filter(Boolean)
-  } catch (e) {
-    console.log(`::warning::could not diff ${base}..${head}, selecting every tagged package: ${e.message}`)
-    return null
+  if (pr) return { base: pr.base.sha, head: pr.head.sha, mergeBase: true, headRepo: pr.head.repo?.full_name }
+  if (eventName === 'merge_group') return { base: event.merge_group.base_sha, head: event.merge_group.head_sha }
+  if (eventName === 'push') {
+    const head = event.after || sha
+    if (event.before && !ZERO.test(event.before)) return { base: event.before, head }
+    return { base: `origin/${defaultBranch}`, head, mergeBase: true }
   }
+  if (eventName === 'workflow_dispatch' && defaultBranch && ref !== `refs/heads/${defaultBranch}`) {
+    return { base: `origin/${defaultBranch}`, head: sha, mergeBase: true }
+  }
+  return { all: true }
+}
+
+// Commits and trees only: paths are all a diff needs. --no-renames lists a move under both packages.
+export function changedFiles(range, run = git) {
+  const fetch = (rev, from = 'origin') => run(['fetch', '--no-tags', '--filter=blob:none', from, rev])
+  for (const rev of [range.base, range.head]) {
+    if (rev.startsWith('origin/')) continue
+    try {
+      fetch(rev)
+    } catch (e) {
+      if (rev !== range.head || !range.headRepo) throw e
+      fetch(rev, `https://github.com/${range.headRepo}.git`)
+    }
+  }
+  const base = range.mergeBase ? run(['merge-base', range.base, range.head]) : range.base
+  return run(['diff', '--name-only', '--no-renames', base, range.head]).split('\n').filter(Boolean)
+}
+
+// A changed path belongs to the package whose root holds it.
+export function ownersOf(graph, files) {
+  return Object.values(graph.nodes).filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`))).map((n) => n.name)
 }
 
 function main(env) {
@@ -182,18 +201,34 @@ function main(env) {
   const tmp = join(env.RUNNER_TEMP, 'nx-graph.json')
   execFileSync('pnpm', ['exec', 'nx', 'graph', `--file=${tmp}`], { stdio: 'inherit' })
   const graph = JSON.parse(readFileSync(tmp, 'utf8')).graph
-  const wanted = env.PACKAGES ? env.PACKAGES.split(/[\s,]+/).filter(Boolean) : null
-  let changed = wanted ? [] : changedFiles(env, event)
+  const range = resolveRange({
+    eventName: env.GITHUB_EVENT_NAME, event, sha: env.GITHUB_SHA, ref: env.GITHUB_REF,
+    packages: (env.PACKAGES || '').split(/[\s,]+/).filter(Boolean),
+    defaultBranch: event.repository?.default_branch,
+  })
+  // affected and owners stay null for "every tagged package": a named list, or no change worth diffing.
+  let files = null
   let affected = null
-  const ownerOf = (files) => Object.values(graph.nodes).filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`))).map((n) => n.name)
-  if (wanted) affected = Object.values(graph.nodes).filter((n) => wanted.includes(n.name) || wanted.includes(n.data.root.split('/').pop())).map((n) => n.name)
-  else if (changed && env.MODE === 'owners') affected = ownerOf(changed)
-  else if (changed) affected = JSON.parse(execFileSync('pnpm', ['exec', 'nx', 'show', 'projects', '--affected', `--files=${changed.join(',') || 'none'}`, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }))
-  changed ??= []
+  let owners = null
+  if (range.explicit) {
+    affected = Object.values(graph.nodes).filter((n) => range.explicit.includes(n.name) || range.explicit.includes(n.data.root.split('/').pop())).map((n) => n.name)
+  } else if (!range.all) {
+    try {
+      files = changedFiles(range)
+      console.log(`${files.length} files changed in ${range.base}..${range.head}`)
+    } catch (e) {
+      console.log(`::warning::could not diff ${range.base}..${range.head}, selecting every tagged package: ${e.message}`)
+    }
+  }
+  if (files) {
+    owners = ownersOf(graph, files)
+    affected = env.MODE === 'owners' || !files.length
+      ? owners
+      : JSON.parse(execFileSync('pnpm', ['exec', 'nx', 'show', 'projects', '--affected', `--files=${files.join(',')}`, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }))
+  }
   const labels = parseRunnerLabels(readFileSync('.github/workflows/reusable-runner-names.yml', 'utf8'))
   const result = select({
-    graph, affected, targets, changed, pr: Boolean(event.pull_request), labels,
-    owners: wanted || !changed ? null : ownerOf(changed),
+    graph, affected, targets, changed: files ?? [], pr: Boolean(event.pull_request), labels, owners,
     ownerTargets: (env.OWNER_TARGETS || '').split(/[\s,]+/).filter(Boolean),
     gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8')),
   })
