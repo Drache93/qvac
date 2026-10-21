@@ -41,6 +41,8 @@ Models:
   --text-llm <path>       model for the text suite (default: --llm)
   --draft <path>          draft model for speculative decoding: a DFlash draft
                           (draft-dflash) or a small same-vocabulary model (draft-simple)
+  --mtp-head <path>       external MTP head for draft-mtp (a GGUF with MTP layers), for a
+                          model without its own; addon needs tetherto/qvac#5232
 
 Suites:
   --suite <name>          all | vlm | text (default: all with --mmproj, else text)
@@ -67,7 +69,8 @@ Text suite (single stream, concurrency, speculative decoding):
   --spec-types <a,b>      speculative modes besides none: ${SPEC_TYPES.join(', ')}.
                           ${W.ADDON_SPEC_TYPES.join(' and ')} run on both engines (addon >= 0.63.0);
                           the rest on llama-server only. Default: ngram-simple, plus draft-mtp
-                          when the model has MTP layers, plus draft-dflash / draft-simple with --draft
+                          when the model has MTP layers or --mtp-head is given, plus
+                          draft-dflash / draft-simple with --draft
   --spec-draft-n-max <n>  max drafted tokens per step, on both engines (default: engine default)
   --spec-gen <n>          max generated tokens for speculative prompts
   --spec-concurrency <a,b>  concurrency levels for the speculative runs (default: 1)
@@ -399,16 +402,16 @@ function intListOpt (a, name) {
 // Text run shape: a preset (quick for the smoke VLM preset, else standard) plus
 // command-line overrides, expanded into the job list both engines run.
 // Default speculative modes: ngram-simple (no extra model), draft-mtp when the
-// model carries MTP layers, and draft-dflash / draft-simple for --draft by the draft
-// model's architecture.
-function defaultSpecTypes (textLlm, draft) {
+// model carries MTP layers or an external MTP head is given (--mtp-head), and
+// draft-dflash / draft-simple for --draft by the draft model's architecture.
+function defaultSpecTypes (textLlm, draft, mtpHead) {
   const out = ['ngram-simple']
-  if (hasMtpLayers(textLlm)) out.push('draft-mtp')
+  if (mtpHead || hasMtpLayers(textLlm)) out.push('draft-mtp')
   if (draft) out.push(architecture(draft) === 'dflash' ? 'draft-dflash' : 'draft-simple')
   return out
 }
 
-function textPlan (a, presetName, textLlm, draft) {
+function textPlan (a, presetName, textLlm, draft, mtpHead) {
   const name = strOpt(a, 'text-preset', presetName === 'smoke' ? 'quick' : 'standard', Object.keys(W.TEXT_PRESETS))
   const shape = JSON.parse(JSON.stringify(W.TEXT_PRESETS[name]))
   if (a['text-prompts'] !== undefined) shape.single.prompts = intListOpt(a, 'text-prompts')
@@ -421,14 +424,15 @@ function textPlan (a, presetName, textLlm, draft) {
   for (const s of suites) if (!W.SUITES.includes(s)) fail(`--text-suites must be from ${W.SUITES.join(', ')} (got '${s}')`)
   const spec = a['spec-types'] !== undefined
     ? strOpt(a, 'spec-types').split(',').map(s => s.trim()).filter(Boolean)
-    : defaultSpecTypes(textLlm, draft)
+    : defaultSpecTypes(textLlm, draft, mtpHead)
   for (const s of spec) if (s !== 'none' && !SPEC_TYPES.includes(s)) fail(`--spec-types must be from ${SPEC_TYPES.join(', ')} (got '${s}')`)
   for (const s of spec) {
     if (W.DRAFT_MODEL_SPEC_TYPES.includes(s) && !draft) fail(`--spec-types ${s} needs --draft <gguf>`)
   }
+  if (mtpHead && !spec.includes('draft-mtp')) fail('--mtp-head is used only by draft-mtp; add it to --spec-types')
   const specTypes = ['none', ...new Set(spec.filter(s => s !== 'none'))]
   const specDraftNMax = intOpt(a, 'spec-draft-n-max', null)
-  return { presetName: name, shape, suites, specTypes, specDraftNMax, jobs: W.buildJobs(shape, suites, specTypes) }
+  return { presetName: name, shape, suites, specTypes, specDraftNMax, mtpHead, jobs: W.buildJobs(shape, suites, specTypes) }
 }
 
 // A calibration from an earlier run in the same --out-dir is reused only when it was
@@ -467,6 +471,7 @@ async function runTextJobs ({ a, backend, outDir, host, text, textLlm, textLabel
       const plan = {
         llm: textLlm,
         draft,
+        mtpHead: text.mtpHead,
         specDraftNMax: text.specDraftNMax,
         backend,
         params: textParams,
@@ -514,7 +519,9 @@ async function main () {
   const mmproj = runVlm ? path.resolve(a.mmproj) : null
   const textLlm = runText ? path.resolve(strOpt(a, 'text-llm', llm)) : null
   const draft = a.draft !== undefined ? path.resolve(strOpt(a, 'draft')) : null
-  for (const p of [llm, mmproj, textLlm, draft]) if (p && !fs.existsSync(p)) fail(`model file not found: ${p}`)
+  const mtpHead = a['mtp-head'] !== undefined ? path.resolve(strOpt(a, 'mtp-head')) : null
+  for (const p of [llm, mmproj, textLlm, draft, mtpHead]) if (p && !fs.existsSync(p)) fail(`model file not found: ${p}`)
+  if (mtpHead && !hasMtpLayers(mtpHead)) fail(`--mtp-head ${mtpHead} has no MTP layers (<arch>.nextn_predict_layers); both engines would refuse it`)
   if (runVlm && /[,|]/.test(llm + mmproj)) fail('model paths must not contain "," or "|"')
 
   const backends = strOpt(a, 'backend', 'gpu').split(',').map(s => s.trim()).filter(Boolean)
@@ -529,7 +536,7 @@ async function main () {
   const items = runVlm ? selectItems(preset, { samples, tasks }) : []
   if (runVlm && !items.length) fail('the preset/tasks selection matched no fixture items')
 
-  const text = runText ? textPlan(a, presetName, textLlm, draft) : null
+  const text = runText ? textPlan(a, presetName, textLlm, draft, mtpHead) : null
 
   const cacheType = strOpt(a, 'cache-type', 'f16')
   const params = {
@@ -584,7 +591,9 @@ async function main () {
   }
   if (runText) {
     log(`text: model ${textLlm} · shape ${text.presetName} · suites ${text.suites.join(', ')} · ${text.jobs.length} jobs` +
-      (text.suites.includes('spec') ? ` · spec ${text.specTypes.join(', ')}${draft ? ` (draft ${path.basename(draft)})` : ''}` : ''))
+      (text.suites.includes('spec')
+        ? ` · spec ${text.specTypes.join(', ')}${draft ? ` (draft ${path.basename(draft)})` : ''}${mtpHead ? ` (MTP head ${path.basename(mtpHead)})` : ''}`
+        : ''))
   }
   log(`params: ${JSON.stringify(params)}`)
   log(`output: ${outDir}`)
@@ -691,6 +700,7 @@ async function main () {
         shape: text.shape,
         suites: text.suites,
         spec_types: text.specTypes,
+        mtp_head: mtpHead,
         params: textParams,
         gpu_api: backends.includes('gpu') ? gpuApi : null,
         addon: addonOrigin ? addonRef : null,
@@ -730,7 +740,7 @@ async function main () {
     benchmark_sha: benchSha,
     hosts,
     summary: runVlm ? summarize(logFiles) : [],
-    text: runText ? { model: textLlm, draft, preset: text.presetName, shape: text.shape, spec_types: text.specTypes, summary: textSummary } : null
+    text: runText ? { model: textLlm, draft, mtp_head: mtpHead, preset: text.presetName, shape: text.shape, spec_types: text.specTypes, summary: textSummary } : null
   }
   fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify(results, null, 2) + '\n')
   if (runVlm) log(`report:  ${path.join(outDir, 'report.md')}`)

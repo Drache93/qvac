@@ -126,6 +126,16 @@ const SPEC_TYPES = ['ngram-simple', 'ngram-map-k', 'ngram-mod', 'ngram-cache', '
 const ADDON_SPEC_TYPES = ['draft-mtp', 'draft-dflash']
 // Speculative modes that load a separate draft model (--draft).
 const DRAFT_MODEL_SPEC_TYPES = ['draft-simple', 'draft-dflash', 'draft-dspark']
+
+// The extra model a speculative job loads, if any: the --draft model, or for
+// draft-mtp an external MTP head (--mtp-head; addon: tetherto/qvac#5232). Both
+// engines take it the same way: addon `spec-draft-model`, llama-server `-md`.
+function draftModelFor (plan, job) {
+  if (!job.spec || job.spec === 'none') return null
+  if (DRAFT_MODEL_SPEC_TYPES.includes(job.spec)) return plan.draft || null
+  if (job.spec === 'draft-mtp') return plan.mtpHead || null
+  return null
+}
 // Upper bound on a speculative prompt's rendered length, for slot sizing.
 const SPEC_PROMPT_MAX_TOKENS = 256
 
@@ -190,6 +200,7 @@ module.exports = {
   SPEC_TYPES,
   ADDON_SPEC_TYPES,
   DRAFT_MODEL_SPEC_TYPES,
+  draftModelFor,
   buildJobs,
   slotCtx,
   clientDecodeTps

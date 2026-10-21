@@ -20,13 +20,19 @@ const REQUEST_TIMEOUT_MS = 30 * 60 * 1000
 
 function emit (tag, obj) { console.log(`[${tag}]` + JSON.stringify(obj) + `[/${tag}]`) }
 
+function rowBase (plan, job) {
+  const draft = W.draftModelFor(plan, job)
+  return { engine: ENGINE, backend: plan.backend, model: plan.label, source_ref: plan.sourceRef, job: job.id, suite: job.suite, conc: job.parallel, spec: job.spec || 'none', draft_model: draft ? path.basename(draft) : null }
+}
+
 function specArgs (plan, job) {
   if (!job.spec || job.spec === 'none') return []
   const gpu = plan.backend === 'gpu'
   const args = ['--spec-type', job.spec]
-  if (W.DRAFT_MODEL_SPEC_TYPES.includes(job.spec)) {
-    if (!plan.draft) throw new Error(`spec type ${job.spec} needs a draft model (--draft <gguf>)`)
-    args.push('--model-draft', plan.draft, '--spec-draft-ngl', gpu ? '99' : '0')
+  const draft = W.draftModelFor(plan, job)
+  if (W.DRAFT_MODEL_SPEC_TYPES.includes(job.spec) && !draft) throw new Error(`spec type ${job.spec} needs a draft model (--draft <gguf>)`)
+  if (draft) {
+    args.push('--model-draft', draft, '--spec-draft-ngl', gpu ? '99' : '0')
     if (!gpu) args.push('--spec-draft-device', 'none')
   }
   if (plan.specDraftNMax != null) args.push('--spec-draft-n-max', String(plan.specDraftNMax))
@@ -108,7 +114,7 @@ function readCalibration (file) {
 }
 
 async function runJob (srv, plan, job) {
-  const base = { engine: ENGINE, backend: plan.backend, model: plan.label, source_ref: plan.sourceRef, job: job.id, suite: job.suite, conc: job.parallel, spec: job.spec || 'none' }
+  const base = rowBase(plan, job)
 
   if (job.suite === 'calibrate') {
     const out = {}
@@ -182,7 +188,7 @@ async function main () {
     srv = await startServer(a.binary, plan, job)
   } catch (e) {
     // Record the failed configuration so the report shows it instead of a gap.
-    emit('TEXTROW', { engine: ENGINE, backend: plan.backend, model: plan.label, source_ref: plan.sourceRef, job: job.id, suite: job.suite, conc: job.parallel, spec: job.spec || 'none', warmup: false, error: `start failed: ${e.message.replace(/\s+/g, ' ')}` })
+    emit('TEXTROW', { ...rowBase(plan, job), warmup: false, error: `start failed: ${e.message.replace(/\s+/g, ' ')}` })
     throw e
   }
   try {

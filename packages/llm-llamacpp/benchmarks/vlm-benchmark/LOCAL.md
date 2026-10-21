@@ -26,10 +26,11 @@ npm run benchmarks:vlm -- --llm /models/Qwen3-8B-Q4_K_M.gguf --suite text
 5. [What is held equal between the engines](#5--what-is-held-equal-between-the-engines)
 6. [Text suite](#6--text-suite)
 7. [Speculative decoding on another host](#7--speculative-decoding-on-another-host-qwen38-27b-mtp-and-dflash)
-8. [Output](#8--output)
-9. [Comparing machines](#9--comparing-machines)
-10. [Troubleshooting](#10--troubleshooting)
-11. [Limitations](#11--limitations)
+8. [Benchmarking an unreleased addon change](#8--benchmarking-an-unreleased-addon-change-separate-worktrees)
+9. [Output](#9--output)
+10. [Comparing machines](#10--comparing-machines)
+11. [Troubleshooting](#11--troubleshooting)
+12. [Limitations](#12--limitations)
 
 ---
 
@@ -178,7 +179,8 @@ Presets (`config.cjs`) set how many images run:
 
 - **Model files:** `--llm` (required); `--mmproj` (required for the vlm suite);
   `--text-llm` (a different model for the text suite); `--draft` (draft model for
-  speculative decoding: a DFlash draft, or a small same-vocabulary model).
+  speculative decoding: a DFlash draft, or a small same-vocabulary model); `--mtp-head`
+  (an external MTP head for `draft-mtp`, §6).
 - **Suites:** `--suite all|vlm|text` (default `all` when `--mmproj` is given, else `text`).
 - **Text suite** (§6):
   - `--text-preset quick|standard|full` (default `quick` with `--preset smoke`, else
@@ -208,7 +210,7 @@ Presets (`config.cjs`) set how many images run:
   - `--image-max-tokens` (default: the addon's cap for the projector)
   - `--fit` (default `off`)
 - **Engine source:** `--fabric-ref <tag|sha>` builds llama-server from a different
-  qvac-fabric tag or commit. Use it when §10 says so, or to test another engine version.
+  qvac-fabric tag or commit. Use it when §11 says so, or to test another engine version.
   Prefer a tag: GitHub serves any commit of the repository's fork network by SHA, so the
   report marks a raw SHA as unverified.
 - **Addon prebuild:**
@@ -311,6 +313,12 @@ engine runs which:
   stats). The benchmark passes it the same values as llama-server's flags.
   - `draft-mtp` uses the model's own multi-token-prediction layers. Not every GGUF keeps
     them (unsloth's Qwen3.5 quants strip them; ggml-org's keep them).
+  - `draft-mtp` with `--mtp-head <gguf>` loads the MTP layers from a separate GGUF instead
+    (an *external MTP head*), so a model without its own can still use MTP; for example
+    ggml-org's Qwen3.5-0.8B as the head for unsloth's Qwen3.5-0.8B. llama-server gets it
+    as `--spec-type draft-mtp -md <head>`, the addon as `spec-draft-model`. On the addon
+    this needs [tetherto/qvac#5232](https://github.com/tetherto/qvac/pull/5232), not
+    released yet: run it as in §8. `run-local.cjs` refuses a head without MTP layers.
   - `draft-dflash` needs a DFlash block-diffusion draft model, passed with `--draft`.
 - **llama-server only:** `ngram-*` (draft from text already in the context; helps most on
   copy-heavy output such as rewrites and code), `draft-simple` (a small `--draft` model
@@ -318,16 +326,17 @@ engine runs which:
   `draft-dspark`.
 
 Without `--spec-types` the run picks: `ngram-simple`; `draft-mtp` when the GGUF has MTP
-layers (`<arch>.nextn_predict_layers > 0`); and, with `--draft`, `draft-dflash` for a
-DFlash draft (`general.architecture = dflash`) or `draft-simple` otherwise.
+layers (`<arch>.nextn_predict_layers > 0`) or `--mtp-head` is given; and, with `--draft`,
+`draft-dflash` for a DFlash draft (`general.architecture = dflash`) or `draft-simple`
+otherwise. A mode that loads a separate model shows its file name next to the mode in the
+report.
 `--spec-draft-n-max` pins the draft length on both engines; without it each keeps its
 default (the addon lowers it to fit a batch, with a warning).
 
 **Older addon builds.** An addon older than 0.63.0 has no speculative decoding: its
 speculative rows fail with `invalid argument: --spec-type` and are listed under *Failed
 configurations*; everything else still runs. To benchmark an addon build that is not
-released yet (a PR's CI prebuild artifact, or a build from another worktree), pass it with
-`--addon-prebuild <dir>`.
+released yet, see §8.
 
 **Held equal**, beyond §5:
 
@@ -428,9 +437,120 @@ npm run benchmarks:vlm -- --llm ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf \
 - The GPU API defaults to Metal on macOS and Vulkan elsewhere; add `--gpu-api cuda` on
   NVIDIA. Drop `--text-suites spec` to add single-stream and concurrency results for the
   27B model; add `--spec-concurrency 1,4` for speculation under concurrency.
-- Results land in `benchmarks/vlm-benchmark/results/<timestamp>-<name>/` (§8).
+- Results land in `benchmarks/vlm-benchmark/results/<timestamp>-<name>/` (§9).
 
-## 8 · Output
+## 8 · Benchmarking an unreleased addon change (separate worktrees)
+
+To benchmark an addon change that is not released yet (an open PR, or a local branch),
+keep two git worktrees of one clone:
+
+- an **addon worktree** on the branch under test, where the addon is built from source;
+- a **benchmark worktree** on this branch, which runs `run-local.cjs` against that build
+  with `--addon-prebuild`.
+
+Each worktree keeps its own `node_modules/` and `prebuilds/`, so the benchmark checkout
+stays on its own addon and nothing has to be copied by hand. The example below uses
+[tetherto/qvac#5232](https://github.com/tetherto/qvac/pull/5232) (external MTP heads, branch
+`fix/assessfit-speculative`); for another change, substitute its branch and models.
+
+**Host:** everything in §2, plus what building the addon needs
+(`packages/llm-llamacpp/build.md`):
+
+- `bare-make`: `npm install -g bare-make`
+- vcpkg at tag `2025.12.12`, with `VCPKG_ROOT` set:
+  ```bash
+  git clone --branch 2025.12.12 --single-branch https://github.com/microsoft/vcpkg.git ~/vcpkg
+  ~/vcpkg/bootstrap-vcpkg.sh          # Windows: ~\vcpkg\bootstrap-vcpkg.bat
+  export VCPKG_ROOT=~/vcpkg           # Windows: $env:VCPKG_ROOT = "$HOME\vcpkg"
+  ```
+- macOS: Apple clang ≥ 15 (not Homebrew LLVM). Linux: clang with libc++, CMake.
+  Windows: Visual Studio 2022 with C++, Clang and LLVM tools, and the Vulkan SDK.
+
+The vcpkg registry (`tetherto/qvac-registry-vcpkg`) is public; no token is needed.
+
+**1. One clone, two worktrees.**
+
+```bash
+git clone git@github.com:tetherto/qvac.git ~/qvac      # or use an existing clone
+cd ~/qvac
+ADDON_BRANCH=fix/assessfit-speculative                 # the change under test
+git fetch origin "$ADDON_BRANCH" feat/llm-bench-vs-llama-server
+git worktree add --detach ~/qvac-addon "origin/$ADDON_BRANCH"
+git worktree add --detach ~/qvac-bench origin/feat/llm-bench-vs-llama-server
+```
+
+`--detach` avoids creating local branches; to follow a branch later, `git -C <worktree>
+fetch origin` and `git -C <worktree> checkout --detach origin/<branch>`.
+
+**2. Build the addon in the addon worktree.**
+
+```bash
+cd ~/qvac-addon/packages/llm-llamacpp
+npm install
+npm run build
+ls prebuilds/                       # e.g. darwin-arm64/qvac__llm-llamacpp.bare
+```
+
+`npm run build` compiles the TypeScript wrapper and the native addon (`bare-make generate`,
+`build`, `install`) into `prebuilds/<platform>-<arch>/`. The first build fetches the vcpkg
+dependencies and takes a while; later builds reuse them.
+
+*Without a build toolchain:* download the branch's CI prebuild instead. A PR's checks
+upload `prebuild-llm-llamacpp-<platform>-<arch>` artifacts (the *On PR Trigger* run in the
+PR's *Checks* tab):
+
+```bash
+gh run download <run-id> --repo tetherto/qvac --name prebuild-llm-llamacpp-darwin-arm64 \
+  --dir ~/qvac-addon-prebuild
+```
+
+and use that directory in step 3. Take the run of the PR's current head commit.
+
+**3. Run the benchmark worktree against that build.**
+
+```bash
+cd ~/qvac-bench/packages/llm-llamacpp
+npm install
+# #5232: unsloth's Qwen3.5-0.8B (no MTP layers) with ggml-org's Qwen3.5-0.8B as the MTP head
+npm run benchmarks:vlm -- --llm ~/models/Qwen3.5-0.8B-Q8_0.gguf \
+  --mtp-head ~/models/Qwen3.5-0.8B-MTP-Q8_0.gguf --suite text --text-suites spec --spec-gen 512 \
+  --addon-prebuild ~/qvac-addon/packages/llm-llamacpp/prebuilds --host-label <name>
+```
+
+The two models, pinned:
+
+- `Qwen3.5-0.8B-Q8_0.gguf` (no MTP layers): [unsloth/Qwen3.5-0.8B-GGUF](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF)
+  at `6ab461498e2023f6e3c1baea90a8f0fe38ab64d0`, sha256
+  `0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c`.
+- `Qwen3.5-0.8B-MTP-Q8_0.gguf` (the head): the ggml-org file from the table in §7.
+
+Things to keep consistent between the two worktrees:
+
+- **Which addon ran:** `--addon-prebuild` swaps the build into the benchmark worktree's
+  `prebuilds/` for the run and restores it on exit. The addon rows' `source_ref` names the
+  prebuild directory, so the report records which build ran.
+- **Same engine version:** the addon build links the `@qvac/fabric` of the addon
+  worktree, and at run time loads the one in the benchmark worktree's `node_modules/`.
+  Keep both on the same `@qvac/fabric` version (`npm ls @qvac/fabric` in each); if the
+  branch under test moves fabric, merge or rebase it so both match, and build llama-server
+  from the same tag (`--fabric-ref`, §4).
+- **Same JavaScript:** the benchmark worktree's `index.js` loads the other build's native
+  addon. That is fine when the change is native only, as #5232 is (its `src/index.ts`
+  changes are doc comments). If the change also edits `index.js`, check out the branch
+  under test in the benchmark worktree too (merge it into a local copy of this branch).
+- **Comparison:** run the same command without `--addon-prebuild` for the released addon.
+  For #5232 that gives the "before" picture: the addon's `draft-mtp` row fails with
+  "spec-draft-model requires spec-type draft-dflash" and a hint to this section, while
+  llama-server's runs.
+
+**4. Clean up** when done:
+
+```bash
+git -C ~/qvac worktree remove ~/qvac-addon
+git -C ~/qvac worktree remove ~/qvac-bench
+```
+
+## 9 · Output
 
 Each run writes to `benchmarks/vlm-benchmark/results/<timestamp>-<host>/`, which git
 ignores:
@@ -481,7 +601,7 @@ How each metric is measured:
     polled during it, which would add load to the server leg only). It plateaus once the
     model and buffers are loaded, but a short-lived peak inside a request is not seen.
 
-## 9 · Comparing machines
+## 10 · Comparing machines
 
 1. Run the same command on each machine, with a different `--host-label` on each.
 2. Copy every machine's `vlm-matrix-<host>-<backend>.log` and `prov-*.md` files into one
@@ -511,7 +631,7 @@ For results you can compare across machines:
   fabric tag. Both appear in the report's *Sources* table.
 - On laptops, plug in power and close heavy apps.
 
-## 10 · Troubleshooting
+## 11 · Troubleshooting
 
 - **`fixture images missing`:** copy the images into `fixture/`, or pass `--fixture-dir`.
   See §2.
@@ -538,6 +658,9 @@ For results you can compare across machines:
   the server's own errors. The usual causes are a `--spec-types` mode the model cannot
   use (`draft-mtp` on a model without MTP layers, `draft-simple` with a draft of another
   vocabulary) or a context too large for memory at a high `--concurrency`.
+- **`spec-draft-model requires spec-type "draft-dflash"` from the addon:** the run passed
+  `--mtp-head`, and the addon build predates external MTP heads (tetherto/qvac#5232).
+  Run it against a build with #5232 (§8), or drop `--mtp-head`.
 - **`invalid argument: --spec-type` from the addon:** the addon build is older than 0.63.0
   and has no speculative decoding. Update the checkout (and `npm install`), remove a stale
   `prebuilds/` build, or point `--addon-prebuild` at a newer build.
@@ -547,7 +670,7 @@ For results you can compare across machines:
   draft once the output repeats text already in the context; short generations may never
   get there. Raise `--spec-gen`.
 
-## 11 · Limitations
+## 12 · Limitations
 
 - **Desktop only.** Phones run the addon through the CI workflow (`README.md` §1); there is
   no llama-server on phones.
@@ -564,8 +687,8 @@ For results you can compare across machines:
 - **Only the parameters in §5 and §6 are shared.** Engine flags that `run-local.cjs` does
   not expose (tensor split and so on) stay at each engine's default.
 - **The addon's speculative decoding covers `draft-mtp` and `draft-dflash`** (0.63.0 and
-  later). The other modes compare llama-server's speculation against both engines'
-  baselines.
+  later; `draft-mtp` with an external head needs tetherto/qvac#5232). The other modes
+  compare llama-server's speculation against both engines' baselines.
 - **Prompt rendering.** The addon accepts chat messages only, so the text suite measures
   chat-templated prompts on both engines rather than raw token sequences.
 - **Text quality is not scored.** The text suite measures speed and memory; greedy outputs

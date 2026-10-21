@@ -49,7 +49,8 @@ function engineConfig (plan, job) {
   // Speculative decoding (addon >= 0.63.0): the same keys as llama-server's flags.
   if (job.spec && job.spec !== 'none') {
     c['spec-type'] = job.spec
-    if (W.DRAFT_MODEL_SPEC_TYPES.includes(job.spec)) c['spec-draft-model'] = plan.draft
+    const draft = W.draftModelFor(plan, job)
+    if (draft) c['spec-draft-model'] = draft
     if (plan.specDraftNMax != null) c['spec-draft-n-max'] = String(plan.specDraftNMax)
   }
   return c
@@ -93,7 +94,8 @@ function readCalibration (file) {
 async function main () {
   const plan = JSON.parse(String(fs.readFileSync(os.getEnv('QVAC_TEXT_PLAN'))))
   const job = plan.job
-  const base = { engine: ENGINE, backend: plan.backend, model: plan.label, source_ref: plan.sourceRef, job: job.id, suite: job.suite, conc: job.parallel, spec: job.spec || 'none' }
+  const draft = W.draftModelFor(plan, job)
+  const base = { engine: ENGINE, backend: plan.backend, model: plan.label, source_ref: plan.sourceRef, job: job.id, suite: job.suite, conc: job.parallel, spec: job.spec || 'none', draft_model: draft ? draft.split(/[\\/]/).pop() : null }
 
   const model = new LlmLlamacpp({
     files: { model: [plan.llm] },
@@ -106,7 +108,11 @@ async function main () {
   } catch (e) {
     // Record the failed configuration so the report shows it instead of a gap.
     let msg = String((e && e.message) || e).replace(/\s+/g, ' ').trim()
-    if (job.spec && job.spec !== 'none' && /spec/i.test(msg)) msg += ' (speculative decoding needs @qvac/llm-llamacpp >= 0.63.0)'
+    if (job.spec === 'draft-mtp' && plan.mtpHead && /spec-draft-model|draft/i.test(msg)) {
+      msg += ' (an external MTP head needs an addon with tetherto/qvac#5232; see LOCAL.md §8)'
+    } else if (job.spec && job.spec !== 'none' && /spec/i.test(msg)) {
+      msg += ' (speculative decoding needs @qvac/llm-llamacpp >= 0.63.0)'
+    }
     emit('TEXTROW', { ...base, warmup: false, error: `load failed: ${msg}` })
     throw e
   }

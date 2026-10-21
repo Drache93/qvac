@@ -137,6 +137,7 @@ function summarize ({ rows, batches }) {
       engine,
       spec,
       conc,
+      draft_model: (rs.find(r => r.draft_model) || {}).draft_model || null,
       decode_tps_by_prompt: byKind,
       decode_tps: kinds.length ? mean(kinds) : null,
       agg_tps: conc > 1 ? median(nums(bs, 'agg_tps')) : null,
@@ -171,11 +172,11 @@ function summarize ({ rows, batches }) {
   return out
 }
 
-const SPEC_NOTE = 'Modes both engines support (draft-mtp, draft-dflash; the addon\'s since llm-llamacpp 0.63.0) run on both; ngram-* and draft-simple run on llama-server only. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).'
+const SPEC_NOTE = 'Modes both engines support (draft-mtp, draft-dflash; the addon\'s since llm-llamacpp 0.63.0, draft-mtp with an external head with tetherto/qvac#5232) run on both; ngram-* and draft-simple run on llama-server only. A mode that loads a draft model or external MTP head names it in brackets. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).'
 const SPEC_HEAD = kinds => ['N', 'engine · spec', ...kinds.map(k => `${k} t/s`), 'mean t/s', 'aggregate t/s', 'speedup', 'addon vs server', 'acceptance']
 function specCells (r, kinds) {
   const x = v => v == null ? '—' : v.toFixed(2) + '×'
-  return [r.conc, `${r.engine} · ${r.spec}`, ...kinds.map(k => fmt(r.decode_tps_by_prompt[k])), fmt(r.decode_tps), fmt(r.agg_tps), x(r.speedup), x(r.addon_vs_server), r.acceptance == null ? '—' : (100 * r.acceptance).toFixed(0) + '%']
+  return [r.conc, `${r.engine} · ${r.spec}${r.draft_model ? ` (${r.draft_model})` : ''}`, ...kinds.map(k => fmt(r.decode_tps_by_prompt[k])), fmt(r.decode_tps), fmt(r.agg_tps), x(r.speedup), x(r.addon_vs_server), r.acceptance == null ? '—' : (100 * r.acceptance).toFixed(0) + '%']
 }
 
 // ── formatting ───────────────────────────────────────────────────────────────
