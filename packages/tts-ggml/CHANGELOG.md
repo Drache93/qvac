@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update the shared native `speech-cpp` source to `2026-10-19`, including
+- Update the shared native `speech-cpp` source to `2026-10-21`, including
   optional CosyVoice3 Core ML sidecars on Apple platforms. Re-export existing
   LM sidecars to include the cache feedback fix for consecutive predictions.
 - Include native Pocket TTS Metal, CUDA, Vulkan and OpenCL support. The Pocket
