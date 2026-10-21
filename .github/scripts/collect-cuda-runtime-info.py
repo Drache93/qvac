@@ -32,7 +32,11 @@ report['gpu'] = command(['nvidia-smi', '--query-gpu=name,uuid,driver_version,com
 report['gpu_activity'] = command(['nvidia-smi'])
 report['host_compiler'] = command(['nvcc', '--version'])
 if backend:
-    report['backend'] = {'path': str(backend), 'sha256': hashlib.file_digest(backend.open('rb'), 'sha256').hexdigest()}
+    digest = hashlib.sha256()
+    with backend.open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(chunk)
+    report['backend'] = {'path': str(backend), 'sha256': digest.hexdigest()}
     report['linking'] = command(['ldd', str(backend)])
     # The addon supplies ggml symbols when loading the module. Loading it in
     # Python alone would report misleading undefined-symbol errors.
