@@ -569,10 +569,11 @@ test('uses the runtime-safe default environment source and preserves the 14-key 
     t.is(Object.keys(receivedOptions?.env ?? {}).length, 14)
   } finally {
     for (const [key, value] of Object.entries(previousEnvironment)) {
-      // bare-env's proxy rejects `delete`; blank the key instead. A '' entry
-      // still travels through the allowlist, but the assertions above ran
-      // before this cleanup and this is the final test in the file.
-      env[key] = value === undefined ? '' : value
+      // Unset a key that was not set: a blank TMPDIR makes os.tmpdir() return ''
+      // for every later test in the process. bare-env unsets it but reports
+      // false, so `delete` would throw.
+      if (value === undefined) Reflect.deleteProperty(env, key)
+      else env[key] = value
     }
   }
 })
