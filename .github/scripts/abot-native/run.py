@@ -37,11 +37,11 @@ def execute(args):
     args.output.mkdir(parents=True, exist_ok=True)
     inputs = json.loads(args.inputs.read_text())
     metadata = {'probe': args.probe, 'cli': {'path': str(args.cli), 'sha256': digest(args.cli)},
-                'cudaModuleSha256': digest(args.cuda_module),
+                'cpuModuleSha256': digest(args.cpu_module), 'cudaModuleSha256': digest(args.cuda_module),
                 'inputs': {key: {'path': value, 'sha256': digest(value)} for key, value in inputs.items()},
                 'environment': {key: os.environ.get(key) for key in ('CUDA_VISIBLE_DEVICES', 'GGML_CUDA_DISABLE_GRAPHS', 'GGML_CUDA_DISABLE_FUSION')}}
     (args.output / 'provenance.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    env = dict(os.environ, SD_ABOT_DIAGNOSTIC_CUDA_MODULE=str(args.cuda_module))
+    env = dict(os.environ, SD_ABOT_DIAGNOSTIC_CUDA_MODULE=str(args.cuda_module), SD_ABOT_DIAGNOSTIC_CPU_MODULE=str(args.cpu_module))
     if args.probe == 'sync':
         env['SD_ABOT_DIAGNOSTIC_SYNC'] = '1'
     if args.probe == 'no-graphs':
@@ -127,7 +127,7 @@ def execute(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    for name in ('cli', 'inputs', 'cuda-module', 'output', 'guards'):
+    for name in ('cli', 'inputs', 'cuda-module', 'cpu-module', 'output', 'guards'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--probe', choices=['baseline', 'sync', 'no-graphs', 'no-fusion', 'memcheck', 'initcheck', 'nsys', 'node'], default='baseline')
     parser.add_argument('--node-filter', default='')

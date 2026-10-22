@@ -49,6 +49,9 @@ endif()''')
     s = replace_once(p.read_text(), '#include <fstream>', '#include <fstream>\n#include <filesystem>\n#include "core/abot_diagnostics.h"')
     s = replace_once(s, 'int main(int argc, char** argv) {', '''int main(int argc, char** argv) {
 #ifdef SD_ABOT_DIAGNOSTICS
+    if (const char* module = std::getenv("SD_ABOT_DIAGNOSTIC_CPU_MODULE")) {
+        if (!ggml_backend_load(module)) return 2;
+    }
     if (const char* module = std::getenv("SD_ABOT_DIAGNOSTIC_CUDA_MODULE")) {
         if (!ggml_backend_load(module)) return 2;
     }

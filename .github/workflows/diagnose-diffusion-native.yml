@@ -143,7 +143,7 @@ jobs:
             -DSD_WEBP=OFF -DSD_WEBM=OFF -DSD_CUDA=OFF -DSD_VULKAN=OFF \
             -DSD_BUILD_SHARED_GGML_LIB=ON -DBUILD_SHARED_LIBS=ON \
             -DGGML_BACKEND_DL=ON -DGGML_CUDA=OFF -DGGML_VULKAN=OFF -DGGML_NATIVE=OFF
-          "$cmake" --build diagnostic-build --target sd-abot-session --parallel 2
+          "$cmake" --build diagnostic-build --target sd-abot-session ggml-cpu --parallel 2
           cp diagnostic-build/CMakeCache.txt native-results/
           cp diagnostic-build/compile_commands.json native-results/
       - name: Capture intermediate tensors and disk memory events
@@ -156,6 +156,7 @@ jobs:
           python3 .github/scripts/abot-native/run.py \
             --cli "$GITHUB_WORKSPACE/diagnostic-build/bin/sd-abot-session" \
             --inputs native-results/inputs.json --cuda-module "$CUDA_MODULE" \
+            --cpu-module "$GITHUB_WORKSPACE/diagnostic-build/bin/libggml-cpu.so" \
             --guards "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp/test/integration/abot-guards.js" \
             --output "$GITHUB_WORKSPACE/native-results/capture" \
             --probe "$PROBE" --node-filter "$NODE_FILTER" --repeats "$repeats"
