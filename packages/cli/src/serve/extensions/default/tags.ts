@@ -3,6 +3,8 @@
  * Per-route descriptions live next to each route's Fastify schema.
  */
 export const TAG_DESCRIPTIONS: Record<string, string> = {
+  'Chat Batch':
+    'Several chat prompts decoded together on one LLM via SDK `batchCompletion()`. Each prompt takes the `/v1/chat/completions` fields.',
   'KV Cache':
     'Reclaim the automatic KV cache that chat requests build up on disk. It is bounded already (4 GiB LRU on desktop, 512 MiB on mobile, 24h idle TTL); this frees it on demand. Caller-owned named caches are never touched — those stay SDK-managed via `deleteCache({ kvCacheKey })`.',
   RAG: 'RAG controls that `/v1/vector_stores` does not cover: chunking options, ingest by embedding alias, reindex, workspace management, and raw vector indexes. Search a workspace through `/v1/vector_stores/{id}/search`.',
