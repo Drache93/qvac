@@ -63,18 +63,21 @@ name.
 
 ### Step 1: Resolve the collections and check the moment
 
-Read the version being released, `<x.y.z>`, from the invocation.
-
-Derive the collections to cut:
+Derive the collections to cut, each with the version of **its own package** —
+not the train's anchor version, which names the branch and may belong to
+another package:
 
 - Invoked from `qv-release-train`: every versioned collection whose package the
-  train moves. `docs/website/src/lib/versions.ts` maps package to collection —
-  `@qvac/sdk` → `/sdk`, `@qvac/cli` → `/cli`. A train package with no
-  collection (`@qvac/inference`, `@qvac/ai-sdk-provider`, the plugins) cuts
-  nothing.
+  train moves, at that package's new version.
+  `docs/website/src/lib/versions.ts` maps package to collection — `@qvac/sdk` →
+  `/sdk`, `@qvac/cli` → `/cli`. A train package with no collection
+  (`@qvac/inference`, `@qvac/ai-sdk-provider`, the plugins) cuts nothing, and a
+  train that moves no collection's package cuts nothing at all.
 - Invoked from `qv-sdk-changelog` or by hand: the one collection of the package
-  being released. If it has none, there is nothing to do — report that and
-  stop.
+  being released, at the version named. If it has none, there is nothing to do
+  — report that and stop.
+
+`<x.y.z>` below is the version of the collection being cut.
 
 Per collection, read the line last cut from the manifest — the parenthesized
 entry — and check the moment:
