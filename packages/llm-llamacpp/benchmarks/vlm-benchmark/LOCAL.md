@@ -452,9 +452,10 @@ npm run benchmarks:vlm -- --llm ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf \
 To benchmark an addon change that is not released yet (an open PR, or a local branch),
 keep two git worktrees of one clone:
 
-- an **addon worktree** on the branch under test, where the addon is built from source;
-- a **benchmark worktree** on this branch, which runs `run-local.cjs` against that build
-  with `--addon-prebuild`.
+- the **clone itself** (`~/qvac`) on the branch under test, where the addon is built from
+  source;
+- a **benchmark worktree** (`~/qvac-bench`) on this branch, which runs `run-local.cjs`
+  against that build with `--addon-prebuild`.
 
 Each worktree keeps its own `node_modules/` and `prebuilds/`, so the benchmark checkout
 stays on its own addon and nothing has to be copied by hand. The example below uses
@@ -476,24 +477,24 @@ stays on its own addon and nothing has to be copied by hand. The example below u
 
 The vcpkg registry (`tetherto/qvac-registry-vcpkg`) is public; no token is needed.
 
-**1. One clone, two worktrees.**
+**1. The clone on the branch under test, plus a benchmark worktree.**
 
 ```bash
 git clone git@github.com:tetherto/qvac.git ~/qvac      # or use an existing clone
 cd ~/qvac
 ADDON_BRANCH=fix/assessfit-speculative                 # the change under test
 git fetch origin "$ADDON_BRANCH" feat/llm-bench-vs-llama-server
-git worktree add --detach ~/qvac-addon "origin/$ADDON_BRANCH"
+git checkout --detach "origin/$ADDON_BRANCH"           # needs a clean working tree
 git worktree add --detach ~/qvac-bench origin/feat/llm-bench-vs-llama-server
 ```
 
-`--detach` avoids creating local branches; to follow a branch later, `git -C <worktree>
-fetch origin` and `git -C <worktree> checkout --detach origin/<branch>`.
+`--detach` avoids creating local branches; to follow a branch later, `git -C <checkout>
+fetch origin` and `git -C <checkout> checkout --detach origin/<branch>`.
 
-**2. Build the addon in the addon worktree.**
+**2. Build the addon in the clone.**
 
 ```bash
-cd ~/qvac-addon/packages/llm-llamacpp
+cd ~/qvac/packages/llm-llamacpp
 npm install
 npm run build
 ls prebuilds/                       # e.g. darwin-arm64/qvac__llm-llamacpp.bare
@@ -522,7 +523,7 @@ npm install
 # #5232: unsloth's Qwen3.5-0.8B (no MTP layers) with ggml-org's Qwen3.5-0.8B as the MTP head
 npm run benchmarks:vlm -- --llm ~/models/Qwen3.5-0.8B-Q8_0.gguf \
   --mtp-head ~/models/Qwen3.5-0.8B-MTP-Q8_0.gguf --suite text --text-suites spec --spec-gen 512 \
-  --addon-prebuild ~/qvac-addon/packages/llm-llamacpp/prebuilds --host-label <name>
+  --addon-prebuild ~/qvac/packages/llm-llamacpp/prebuilds --host-label <name>
 ```
 
 The two models, pinned:
@@ -566,7 +567,7 @@ shasum -a 256 *.gguf                # Linux: sha256sum
 
 ```bash
 cd ~/qvac-bench/packages/llm-llamacpp
-PREBUILD=~/qvac-addon/packages/llm-llamacpp/prebuilds
+PREBUILD=~/qvac/packages/llm-llamacpp/prebuilds
 
 # a) 27B on its own MTP layers. Released since 0.63.0; --addon-prebuild keeps the build
 #    the same as in b), so a) vs b) differs only in where the draft comes from.
@@ -607,8 +608,8 @@ Things to keep consistent between the two worktrees:
 - **Which addon ran:** `--addon-prebuild` swaps the build into the benchmark worktree's
   `prebuilds/` for the run and restores it on exit. The addon rows' `source_ref` names the
   prebuild directory, so the report records which build ran.
-- **Same engine version:** the addon build links the `@qvac/fabric` of the addon
-  worktree, and at run time loads the one in the benchmark worktree's `node_modules/`.
+- **Same engine version:** the addon build links the `@qvac/fabric` of the clone
+  (`~/qvac`), and at run time loads the one in the benchmark worktree's `node_modules/`.
   Keep both on the same `@qvac/fabric` version (`npm ls @qvac/fabric` in each); if the
   branch under test moves fabric, merge or rebase it so both match, and build llama-server
   from the same tag (`--fabric-ref`, §4).
@@ -641,8 +642,8 @@ which is why every run above has its own. `text-report.html` is self-contained.
 **5. Clean up** when done:
 
 ```bash
-git -C ~/qvac worktree remove ~/qvac-addon
 git -C ~/qvac worktree remove ~/qvac-bench
+git -C ~/qvac checkout main                 # back from the branch under test
 ```
 
 ## 9 · Output
