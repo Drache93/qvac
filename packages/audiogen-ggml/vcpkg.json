@@ -19,7 +19,8 @@
         "audiogen",
         "metal"
       ],
-      "platform": "osx | ios"
+      "platform": "osx | ios",
+      "version>=": "2026-10-21#3"
     },
     {
       "name": "speech-cpp",
@@ -29,7 +30,8 @@
         "vulkan",
         "opencl"
       ],
-      "platform": "android"
+      "platform": "android",
+      "version>=": "2026-10-21#3"
     },
     {
       "name": "speech-cpp",
@@ -38,7 +40,8 @@
         "audiogen",
         "vulkan"
       ],
-      "platform": "!(osx | ios | android)"
+      "platform": "!(osx | ios | android)",
+      "version>=": "2026-10-21#3"
     }
   ],
   "features": {
@@ -52,7 +55,8 @@
           "features": [
             "cuda"
           ],
-          "platform": "!(osx | ios | android)"
+          "platform": "!(osx | ios | android)",
+          "version>=": "2026-10-21#3"
         }
       ]
     },
@@ -99,7 +103,8 @@
           "features": [
             "vulkan"
           ],
-          "platform": "!(osx | ios)"
+          "platform": "!(osx | ios)",
+          "version>=": "2026-10-21#3"
         }
       ]
     }
@@ -112,8 +117,8 @@
     },
     {
       "name": "speech-cpp",
-      "version": "2026-10-20",
-      "port-version": 1
+      "version": "2026-10-21",
+      "port-version": 3
     }
   ]
 }
