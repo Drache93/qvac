@@ -177,7 +177,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/*
+          node-version: lts/krypton
+          check-latest: true
 
       - name: Install addon dependencies
         working-directory: packages/llm-llamacpp
@@ -333,7 +334,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/*
+          node-version: lts/krypton
+          check-latest: true
 
       - name: Get addon version
         id: addon_ver
