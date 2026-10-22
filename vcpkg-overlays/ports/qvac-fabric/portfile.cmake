@@ -1,8 +1,8 @@
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
   REPO tetherto/qvac-fabric-llm.cpp
-  REF 0070f12ed51958586b4388cd4cef78c4abd92364
-  SHA512 d48d5fd826ab03869f7de4ac9837e4690548335ad3e446aa3c0b8e5e391b4675ee291e3fd0eaf3cdeae4b9e91e5538bcf6d37d40826d1fdf665904e4f7607cda
+  REF d1d694ec1edfbcc63f3aa5eeec3d589421f39260
+  SHA512 0d0b6d622319d8d9544947d64dd90dda8c6c16e2b873578cf8f23cc268fc53dd860f7489861d8c3f459f5d38b710fd26fc93986a2d264cee645b14d5e01836e6
 )
 
 # Upstream CMake options only — passed through to vcpkg_cmake_configure.
