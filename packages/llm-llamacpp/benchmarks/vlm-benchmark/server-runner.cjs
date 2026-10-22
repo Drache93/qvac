@@ -42,10 +42,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 // llama-server arguments matching the addon's load config (harness.cjs paramsConfig).
 // --reasoning off: the addon renders the template with thinking disabled when its
 // reasoning budget is 0; --reasoning-budget alone only limits the sampler.
-// Threadpool polling stays at each engine's default (addon 0, llama-server 50) on
-// purpose: measured on Apple M4, the addon decodes at the same speed at poll 0 and
-// 50, while llama-server at --poll 0 decodes ~20% slower on Metal (no change on CPU),
-// so forcing it to 0 would open a gap the engines do not have.
+// params.poll pins threadpool polling on both engines, whose defaults differ (addon
+// 0, llama-server 50); the addon's batch polling follows its poll.
 // --verbosity 4 + --log-timestamps: the `encoding mtmd batch` line that starts the
 // vision-encode timing (visionOf) is logged at TRACE. TRACE lines are per request
 // and per batch, not per token (per-token logging is DEBUG, level 5); text runs pass
@@ -81,6 +79,7 @@ function serverArgs (a, params) {
   if (params.cacheTypeK != null) args.push('--cache-type-k', String(params.cacheTypeK))
   if (params.cacheTypeV != null) args.push('--cache-type-v', String(params.cacheTypeV))
   if (params.fit != null) args.push('--fit', String(params.fit))
+  if (params.poll != null) args.push('--poll', String(params.poll), '--poll-batch', String(params.poll))
   if (params.imageMaxTokens != null) args.push('--image-max-tokens', String(params.imageMaxTokens))
   if (gpu) {
     // The addon runs on one device (split-mode none) by default.
@@ -97,13 +96,20 @@ function serverEnv (apiKey) {
   return { ...process.env, LLAMA_API_KEY: apiKey }
 }
 
-// Stop the server and close its log stream only after it has exited, so its
-// shutdown output never reaches a stream that has already ended.
+// Stop the server and close its log stream only after its output has drained
+// ('close', not 'exit'), so shutdown lines are kept. A server still up after 15 s is
+// killed, so the next job does not find the port taken.
 async function stopServer (child, logStream) {
+  const closed = new Promise(resolve => child.once('close', resolve))
   if (child.exitCode == null && child.signalCode == null) {
-    const exited = new Promise(resolve => child.once('exit', resolve))
     child.kill()
-    await Promise.race([exited, sleep(15000)])
+    const timedOut = await Promise.race([closed.then(() => false), sleep(15000).then(() => true)])
+    if (timedOut) {
+      child.kill('SIGKILL')
+      await Promise.race([closed, sleep(5000)])
+    }
+  } else if (![child.stdout, child.stderr].every(s => !s || s.destroyed)) {
+    await Promise.race([closed, sleep(5000)])
   }
   if (logStream && !logStream.writableEnded) logStream.end()
 }

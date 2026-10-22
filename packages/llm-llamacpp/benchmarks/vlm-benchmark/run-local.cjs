@@ -487,8 +487,8 @@ function calibrationUsable (file, llm, targets) {
 
 // Run every text job on this backend: the addon in a fresh bare process and
 // llama-server freshly started, per job. Calibration runs once, on the first engine.
-// The engine that goes first alternates from job to job, so neither engine always
-// runs on the machine the other has just warmed.
+// The engine that goes first alternates across the jobs both engines run, so neither
+// always runs on the machine the other has just warmed.
 async function runTextJobs ({ a, backend, outDir, host, text, textLlm, textLabel, draft, textParams, port, addonRef, build, serverRef }) {
   const useAddon = !a['skip-addon']
   const useServer = !!build
@@ -507,7 +507,7 @@ async function runTextJobs ({ a, backend, outDir, host, text, textLlm, textLabel
       if (calibrationUsable(calibrationFile, textLlm, job.targets)) continue
       fs.rmSync(calibrationFile, { force: true })
       engines = engines.slice(0, 1)
-    } else if (measured++ % 2 === 1) {
+    } else if (engines.length === 2 && measured++ % 2 === 1) {
       engines.reverse()
     }
     for (const engine of engines) {
@@ -592,7 +592,9 @@ async function main () {
     gpuLayers: intOpt(a, 'gpu-layers', 99, 0),
     gpuApi,
     mmprojGpu: !a['mmproj-cpu'],
-    perItemPredict: true
+    perItemPredict: true,
+    // Threadpool polling, pinned rather than left to the defaults (addon 0, llama-server 50).
+    poll: 50
   }
   const threads = intOpt(a, 'threads', null)
   const batch = intOpt(a, 'batch', null)

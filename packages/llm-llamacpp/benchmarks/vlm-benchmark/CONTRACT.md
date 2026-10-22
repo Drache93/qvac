@@ -47,7 +47,7 @@ source_ref, model, device, block, stability:{kind:'temp'|'probe', value_ms?, wai
 | `QVAC_VLM_FIXTURE_DIR` | desktop fixture image directory (default `fixture/`) |
 | `QVAC_VLM_ENGINE` | `source` label stamped on the harness's markers (default `config.engine`, else `addon`) |
 | `QVAC_VLM_TEST_TIMEOUT_MIN` | per-model brittle test timeout in minutes (default 30); `run-local.cjs` sets it from `--timeout-min` |
-| `QVAC_VLM_PARAMS` | JSON engine parameters shared by the addon leg and `server-runner.cjs`: `ctxSize, threads, batchSize, ubatchSize, flashAttn, cacheTypeK, cacheTypeV, fit, gpuLayers, gpuApi, mmprojGpu, imageMaxTokens, perItemPredict`. Unset = addon defaults (CI, mobile) |
+| `QVAC_VLM_PARAMS` | JSON engine parameters shared by the addon leg and `server-runner.cjs`: `ctxSize, threads, batchSize, ubatchSize, flashAttn, cacheTypeK, cacheTypeV, fit, poll, gpuLayers, gpuApi, mmprojGpu, imageMaxTokens, perItemPredict`. Unset = addon defaults (CI, mobile) |
 
 **Local addon-vs-llama-server mode** (`run-local.cjs`, LOCAL.md) has a second marker
 producer: `server-runner.cjs` emits `[VLMMETA]`/`[VLMSEG]`/`[VLMROW]` in this schema with

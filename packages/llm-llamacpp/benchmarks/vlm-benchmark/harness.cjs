@@ -63,6 +63,7 @@ function paramsConfig (device) {
   if (PARAMS.cacheTypeK != null) c['cache-type-k'] = String(PARAMS.cacheTypeK)
   if (PARAMS.cacheTypeV != null) c['cache-type-v'] = String(PARAMS.cacheTypeV)
   if (PARAMS.fit != null) c.fit = String(PARAMS.fit)
+  if (PARAMS.poll != null) c.poll = String(PARAMS.poll)
   if (PARAMS.imageMaxTokens != null) c['image-max-tokens'] = String(PARAMS.imageMaxTokens)
   if (device !== 'cpu') {
     if (PARAMS.gpuApi != null) c.backend = String(PARAMS.gpuApi)

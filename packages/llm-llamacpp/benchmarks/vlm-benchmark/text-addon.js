@@ -45,6 +45,7 @@ function engineConfig (plan, job) {
   if (p.cacheTypeK != null) c['cache-type-k'] = String(p.cacheTypeK)
   if (p.cacheTypeV != null) c['cache-type-v'] = String(p.cacheTypeV)
   if (p.fit != null) c.fit = String(p.fit)
+  if (p.poll != null) c.poll = String(p.poll)
   if (gpu && p.gpuApi != null) c.backend = String(p.gpuApi)
   // Speculative decoding (addon >= 0.63.0): the same keys as llama-server's flags.
   if (job.spec && job.spec !== 'none') {

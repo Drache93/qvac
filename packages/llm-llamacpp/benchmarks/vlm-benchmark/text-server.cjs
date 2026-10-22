@@ -32,7 +32,9 @@ function specArgs (plan, job) {
   const draft = W.draftModelFor(plan, job)
   if (W.DRAFT_MODEL_SPEC_TYPES.includes(job.spec) && !draft) throw new Error(`spec type ${job.spec} needs a draft model (--draft <gguf>)`)
   if (draft) {
-    args.push('--model-draft', draft, '--spec-draft-ngl', gpu ? '99' : '0')
+    // The addon offloads the draft / MTP head like the target (--gpu-layers).
+    const ngl = gpu ? String(plan.params && plan.params.gpuLayers != null ? plan.params.gpuLayers : 99) : '0'
+    args.push('--model-draft', draft, '--spec-draft-ngl', ngl)
     if (!gpu) args.push('--spec-draft-device', 'none')
   }
   if (plan.specDraftNMax != null) args.push('--spec-draft-n-max', String(plan.specDraftNMax))

@@ -263,11 +263,10 @@ following are also held equal:
 - **CPU backend:** nothing is offloaded on either engine. llama-server also gets
   `--device none`.
 - **Memory auto-fit:** off on both, so neither engine quietly shrinks ctx or layers.
-- **Thread polling:** each engine keeps its own default (the addon turns the CPU
-  threadpool's busy-waiting off; llama-server polls at 50). Measured on an Apple M4, the
-  addon decodes at the same speed with polling on or off, while llama-server with
-  `--poll 0` decodes about 20% slower on Metal (no change on CPU); forcing it off would
-  create a gap the engines do not otherwise have.
+- **Thread polling:** pinned to 50 on both (addon `poll`, llama-server `--poll` and
+  `--poll-batch`). The defaults differ: the addon turns the CPU threadpool's busy-waiting
+  off, llama-server polls at 50. On an Apple M4 the addon decodes at the same speed either
+  way, while llama-server with `--poll 0` is about 20% slower on Metal.
 - **Prompt cache:** disabled on the server (`cache_prompt: false`, `--cache-ram 0`, one
   slot), so every request prefills in full, as the addon does.
 - **Warmup and repeats:** one warmup request per engine, dropped from the stats. Then both
@@ -275,7 +274,8 @@ following are also held equal:
 - **Order:** in the vlm suite the addon leg runs before the llama-server leg on every
   backend. On a laptop that throttles, the second leg runs on a warmer machine; let it
   cool between runs, or compare against a second run with `--skip-addon` /
-  `--skip-server`. The text suite alternates which engine goes first from job to job.
+  `--skip-server`. The text suite alternates which engine goes first across the jobs
+  both run (each single-stream prompt length is its own job).
 
 ## 6 · Text suite
 

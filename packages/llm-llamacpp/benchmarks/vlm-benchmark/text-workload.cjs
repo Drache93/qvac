@@ -155,9 +155,12 @@ function buildJobs (shape, suites, specTypes) {
     const maxT = Math.max(...targets)
     jobs.push({ id: 'calibrate', suite: 'calibrate', parallel: 1, ctx: slotCtx(maxT, 8), targets: [...targets].sort((x, y) => x - y) })
   }
+  // One single-stream job per prompt length, so the engine order alternates across them.
   if (suites.includes('single')) {
     const s = shape.single
-    jobs.push({ id: 'single', suite: 'single', parallel: 1, ctx: slotCtx(Math.max(...s.prompts), s.gen), ignoreEos: true, gen: s.gen, prompts: s.prompts, repeats: s.repeats })
+    for (const p of s.prompts) {
+      jobs.push({ id: `single-${p}`, suite: 'single', parallel: 1, ctx: slotCtx(p, s.gen), ignoreEos: true, gen: s.gen, prompts: [p], repeats: s.repeats })
+    }
   }
   if (suites.includes('conc')) {
     const c = shape.conc
