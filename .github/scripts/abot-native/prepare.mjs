@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { originalProbe } from './probe-command.mjs'
 
 const [workdirArg, bare, outputArg] = process.argv.slice(2)
 assert(workdirArg && bare && outputArg, 'Expected workdir, Bare executable and output directory')
@@ -33,14 +34,37 @@ selected = replaceOnce(
 const testFile = path.join(workdir, 'test/integration/abot-native-preparation.test.js')
 fs.writeFileSync(testFile, selected)
 fs.writeFileSync(path.join(output, 'selected-addon-test.js'), selected)
-const child = spawnSync(bare, [testFile, '--exit'], {
-  cwd: workdir,
-  env: {
+const invocation = originalProbe({
+  probe: process.env.PROBE || 'baseline',
+  bare,
+  testFile,
+  output,
+  environment: {
     ...process.env,
     CI: 'true',
     NO_GPU: 'false',
     ABOT_NATIVE_INPUTS: path.join(output, 'inputs.json')
-  },
+  }
+})
+fs.writeFileSync(
+  path.join(output, 'original-addon-command.json'),
+  JSON.stringify(
+    {
+      command: invocation.command,
+      args: invocation.args,
+      probe: process.env.PROBE || 'baseline',
+      cudaControls: {
+        GGML_CUDA_DISABLE_GRAPHS: invocation.env.GGML_CUDA_DISABLE_GRAPHS,
+        GGML_CUDA_DISABLE_FUSION: invocation.env.GGML_CUDA_DISABLE_FUSION
+      }
+    },
+    null,
+    2
+  ) + '\n'
+)
+const child = spawnSync(invocation.command, invocation.args, {
+  cwd: workdir,
+  env: invocation.env,
   encoding: 'utf8',
   timeout: 2_400_000,
   maxBuffer: 32 * 1024 * 1024

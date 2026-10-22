@@ -111,6 +111,7 @@ jobs:
           echo "CUDA_MODULE=$module" >> "$GITHUB_ENV"
           python3 .github/scripts/collect-cuda-runtime-info.py "$module" > native-results/environment-before.json
           python3 -m unittest discover -s .github/scripts/abot-native -p 'test_*.py'
+          node --test .github/scripts/abot-native/probe-command.test.mjs
       - name: Install isolated package tools
         working-directory: diagnostic-source/packages/diffusion-cpp
         shell: bash
