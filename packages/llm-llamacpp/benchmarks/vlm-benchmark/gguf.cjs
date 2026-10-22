@@ -7,16 +7,27 @@ const fs = require('fs')
 const GGUF_TYPE_STRING = 8
 const GGUF_TYPE_ARRAY = 9
 const FIXED_SIZE = { 0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8 }
+// Longest metadata string read into memory; real keys and values are far shorter.
+const MAX_STR = 1 << 20
 
 function readGgufValues (ggufPath, keys) {
   const want = new Set(keys)
   const found = {}
   const fd = fs.openSync(ggufPath, 'r')
+  const size = fs.fstatSync(fd).size
   let offset = 0
-  const read = (len) => {
-    const buf = Buffer.alloc(len)
-    fs.readSync(fd, buf, 0, len, offset)
+  // Every read and skip stays inside the file, so a corrupt or crafted count throws
+  // instead of looping or allocating past the end.
+  const advance = (len) => {
+    if (!Number.isSafeInteger(len) || len < 0 || offset + len > size) throw new Error(`${ggufPath}: GGUF header runs past the end of the file`)
     offset += len
+  }
+  const read = (len) => {
+    if (len > MAX_STR) throw new Error(`${ggufPath}: GGUF value of ${len} bytes is too large`)
+    const at = offset
+    advance(len)
+    const buf = Buffer.alloc(len)
+    if (fs.readSync(fd, buf, 0, len, at) !== len) throw new Error(`${ggufPath}: short read`)
     return buf
   }
   const readU32 = () => read(4).readUInt32LE(0)
@@ -39,16 +50,16 @@ function readGgufValues (ggufPath, keys) {
     }
   }
   const skip = (type) => {
-    if (type === GGUF_TYPE_STRING) { const n = readU64(); offset += n; return }
+    if (type === GGUF_TYPE_STRING) { advance(readU64()); return }
     if (type === GGUF_TYPE_ARRAY) {
       const t = readU32()
       const n = readU64()
-      if (FIXED_SIZE[t]) { offset += FIXED_SIZE[t] * n; return }
+      if (FIXED_SIZE[t]) { advance(FIXED_SIZE[t] * n); return }
       for (let i = 0; i < n; i++) skip(t)
       return
     }
     if (!FIXED_SIZE[type]) throw new Error(`unknown GGUF value type ${type}`)
-    offset += FIXED_SIZE[type]
+    advance(FIXED_SIZE[type])
   }
   try {
     if (read(4).toString('ascii') !== 'GGUF') return found
