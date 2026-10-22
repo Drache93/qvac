@@ -20,6 +20,19 @@ export function checkBundleId(profile, bundleId) {
   if (got !== bundleId) throw new Error(`provisioning profile is for '${got}', not '${bundleId}'`)
 }
 
+// Reads only the keys it needs, as main's step did: a profile carries <data> and <date> fields JSON cannot hold.
+export function profileFrom(get) {
+  return {
+    UUID: get(':UUID'),
+    ProvisionsAllDevices: get(':ProvisionsAllDevices') === 'true',
+    ProvisionedDevices: get(':ProvisionedDevices') === null ? undefined : [],
+    Entitlements: {
+      'application-identifier': get(':Entitlements:application-identifier') ?? '',
+      'get-task-allow': get(':Entitlements:get-task-allow') === 'true',
+    },
+  }
+}
+
 function main(env) {
   const run = (cmd, args, opts) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
   const cert = join(env.RUNNER_TEMP, 'build_certificate.p12')
@@ -33,8 +46,16 @@ function main(env) {
   run('security', ['import', cert, '-P', env.CERT_PASSWORD, '-A', '-t', 'cert', '-f', 'pkcs12', '-k', keychain])
   run('security', ['set-key-partition-list', '-S', 'apple-tool:,apple:', '-s', '-k', env.KEYCHAIN_PASSWORD, keychain])
   run('security', ['list-keychain', '-d', 'user', '-s', keychain])
-  const plist = execFileSync('security', ['cms', '-D', '-i', pp])
-  const profile = JSON.parse(execFileSync('plutil', ['-convert', 'json', '-o', '-', '-'], { input: plist }).toString())
+  const plist = join(env.RUNNER_TEMP, 'build_pp.plist')
+  writeFileSync(plist, execFileSync('security', ['cms', '-D', '-i', pp]))
+  const profile = profileFrom((key) => {
+    try {
+      return execFileSync('/usr/libexec/PlistBuddy', ['-c', `Print ${key}`, plist], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    } catch {
+      return null
+    }
+  })
+  if (!profile.UUID) throw new Error('the provisioning profile has no UUID')
   checkBundleId(profile, env.BUNDLE_ID)
   const dir = join(homedir(), 'Library/MobileDevice/Provisioning Profiles')
   mkdirSync(dir, { recursive: true })
