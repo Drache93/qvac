@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { originalProbe } from './probe-command.mjs'
+import { originalProbe, sanitizerCompleted } from './probe-command.mjs'
 
 const input = {
   bare: '/tools/bare',
@@ -14,6 +14,9 @@ test('sanitizer executes the original Bare test and propagates memory-error fail
   assert.deepEqual(r.args, [
     '--tool',
     'memcheck',
+    '--launch-timeout',
+    '0',
+    '--kill',
     '--error-exitcode',
     '86',
     input.bare,
@@ -21,6 +24,20 @@ test('sanitizer executes the original Bare test and propagates memory-error fail
     '--exit'
   ])
   assert.equal(input.environment.PATH, '/tools')
+})
+
+test('sanitizer requires an actual clean report, never an attachment timeout', () => {
+  assert.equal(sanitizerCompleted('memcheck', '========= ERROR SUMMARY: 0 errors'), true)
+  assert.equal(sanitizerCompleted('initcheck', '========= ERROR SUMMARY: 1 error'), false)
+  assert.equal(sanitizerCompleted('memcheck', 'CUDA0 tests passed'), false)
+  assert.equal(
+    sanitizerCompleted(
+      'memcheck',
+      '========= Error: No attachable process found.\n========= ERROR SUMMARY: 0 errors'
+    ),
+    false
+  )
+  assert.equal(sanitizerCompleted('baseline', 'CUDA0 tests passed'), true)
 })
 test('graph and fusion probes change one CUDA control at a time', () => {
   const graph = originalProbe({ ...input, probe: 'no-graphs' })
@@ -33,6 +50,9 @@ test('graph and fusion probes change one CUDA control at a time', () => {
 })
 test('profiler arguments preserve paths and unsupported probes fail closed', () => {
   const r = originalProbe({ ...input, probe: 'nsys' })
-  assert.equal(r.args[r.args.indexOf('--output') + 1], '/results with spaces/original-addon-trace')
+  assert.equal(
+    r.args[r.args.indexOf('--output') + 1],
+    '/results with spaces/original-addon-trace'
+  )
   assert.throws(() => originalProbe({ ...input, probe: 'unknown' }))
 })

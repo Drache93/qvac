@@ -2,14 +2,20 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { originalProbe } from './probe-command.mjs'
+import { originalProbe, sanitizerCompleted } from './probe-command.mjs'
 
 const [workdirArg, bare, outputArg] = process.argv.slice(2)
-assert(workdirArg && bare && outputArg, 'Expected workdir, Bare executable and output directory')
+assert(
+  workdirArg && bare && outputArg,
+  'Expected workdir, Bare executable and output directory'
+)
 const workdir = path.resolve(workdirArg)
 const output = path.resolve(outputArg)
 fs.mkdirSync(output, { recursive: true })
-const original = fs.readFileSync(path.join(workdir, 'test/integration/abot-world.test.js'), 'utf8')
+const original = fs.readFileSync(
+  path.join(workdir, 'test/integration/abot-world.test.js'),
+  'utf8'
+)
 function replaceOnce(source, old, next) {
   assert.equal(source.split(old).length - 1, 1, `Pinned test changed: ${old}`)
   return source.replace(old, next)
@@ -66,14 +72,26 @@ const child = spawnSync(invocation.command, invocation.args, {
   cwd: workdir,
   env: invocation.env,
   encoding: 'utf8',
+  detached: true,
+  killSignal: 'SIGKILL',
   timeout: 2_400_000,
   maxBuffer: 32 * 1024 * 1024
 })
+// The wrapper may have spawned Bare. Stop our own process group on timeout so
+// an orphan GPU workload cannot contaminate later diagnostic jobs.
+if (child.error?.code === 'ETIMEDOUT' && child.pid) {
+  try {
+    process.kill(-child.pid, 'SIGKILL')
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error
+  }
+}
 const log = (child.stdout || '') + (child.stderr || '')
 fs.writeFileSync(path.join(output, 'original-addon.log'), log)
 process.stdout.write(log)
 const passed =
   child.status === 0 &&
+  sanitizerCompleted(process.env.PROBE || 'baseline', log) &&
   /^# tests = 3\/3 pass$/m.test(log) &&
   /^# asserts = 181\/181 pass$/m.test(log) &&
   log.includes('runtime=CUDA0, params=disk') &&

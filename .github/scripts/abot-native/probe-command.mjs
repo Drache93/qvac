@@ -21,7 +21,19 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
   let args = [testFile, '--exit']
   if (probe === 'memcheck' || probe === 'initcheck') {
     command = 'compute-sanitizer'
-    args = ['--tool', probe, '--error-exitcode', '86', bare, ...args]
+    // Models may be downloaded before the first CUDA API call. Keep the outer
+    // process timeout, but do not abandon instrumentation during provisioning.
+    args = [
+      '--tool',
+      probe,
+      '--launch-timeout',
+      '0',
+      '--kill',
+      '--error-exitcode',
+      '86',
+      bare,
+      ...args
+    ]
   } else if (probe === 'nsys') {
     command = 'nsys'
     args = [
@@ -37,4 +49,12 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
   else if (probe === 'no-fusion') env.GGML_CUDA_DISABLE_FUSION = '1'
   // Sync/node instrumentation lives in the rebuilt native executable only.
   return { command, args, env }
+}
+
+export function sanitizerCompleted(probe, log) {
+  if (probe !== 'memcheck' && probe !== 'initcheck') return true
+  return (
+    /ERROR SUMMARY: 0 errors/.test(log) &&
+    !/========= (Error:|Internal Sanitizer Error)/.test(log)
+  )
 }

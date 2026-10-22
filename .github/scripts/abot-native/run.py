@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import signal
@@ -57,7 +58,7 @@ def execute(args):
         tool = shutil.which('compute-sanitizer')
         if not tool:
             raise RuntimeError('Requested compute-sanitizer is unavailable on this runner')
-        prefix = [tool, '--tool', args.probe, '--error-exitcode', '86']
+        prefix = [tool, '--tool', args.probe, '--launch-timeout', '0', '--kill', '--error-exitcode', '86']
     if args.probe == 'nsys':
         tool = shutil.which('nsys')
         if not tool:
@@ -93,6 +94,11 @@ def execute(args):
             row = {'repeat': repeat + 1, 'exitCode': status, 'seconds': round(time.monotonic() - start, 3)}
             if status == 0:
                 native_log = (capture / 'native.log').read_text(errors='replace')
+                if args.probe in ('memcheck', 'initcheck') and (
+                    'ERROR SUMMARY: 0 errors' not in native_log or
+                    re.search(r'========= (Error:|Internal Sanitizer Error)', native_log)
+                ):
+                    raise RuntimeError('Sanitizer did not produce a clean completed report; capture retained')
                 if not all(marker in native_log for marker in ('runtime=CUDA0, params=CUDA0', 'runtime=CUDA0, params=CPU', 'runtime=CUDA0, params=disk')):
                     raise RuntimeError('Missing explicit CUDA/residency evidence')
                 if args.probe == 'node' and not all(list((capture / lane).glob('*-node.f32')) for lane in {x for pair in [('resident-no-kv', 'stream-no-kv'), ('resident-kv', 'stream-kv'), ('resident-kv', 'disk-kv')] for x in pair}):

@@ -12,11 +12,8 @@ on:
         description: Tensor-name substring required for the node probe
         type: string
         default: ''
-  push:
-    branches: [feature-diffusion-kv-cache-diagnostics]
-    paths:
-      - .github/workflows/diagnose-diffusion-native.yml
-      - .github/scripts/abot-native/**
+  # Registered by the bootstrap push. Dispatch probes explicitly so diagnostic
+  # code updates do not add GPU workloads alongside the full-suite reproduction.
 
 permissions:
   contents: read
