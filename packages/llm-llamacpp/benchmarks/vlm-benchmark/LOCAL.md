@@ -330,8 +330,16 @@ layers (`<arch>.nextn_predict_layers > 0`) or `--mtp-head` is given; and, with `
 `draft-dflash` for a DFlash draft (`general.architecture = dflash`) or `draft-simple`
 otherwise. A mode that loads a separate model shows its file name next to the mode in the
 report.
-`--spec-draft-n-max` pins the draft length on both engines; without it each keeps its
-default (the addon lowers it to fit a batch, with a warning).
+
+**Draft length.** `--spec-draft-n-max <n>` is the longest draft per step: how many
+tokens the MTP layers, head or draft model may propose before the model verifies them in
+one decode. Longer drafts keep more tokens per step when acceptance is high and waste more
+work when it is low. The benchmark passes the same value to both engines (addon
+`spec-draft-n-max`, llama-server `--spec-draft-n-max`); without it each keeps its default,
+3 on both. The addon lowers it at load, with a warning, so the draft fits one `ubatch-size`
+and each sequence's share of `batch-size`; a DFlash draft is also capped by its block size
+minus one. To find the best length on a host, run the same command with, say, 3, 5 and 7
+under different `--host-label`s and merge them (§8, step 4).
 
 **Older addon builds.** An addon older than 0.63.0 has no speculative decoding: its
 speculative rows fail with `invalid argument: --spec-type` and are listed under *Failed
@@ -524,6 +532,76 @@ The two models, pinned:
   `0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c`.
 - `Qwen3.5-0.8B-MTP-Q8_0.gguf` (the head): the ggml-org file from the table in §7.
 
+**Larger examples.** #5232's opt-in tests use the models below
+(`QVAC_RUN_SPECULATIVE_27B=1`, `QVAC_RUN_SPECULATIVE_MTP_HEADS=1`). Each run gets its own
+`--host-label` so step 4 can merge them; labels keep `[a-z0-9]` only. The 27B runs need
+≥ 32 GB of GPU or unified memory.
+
+| File | Source (revision) | Role | sha256 |
+|---|---|---|---|
+| `Qwen3.8-27B-UD-Q4_K_XL.gguf` | [unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) (`4ca72078`) | 27B target; keeps its MTP layers (every unsloth 27B quant does) | `3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e` |
+| `mtp-Qwen3.8-27B-Q4_0.gguf` | same, `MTP/mtp-Qwen3.8-27B-Q4_0.gguf` | standalone MTP head for the 27B | `50d9ce5a6da381bbcfb31061cf73df94a90e6faf8efeddee379a9cb8f1501c6e` |
+| `Qwen3.5-2B-Q4_0.gguf` | [unsloth/Qwen3.5-2B-GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF) (`f6d5376b`) | target without MTP layers (24 blocks, no `nextn` tensors) | `cd70221bebaee0503e0f6717e174250cd7825aa88438b3aabec9ad55731d9bb1` |
+| `Qwen3.5-2B-MTP-Q4_0.gguf` | [unsloth/Qwen3.5-2B-MTP-GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-MTP-GGUF) (`e05864f8`), file `Qwen3.5-2B-Q4_0.gguf` | head: the same model with its MTP layer (block 24) | `5865aef7b9983e463901ad0683c7f11cde89c86420d239c7fb5f051ded7b070e` |
+| `google_gemma-4-E2B-it-Q4_K_M.gguf` | [bartowski/google_gemma-4-E2B-it-GGUF](https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF) (`b5e99bd9`) | Gemma 4 E2B target (no MTP layers) | `b5310340b3a23d31655d7119d100d5df1b2d8ee17b3ca8b0a23ad7e9eb5fa705` |
+| `gemma-4-E2B-it-assistant-Q8_0.gguf` | [AtomicChat/gemma-4-E2B-it-assistant-GGUF](https://huggingface.co/AtomicChat/gemma-4-E2B-it-assistant-GGUF) (`5ba02977`), file `gemma-4-E2B-it-assistant.Q8_0.gguf` | Gemma 4 assistant (`gemma4-assistant`, 4 MTP layers) | `bbb29c822cad3df242fd0f75fc0928a29e90bdd52aa1625b2d6bff476b739095` |
+
+```bash
+cd ~/models
+HF=https://huggingface.co
+curl -L --fail -o Qwen3.8-27B-UD-Q4_K_XL.gguf \
+  $HF/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/Qwen3.8-27B-UD-Q4_K_XL.gguf
+curl -L --fail -o mtp-Qwen3.8-27B-Q4_0.gguf \
+  $HF/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/MTP/mtp-Qwen3.8-27B-Q4_0.gguf
+curl -L --fail -o Qwen3.5-2B-Q4_0.gguf \
+  $HF/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_0.gguf
+curl -L --fail -o Qwen3.5-2B-MTP-Q4_0.gguf \
+  $HF/unsloth/Qwen3.5-2B-MTP-GGUF/resolve/e05864f8066d874d5f85aaff007ae57a2a7d1efe/Qwen3.5-2B-Q4_0.gguf
+curl -L --fail -o google_gemma-4-E2B-it-Q4_K_M.gguf \
+  $HF/bartowski/google_gemma-4-E2B-it-GGUF/resolve/b5e99bd964eaacc27ba484bb2eb3e9f6160b9143/google_gemma-4-E2B-it-Q4_K_M.gguf
+curl -L --fail -o gemma-4-E2B-it-assistant-Q8_0.gguf \
+  $HF/AtomicChat/gemma-4-E2B-it-assistant-GGUF/resolve/5ba029771ba4efc3488835c4a137b30bd1f80b03/gemma-4-E2B-it-assistant.Q8_0.gguf
+shasum -a 256 *.gguf                # Linux: sha256sum
+```
+
+```bash
+cd ~/qvac-bench/packages/llm-llamacpp
+PREBUILD=~/qvac-addon/packages/llm-llamacpp/prebuilds
+
+# a) 27B on its own MTP layers. Released since 0.63.0; --addon-prebuild keeps the build
+#    the same as in b), so a) vs b) differs only in where the draft comes from.
+npm run benchmarks:vlm -- --llm ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf \
+  --spec-types draft-mtp --spec-draft-n-max 3 \
+  --suite text --text-suites spec --text-preset standard \
+  --addon-prebuild $PREBUILD --host-label m4own
+
+# b) the same 27B, drafting from unsloth's external MTP head instead of its own layers
+npm run benchmarks:vlm -- --llm ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf \
+  --mtp-head ~/models/mtp-Qwen3.8-27B-Q4_0.gguf --spec-types draft-mtp --spec-draft-n-max 3 \
+  --suite text --text-suites spec --text-preset standard \
+  --addon-prebuild $PREBUILD --host-label m4head
+
+# c) a target without MTP layers, with a head carrying them (what external heads are for)
+npm run benchmarks:vlm -- --llm ~/models/Qwen3.5-2B-Q4_0.gguf \
+  --mtp-head ~/models/Qwen3.5-2B-MTP-Q4_0.gguf --spec-types draft-mtp \
+  --suite text --text-suites spec --spec-gen 512 \
+  --addon-prebuild $PREBUILD --host-label m4qwen2b
+
+# d) Gemma 4 E2B with its Gemma 4 assistant as the MTP head
+npm run benchmarks:vlm -- --llm ~/models/google_gemma-4-E2B-it-Q4_K_M.gguf \
+  --mtp-head ~/models/gemma-4-E2B-it-assistant-Q8_0.gguf --spec-types draft-mtp \
+  --suite text --text-suites spec --spec-gen 512 \
+  --addon-prebuild $PREBUILD --host-label m4gemma
+```
+
+- Check the `text:` line each run prints first: it lists `draft-mtp` and, for b)–d), the
+  head file.
+- a) alone needs no #5232 build; drop `--addon-prebuild` to measure the released addon.
+- `--spec-draft-n-max 3` is both engines' default, pinned; see §6 *Draft length*.
+- A Gemma 4 assistant's memory is not in the addon's fit (fabric cannot measure it yet),
+  so leave room for it. Use assistant GGUFs whose `general.architecture` is
+  `gemma4-assistant`, the name fabric loads; some uploads use `gemma4_mtp` instead.
+
 Things to keep consistent between the two worktrees:
 
 - **Which addon ran:** `--addon-prebuild` swaps the build into the benchmark worktree's
@@ -543,7 +621,24 @@ Things to keep consistent between the two worktrees:
   "spec-draft-model requires spec-type draft-dflash" and a hint to this section, while
   llama-server's runs.
 
-**4. Clean up** when done:
+**4. Merge the runs into one report.** Pass the results directories, comma-separated:
+
+```bash
+cd ~/qvac-bench/packages/llm-llamacpp
+R=benchmarks/vlm-benchmark/results
+ls $R                               # <timestamp>-m4own, <timestamp>-m4head, …
+node benchmarks/vlm-benchmark/text-report.cjs \
+  --dir $R/<ts>-m4own,$R/<ts>-m4head,$R/<ts>-m4qwen2b,$R/<ts>-m4gemma \
+  --out ~/bench-combined --title "Speculative decoding: own MTP layers vs external heads"
+open ~/bench-combined/text-report.html     # Linux: xdg-open
+```
+
+Rows are grouped by `--host-label`, so each run gets its own card with its own baseline,
+speedup, addon-vs-server ratio and acceptance, and the header names each label's model,
+addon build and llama-server. Runs that share a label are pooled into the same medians,
+which is why every run above has its own. `text-report.html` is self-contained.
+
+**5. Clean up** when done:
 
 ```bash
 git -C ~/qvac worktree remove ~/qvac-addon
@@ -621,6 +716,9 @@ gets its own tables, charts and provenance (addon build, llama-server ref, param
 ```bash
 node benchmarks/vlm-benchmark/text-report.cjs --dir <host-a-dir>,<host-b-dir> --out <out-dir>
 ```
+
+The same works for several runs on one machine (different models, heads or draft
+lengths), as long as each run has its own `--host-label` (§8, step 4).
 
 `results.json` files can be merged by any script; each one carries its own host block.
 

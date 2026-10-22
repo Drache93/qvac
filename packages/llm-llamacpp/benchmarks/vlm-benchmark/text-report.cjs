@@ -195,16 +195,22 @@ const hostMeta = (meta, host) => (meta.byHost && meta.byHost[host]) || meta
 function provenance (sum, meta) {
   return sum.hosts.map(host => {
     const m = hostMeta(meta, host)
-    return { host, addon: m.addon || null, server: m.server || null, params: m.params || null }
+    return { host, model: m.label || null, addon: m.addon || null, server: m.server || null, params: m.params || null }
   })
+}
+// The model, or one per host when merged runs used different models.
+function modelLabel (prov, meta) {
+  const models = uniq(prov.map(p => p.model))
+  if (models.length <= 1) return models[0] || meta.label || '?'
+  return prov.map(p => `${p.host}: ${p.model || '?'}`).join(', ')
 }
 const pair = (list, f) => ENGINES.map(e => list.find(x => x.engine === e && f(x)) || null)
 
 function markdown (sum, meta, title) {
   const L = []
   L.push(`## ${title}`, '')
-  L.push(`**Model:** \`${meta.label || '?'}\` · **Hosts:** ${sum.hosts.join(', ')} · **Backends:** ${sum.backends.map(b => backendLabel(b, meta)).join(', ')} · **Shape:** \`${meta.text_preset || '?'}\``, '')
   const prov = provenance(sum, meta)
+  L.push(`**Model:** \`${modelLabel(prov, meta)}\` · **Hosts:** ${sum.hosts.join(', ')} · **Backends:** ${sum.backends.map(b => backendLabel(b, meta)).join(', ')} · **Shape:** \`${meta.text_preset || '?'}\``, '')
   for (const p of prov) {
     const at = prov.length > 1 ? ` (${p.host})` : ''
     if (p.addon) L.push(`- addon${at}: \`${p.addon}\``)
@@ -423,7 +429,7 @@ function html (sum, meta, title) {
   }
   const prov = provenance(sum, meta)
   const facts = [
-    ['Model', meta.label || '?'],
+    ['Model', modelLabel(prov, meta)],
     ['Hosts', sum.hosts.join(', ')],
     ['Backends', sum.backends.map(b => backendLabel(b, meta)).join(', ')],
     ['Shape', meta.text_preset || '?'],
