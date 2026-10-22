@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/krypton
+          node-version: lts/*
           check-latest: true
           registry-url: "https://npm.pkg.github.com/"
           scope: "@tetherto"

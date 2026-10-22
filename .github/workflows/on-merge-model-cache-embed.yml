@@ -70,7 +70,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/krypton
+          node-version: lts/*
           check-latest: true
 
       # Must match integration-test-embed-llamacpp.yml's "Cache integration test
@@ -118,7 +118,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/krypton
+          node-version: lts/*
           check-latest: true
 
       # Inputs must stay identical to the seed step's: `path` feeds the cache

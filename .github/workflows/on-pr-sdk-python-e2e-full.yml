@@ -85,7 +85,7 @@ jobs:
       # action the SDK's own desktop e2e (test-node-sdk.yml) uses on these runners.
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/krypton
+          node-version: lts/*
           check-latest: true
 
       # Shared model cache, keyed on the same registry the SDK e2e keys on, so

@@ -9,7 +9,7 @@ inputs:
   node-version:
     description: Node version to install
     required: false
-    default: lts/krypton
+    default: lts/*
   extra-packages:
     description: Whitespace-separated list of additional global npm packages to install alongside bare-runtime and bare-make
     required: false

@@ -71,7 +71,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          node-version: lts/krypton
+          node-version: lts/*
           check-latest: true
 
       # Match SDK pod policy: in-repo SDK on main/tmp/feature, published on
