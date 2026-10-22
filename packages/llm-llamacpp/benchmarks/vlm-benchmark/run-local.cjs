@@ -32,6 +32,8 @@ const FIXTURE_S3 = 's3://tether-ai-dev/vlm-benchmark/'
 const IS_WIN = os.platform() === 'win32'
 const GPU_APIS = ['metal', 'vulkan', 'cuda']
 const DEFAULT_GPU_API = os.platform() === 'darwin' ? 'metal' : 'vulkan'
+// The addon's spec-draft-n-max limit (addon/src/model-interface/SpeculativeRuntime.hpp).
+const MAX_SPEC_DRAFT_N_MAX = 64
 
 const HELP = `Usage: node benchmarks/vlm-benchmark/run-local.cjs --llm <gguf> [--mmproj <gguf>] [options]
 
@@ -71,7 +73,8 @@ Text suite (single stream, concurrency, speculative decoding):
                           the rest on llama-server only. Default: ngram-simple, plus draft-mtp
                           when the model has MTP layers or --mtp-head is given, plus
                           draft-dflash / draft-simple with --draft
-  --spec-draft-n-max <n>  max drafted tokens per step, on both engines (default: engine default)
+  --spec-draft-n-max <n>  max drafted tokens per step, on both engines, at most ${MAX_SPEC_DRAFT_N_MAX}
+                          (default: the engines' default, 3)
   --spec-gen <n>          max generated tokens for speculative prompts
   --spec-concurrency <a,b>  concurrency levels for the speculative runs (default: 1)
 
@@ -89,7 +92,7 @@ Engine parameters (applied to both engines):
   --fit <on|off>          auto-fit params to device memory (default: off)
 
 Sources:
-  --fabric-ref <tag>      qvac-fabric tag/commit to build llama-server from
+  --fabric-ref <tag|sha>  qvac-fabric tag (or commit) to build llama-server from
                           (default: v<qvac-fabric version> from packages/fabric/vcpkg.json)
   --addon-version <ver>   npm version (or dist-tag) whose prebuild to install when
                           prebuilds/ has none for this platform (default: the
@@ -195,6 +198,30 @@ function checkPrereqs (a) {
 
 function prebuildDir () { return path.join(PKG_DIR, 'prebuilds', `${os.platform()}-${os.arch()}`) }
 
+// A staged build carries this marker, so one left behind by a run that could not
+// clean up (SIGKILL, a crash) is recognised and removed instead of being taken for
+// the checkout's own build.
+const STAGED_MARKER = '.run-local-staged'
+
+function restoreStaged () {
+  const dest = prebuildDir()
+  const backup = `${dest}.run-local-backup`
+  if (!fs.existsSync(path.join(dest, STAGED_MARKER))) return
+  log(`removing the addon build an interrupted run left in ${dest}`)
+  fs.rmSync(dest, { recursive: true, force: true })
+  if (fs.existsSync(backup)) fs.renameSync(backup, dest)
+}
+
+// The version of an addon build, from the package.json of the checkout it was built
+// in (<pkg>/prebuilds/<platform>-<arch>); null for a bare CI artifact directory.
+function prebuildVersion (src) {
+  for (const d of [path.dirname(src), path.dirname(path.dirname(src))]) {
+    const pkg = readJson(path.join(d, 'package.json'))
+    if (pkg && pkg.name === '@qvac/llm-llamacpp') return pkg.version || null
+  }
+  return null
+}
+
 // --addon-prebuild <dir>: run against another addon build (e.g. a PR's CI
 // prebuild artifact) for this run only. The checkout's own prebuild is moved aside
 // and put back when the process exits.
@@ -205,31 +232,45 @@ function useAddonPrebuild (dir) {
   const dest = prebuildDir()
   const backup = `${dest}.run-local-backup`
   if (fs.existsSync(backup)) fail(`${backup} exists from an interrupted run; restore it to ${dest} (or delete it) first`)
-  if (fs.existsSync(dest)) fs.renameSync(dest, backup)
   const parent = path.dirname(dest)
   const createdParent = !fs.existsSync(parent)
+  // Registered before anything moves, so a failed copy still restores the original;
+  // armed only once the original is out of the way.
+  let staged = false
+  process.on('exit', () => {
+    if (!staged) return
+    try { fs.rmSync(dest, { recursive: true, force: true }) } catch (e) { console.error(`[run-local] could not remove the staged addon ${dest}: ${e.message}`) }
+    try {
+      if (fs.existsSync(backup)) fs.renameSync(backup, dest)
+      else if (createdParent && fs.readdirSync(parent).length === 0) fs.rmdirSync(parent)
+    } catch (e) { console.error(`[run-local] could not restore ${dest} from ${backup}: ${e.message}`) }
+  })
+  for (const [sig, code] of [['SIGHUP', 129], ['SIGINT', 130], ['SIGTERM', 143]]) process.on(sig, () => process.exit(code))
+  if (fs.existsSync(dest)) fs.renameSync(dest, backup)
+  staged = true
   fs.mkdirSync(dest, { recursive: true })
   fs.cpSync(src, dest, { recursive: true })
-  process.on('exit', () => {
-    fs.rmSync(dest, { recursive: true, force: true })
-    if (fs.existsSync(backup)) fs.renameSync(backup, dest)
-    else if (createdParent && fs.readdirSync(parent).length === 0) fs.rmdirSync(parent)
-  })
-  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130))
-  return `prebuild from ${src}`
+  fs.writeFileSync(path.join(dest, STAGED_MARKER), `${src}\n`)
+  return { origin: `prebuild from ${src}`, version: prebuildVersion(src) }
 }
 
 // Install JS deps, and when the checkout has no addon build for this platform, the
 // npm prebuild of its version for this run only (staged like --addon-prebuild and
 // removed on exit, so later tests in the checkout never load it by accident).
+// Returns the build's origin and version.
 function ensureAddon (a) {
   if (!fs.existsSync(path.join(PKG_DIR, 'node_modules'))) {
     log('installing package dependencies (npm install)…')
     if (runInherit('npm', ['install', '--no-audit', '--no-fund'], { cwd: PKG_DIR }) !== 0) fail('npm install failed')
   }
-  if (a['addon-prebuild'] !== undefined) return useAddonPrebuild(path.resolve(strOpt(a, 'addon-prebuild')))
-  if (fs.existsSync(prebuildDir())) return 'local prebuilds/'
+  restoreStaged()
   const pkgVer = readJson(path.join(PKG_DIR, 'package.json')).version
+  if (a['addon-prebuild'] !== undefined) {
+    const staged = useAddonPrebuild(path.resolve(strOpt(a, 'addon-prebuild')))
+    if (staged.version && staged.version !== pkgVer) log(`NOTE: the addon build is ${staged.version}, this checkout's JS is ${pkgVer} (LOCAL.md §8, "Same JavaScript")`)
+    return staged
+  }
+  if (fs.existsSync(prebuildDir())) return { origin: 'local prebuilds/', version: pkgVer }
   const wanted = strOpt(a, 'addon-version', pkgVer)
   if (!/^[0-9A-Za-z.+-]+$/.test(wanted)) fail(`--addon-version must be a version or dist-tag (got '${wanted}')`)
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vlm-addon-'))
@@ -247,7 +288,7 @@ function ensureAddon (a) {
   const ver = (readJson(path.join(tmp, 'package', 'package.json')) || {}).version || wanted
   fs.rmSync(tmp, { recursive: true, force: true })
   if (ver !== pkgVer) log(`WARNING: addon prebuild is ${ver} but the checkout's JS is ${pkgVer}; build locally (npm run build) for an exact match`)
-  return `npm @qvac/llm-llamacpp@${ver}, tarball sha256 ${sha256.slice(0, 16)}…, staged for this run`
+  return { origin: `npm, tarball sha256 ${sha256.slice(0, 16)}…, staged for this run`, version: ver }
 }
 
 // bare refuses to load a module whose engines.bare floor it is below, so check the
@@ -283,7 +324,7 @@ function resolveFabricRef (a) {
   if (a['fabric-ref'] !== undefined) {
     // The ref reaches git as an argument: no leading '-', ref-name characters only.
     const ref = strOpt(a, 'fabric-ref')
-    if (!/^[A-Za-z0-9._/][A-Za-z0-9._/-]*$/.test(ref)) fail(`--fabric-ref must be a tag, branch or commit SHA (got '${ref}')`)
+    if (!/^[A-Za-z0-9._/][A-Za-z0-9._/-]*$/.test(ref)) fail(`--fabric-ref must be a tag or commit SHA (got '${ref}')`)
     // GitHub serves any commit of the fork network by SHA, so a raw SHA is not proof
     // that the commit is in tetherto/qvac-fabric-llm.cpp.
     const note = /^[0-9a-f]{7,40}$/i.test(ref) ? 'from --fabric-ref (raw commit SHA, origin not verified)' : 'from --fabric-ref'
@@ -422,6 +463,7 @@ function textPlan (a, presetName, textLlm, draft, mtpHead) {
   if (a['spec-concurrency'] !== undefined) shape.spec.levels = intListOpt(a, 'spec-concurrency')
   const suites = strOpt(a, 'text-suites', W.SUITES.join(',')).split(',').map(s => s.trim()).filter(Boolean)
   for (const s of suites) if (!W.SUITES.includes(s)) fail(`--text-suites must be from ${W.SUITES.join(', ')} (got '${s}')`)
+  if (mtpHead && !suites.includes('spec')) fail('--mtp-head is used only by the spec text suite; add spec to --text-suites')
   const spec = a['spec-types'] !== undefined
     ? strOpt(a, 'spec-types').split(',').map(s => s.trim()).filter(Boolean)
     : defaultSpecTypes(textLlm, draft, mtpHead)
@@ -432,6 +474,7 @@ function textPlan (a, presetName, textLlm, draft, mtpHead) {
   if (mtpHead && !spec.includes('draft-mtp')) fail('--mtp-head is used only by draft-mtp; add it to --spec-types')
   const specTypes = ['none', ...new Set(spec.filter(s => s !== 'none'))]
   const specDraftNMax = intOpt(a, 'spec-draft-n-max', null)
+  if (specDraftNMax > MAX_SPEC_DRAFT_N_MAX) fail(`--spec-draft-n-max must be <= ${MAX_SPEC_DRAFT_N_MAX}, the addon's limit (got ${specDraftNMax})`)
   return { presetName: name, shape, suites, specTypes, specDraftNMax, mtpHead, jobs: W.buildJobs(shape, suites, specTypes) }
 }
 
@@ -521,6 +564,7 @@ async function main () {
   const draft = a.draft !== undefined ? path.resolve(strOpt(a, 'draft')) : null
   const mtpHead = a['mtp-head'] !== undefined ? path.resolve(strOpt(a, 'mtp-head')) : null
   for (const p of [llm, mmproj, textLlm, draft, mtpHead]) if (p && !fs.existsSync(p)) fail(`model file not found: ${p}`)
+  if (mtpHead && !runText) fail('--mtp-head is used only by the text suite (--suite text or all)')
   if (mtpHead && !hasMtpLayers(mtpHead)) fail(`--mtp-head ${mtpHead} has no MTP layers (<arch>.nextn_predict_layers); both engines would refuse it`)
   if (runVlm && /[,|]/.test(llm + mmproj)) fail('model paths must not contain "," or "|"')
 
@@ -574,14 +618,16 @@ async function main () {
 
   checkPrereqs(a)
   if (runVlm) checkFixture(fixtureDir, items, a)
-  const addonOrigin = a['skip-addon'] ? null : ensureAddon(a)
+  const addon = a['skip-addon'] ? null : ensureAddon(a)
+  const addonOrigin = addon && addon.origin
   if (!a['skip-addon']) checkBareVersion()
   const fabric = a['skip-server'] ? null : resolveFabricRef(a)
-  const addonVer = readJson(path.join(PKG_DIR, 'package.json')).version
+  const addonVer = addon && addon.version
+  const addonName = addonVer ? `@qvac/llm-llamacpp@${addonVer}` : '@qvac/llm-llamacpp (version unknown)'
   const benchSha = tryExec('git', ['-C', REPO_DIR, 'rev-parse', '--short=12', 'HEAD']) || '?'
   const labelOf = p => path.basename(p).replace(/\.gguf$/i, '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 40) || 'model'
   const label = labelOf(llm)
-  const addonRef = `@qvac/llm-llamacpp@${addonVer} (${addonOrigin})`
+  const addonRef = `${addonName} (${addonOrigin})`
 
   log(`suite: ${suite} · backends: ${backends.join(', ')}${backends.includes('gpu') ? ` (gpu = ${gpuApi})` : ''}`)
   log(`model: ${llm}`)
@@ -686,7 +732,7 @@ async function main () {
       `- node: ${info.node} · bare: ${info.bare}`,
       `- params: ${JSON.stringify(params)}`
     ]
-    if (addonOrigin) prov.push(`- addon: \`@qvac/llm-llamacpp@${addonVer}\` (${addonOrigin})`)
+    if (addonOrigin) prov.push(`- addon: \`${addonName}\` (${addonOrigin})`)
     if (fabric) prov.push(`- engine: llama-server from qvac-fabric \`${fabric.ref}\` (${fabric.note})${serverRef ? '' : ' — not built'}`)
     prov.push(`- benchmark code: \`${benchSha}\``)
     if (runVlm) fs.writeFileSync(path.join(outDir, `prov-${host}-${backend}.md`), prov.join('\n') + '\n')

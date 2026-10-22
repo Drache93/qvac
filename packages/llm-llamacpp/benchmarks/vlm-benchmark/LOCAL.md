@@ -609,7 +609,10 @@ Things to keep consistent between the two worktrees:
 
 - **Which addon ran:** `--addon-prebuild` swaps the build into the benchmark worktree's
   `prebuilds/` for the run and restores it on exit. The addon rows' `source_ref` names the
-  prebuild directory, so the report records which build ran.
+  prebuild directory and the version from that checkout's `package.json` ("version
+  unknown" for a CI artifact), so the report records which build ran. A build left
+  behind by a run that could not clean up (killed, crashed) is marked, and the next run
+  removes it and restores the original.
 - **Same engine version:** the addon build links the `@qvac/fabric` of the clone
   (`~/qvac`), and at run time loads the one in the benchmark worktree's `node_modules/`.
   Keep both on the same `@qvac/fabric` version (`npm ls @qvac/fabric` in each); if the
