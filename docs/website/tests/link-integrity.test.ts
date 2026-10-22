@@ -78,8 +78,8 @@ describe('contentPathsOfLink', () => {
   const sdkGroup = getCurrentLine(getDocumentedSoftware('/sdk')!)!.folder
 
   it("resolves a same-collection link in the reader's own line", () => {
-    expect(contentPathsOfLink('/sdk/quickstart', 'sdk/v0.18/index.mdx')[0])
-      .toBe('sdk/v0.18/quickstart')
+    expect(contentPathsOfLink('/sdk/quickstart', 'sdk/v0.19/index.mdx')[0])
+      .toBe('sdk/v0.19/quickstart')
   })
 
   it('resolves a link from the current line inside the group', () => {
@@ -93,18 +93,18 @@ describe('contentPathsOfLink', () => {
   })
 
   it('leaves a link that names its version alone', () => {
-    expect(contentPathsOfLink('/sdk/v0.18/quickstart', 'ecosystem/index.mdx'))
-      .toEqual(['sdk/v0.18/quickstart'])
+    expect(contentPathsOfLink('/sdk/v0.19/quickstart', 'ecosystem/index.mdx'))
+      .toEqual(['sdk/v0.19/quickstart'])
   })
 
   it('leaves a link to an unversioned collection alone', () => {
-    expect(contentPathsOfLink('/ecosystem/addons', 'sdk/v0.18/index.mdx'))
+    expect(contentPathsOfLink('/ecosystem/addons', 'sdk/v0.19/index.mdx'))
       .toEqual(['ecosystem/addons'])
   })
 
   it('points a link at a page missing from the line, so the check fails', () => {
-    const [inLine] = contentPathsOfLink('/sdk/nowhere', 'sdk/v0.18/index.mdx')
-    expect(inLine).toBe('sdk/v0.18/nowhere')
+    const [inLine] = contentPathsOfLink('/sdk/nowhere', 'sdk/v0.19/index.mdx')
+    expect(inLine).toBe('sdk/v0.19/nowhere')
     expect(fs.existsSync(path.join(DOCS_BASE, `${inLine}.mdx`))).toBe(false)
   })
 })

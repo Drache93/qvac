@@ -111,10 +111,9 @@ const EXPECTED_TRAILS: { page: string; leadsTo: string; depth: number }[] = [
     leadsTo: '/sdk/',
     depth: 4,
   },
-  { page: 'sdk/v0.18/configuration/plugins', leadsTo: '/sdk/v0.18', depth: 3 },
   { page: 'sdk/v0.19/configuration/plugins', leadsTo: '/sdk/v0.19', depth: 3 },
   { page: 'cli/http-server', leadsTo: '/cli/', depth: 2 },
-  { page: 'cli/v0.12/http-server', leadsTo: '/cli/v0.12', depth: 2 },
+  { page: 'cli/v0.13/http-server', leadsTo: '/cli/v0.13', depth: 2 },
   { page: 'ecosystem/addons/llm-llamacpp', leadsTo: '/ecosystem/', depth: 3 },
   { page: 'resources/tutorials/electron', leadsTo: '/resources/', depth: 2 },
 ];
@@ -130,8 +129,8 @@ const TRAILLESS = [
   'cli',
   'ecosystem',
   'resources',
-  'sdk/v0.18',
-  'cli/v0.12',
+  'sdk/v0.19',
+  'cli/v0.13',
 ];
 
 /** The span of a built page between its article and its heading. */
