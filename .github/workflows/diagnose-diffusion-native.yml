@@ -156,7 +156,7 @@ jobs:
           python3 .github/scripts/abot-native/run.py \
             --cli "$GITHUB_WORKSPACE/diagnostic-build/bin/sd-abot-session" \
             --inputs native-results/inputs.json --cuda-module "$CUDA_MODULE" \
-            --cpu-module "$GITHUB_WORKSPACE/diagnostic-build/bin/libggml-cpu.so" \
+            --cpu-module "$GITHUB_WORKSPACE/diagnostic-build/bin/libqvac-diffusion-ggml-cpu.so" \
             --guards "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp/test/integration/abot-guards.js" \
             --output "$GITHUB_WORKSPACE/native-results/capture" \
             --probe "$PROBE" --node-filter "$NODE_FILTER" --repeats "$repeats"
