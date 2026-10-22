@@ -20,19 +20,19 @@ proc.env.NO_GPU = 'false'
 // @qvac/tts-ggml@0.2.1 ggml_backend_is_cpu dlopen crash -- as an
 // unhandledRejection on the worklet thread; a log-only handler turned that
 // into a false-green Device Farm run. Catch to avoid the abrupt SIGABRT,
-// record the first failure, and force a non-zero exit on drain so CI sees it.
-let _integrationFatalError = null
+// record every failure, and force a non-zero exit on drain so CI sees it.
+const _integrationFatalErrors = []
 if (typeof Bare !== 'undefined' && typeof Bare.on === 'function') {
   Bare.on('unhandledRejection', (reason) => {
-    if (!_integrationFatalError) _integrationFatalError = reason || new Error('unhandledRejection')
+    _integrationFatalErrors.push(reason || new Error('unhandledRejection'))
     console.error('[integration-runner] Unhandled rejection:', reason instanceof Error ? reason.stack : reason)
   })
   Bare.on('uncaughtException', (err) => {
-    if (!_integrationFatalError) _integrationFatalError = err || new Error('uncaughtException')
+    _integrationFatalErrors.push(err || new Error('uncaughtException'))
     console.error('[integration-runner] Uncaught exception:', err instanceof Error ? err.stack : err)
   })
   Bare.on('beforeExit', () => {
-    if (!_integrationFatalError) return
+    if (_integrationFatalErrors.length === 0) return
     console.error('[integration-runner] FATAL: failing run due to an earlier unhandled error.')
     if (typeof Bare.exit === 'function') Bare.exit(1)
     else if (typeof process !== 'undefined' && process.exit) process.exit(1)
@@ -47,8 +47,11 @@ async function runIntegrationModule (relativeModulePath, options = {}) {
     return 'missing'
   }
 
+  const fatalMark = _integrationFatalErrors.length
   const moduleUrl = pathToFileURL(modulePath).href
   await import(moduleUrl)
+  await new Promise((resolve) => setTimeout(resolve, 0)) // let a last-tick rejection reach the handler
+  if (_integrationFatalErrors.length > fatalMark) throw _integrationFatalErrors[fatalMark]
   return modulePath
 }
 

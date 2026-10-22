@@ -10,26 +10,26 @@ const { pathToFileURL } = require('bare-url')
 // only fails to resolve once several ggml addons are co-loaded) as an
 // unhandledRejection on the worklet thread. Without a hard exit the run can
 // SIGABRT (ambiguous timeout) or a log-only handler would falsely pass. Catch,
-// record the first failure, and force a non-zero exit on drain.
-let _integrationFatalError = null
+// record every failure, and force a non-zero exit on drain.
+const _integrationFatalErrors = []
 const _bareHost = typeof globalThis !== 'undefined' ? globalThis.Bare : undefined
 if (_bareHost && typeof _bareHost.on === 'function') {
   _bareHost.on('unhandledRejection', (reason) => {
-    if (!_integrationFatalError) _integrationFatalError = reason || new Error('unhandledRejection')
+    _integrationFatalErrors.push(reason || new Error('unhandledRejection'))
     console.error(
       '[integration-runner] Unhandled rejection:',
       reason instanceof Error ? reason.stack : reason
     )
   })
   _bareHost.on('uncaughtException', (err) => {
-    if (!_integrationFatalError) _integrationFatalError = err || new Error('uncaughtException')
+    _integrationFatalErrors.push(err || new Error('uncaughtException'))
     console.error(
       '[integration-runner] Uncaught exception:',
       err instanceof Error ? err.stack : err
     )
   })
   _bareHost.on('beforeExit', () => {
-    if (!_integrationFatalError) return
+    if (_integrationFatalErrors.length === 0) return
     console.error('[integration-runner] FATAL: failing run due to an earlier unhandled error.')
     if (typeof _bareHost.exit === 'function') _bareHost.exit(1)
     else if (typeof globalThis.process !== 'undefined' && globalThis.process.exit)
@@ -89,6 +89,22 @@ global.__shouldRunTest = function shouldRunTest(testName) {
   return __filterRe.test(testName)
 }
 
+// Failed summary for a fatal error recorded since `mark`, or null when the module was clean.
+function fatalSummarySince(mark) {
+  if (_integrationFatalErrors.length <= mark) return null
+  const err = _integrationFatalErrors[mark]
+  return {
+    total: 1,
+    passed: 0,
+    failed: 1,
+    error: {
+      message: (err && err.message) || String(err),
+      code: err && err.code,
+      stack: err && err.stack
+    }
+  }
+}
+
 async function runIntegrationModule(relativeModulePath, options = {}) {
   const modulePath = path.join(__dirname, relativeModulePath)
 
@@ -97,8 +113,17 @@ async function runIntegrationModule(relativeModulePath, options = {}) {
     return { modulePath: 'missing', summary: { total: 0, passed: 0, failed: 0 } }
   }
 
+  const fatalMark = _integrationFatalErrors.length
   const moduleUrl = pathToFileURL(modulePath).href
   await import(moduleUrl)
+  await new Promise((resolve) => setTimeout(resolve, 0)) // let a last-tick rejection reach the handler
+  const fatal = fatalSummarySince(fatalMark)
+  if (fatal) {
+    console.error(
+      `[integration-runner] ${relativeModulePath} raised a fatal error outside the test tally`
+    )
+    return { modulePath, summary: fatal }
+  }
   return { modulePath, summary: null }
 }
 
