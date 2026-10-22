@@ -928,9 +928,10 @@ export const kvCacheSeedIgnoredOnceCached: TestDefinition = {
 const seedRefusal = (
   params: Record<string, unknown>,
   code: number,
-  before: Step[] = []
+  before: Step[] = [],
+  dep = 'llm'
 ): Step[] => [
-  { useModel: { deps: ['llm'], as: 'model' } },
+  { useModel: { deps: [dep], as: 'model' } },
   ...before,
   {
     callError: {
@@ -1064,13 +1065,14 @@ export const kvCacheSeedDifferentTools: TestDefinition = {
           as: 'baseTurn'
         }
       }
-    ]
+    ],
+    'tools'
   ),
   finally: [
     { call: { method: 'deleteCache', params: { kvCacheKey: '$params.baseKey' } } },
     { call: { method: 'deleteCache', params: { kvCacheKey: '$params.chatKey' } } }
   ],
-  metadata: { category: 'kv-cache', dependency: 'llm', estimatedDurationMs: 30000 }
+  metadata: { category: 'kv-cache', dependency: 'tools', estimatedDurationMs: 60000 }
 }
 
 export const kvCacheTests = [
