@@ -145,9 +145,9 @@ QVAC_VLM_MATRIX=1 QVAC_VLM_MODE=two-models QVAC_VLM_PRESET=cognitive \
 QVAC_VLM_MODELS=qwen3.5-f16,qwen3.5-q8 QVAC_VLM_SAMPLES=2 \
 bare benchmarks/vlm-benchmark/vlm-matrix.test.js
 ```
-All `QVAC_VLM_*` overrides: `MODE`, `PRESET`, `MODELS`, `SOURCES_MODEL`, `SCENARIOS`,
-`SAMPLES`, `REPEATS`, `DEVICES`, `TASKS`, `WARMUP_REPEATS`, `NO_GPU`, `FIXTURE_DIR`,
-`PARAMS`, `ALLOW_LOCAL`. `node run-desktop.cjs --selfcheck`
+Main `QVAC_VLM_*` overrides (full list: `CONTRACT.md` §2): `MODE`, `PRESET`, `MODELS`,
+`SOURCES_MODEL`, `SCENARIOS`, `SAMPLES`, `REPEATS`, `DEVICES`, `TASKS`, `WARMUP_REPEATS`,
+`NO_GPU`, `FIXTURE_DIR`, `PARAMS`, `ALLOW_LOCAL`, `ENGINE`, `TEST_TIMEOUT_MIN`. `node run-desktop.cjs --selfcheck`
 validates the config/contract wiring without running a model. Several-sources CLIs are
 built + driven by `cli-fixture-runner.cjs`.
 

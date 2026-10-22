@@ -365,32 +365,32 @@ released yet, see §8.
 
 **Outputs:** `text-report.md`, `text-report.html` (charts plus tables, self-contained),
 `text-<host>-<backend>.log` (raw `[TEXTROW]` / `[TEXTBATCH]` markers),
-`text-calibration.json`, `plans/` (the exact job each engine ran) and
-`llama-server-text-<backend>.log`. Re-render or merge hosts with
+`text-calibration.json`, `text-meta.json` (the run's host, model, shape and builds,
+which `text-report.cjs` reads per directory, so keep it when copying results), `plans/`
+(the exact job each engine ran) and `llama-server-text-<backend>.log`. Re-render or merge
+hosts with
 `node benchmarks/vlm-benchmark/text-report.cjs --dir <dir>[,<dir>…] --out <dir>`.
 
 ## 7 · Speculative decoding on another host (Qwen3.8-27B, MTP and DFlash)
 
 This reproduces the speed setup of [#4849](https://github.com/tetherto/qvac/pull/4849),
 which added speculative decoding to the addon (released in 0.63.0): MTP and DFlash on
-Qwen3.8-27B, on both engines. One checkout of this branch is enough; its addon already
-has speculative decoding.
+Qwen3.8-27B, on both engines. One checkout of `main` is enough; its addon already has
+speculative decoding.
 
 **Host:** ≥ 32 GB of GPU or unified memory (the 27B model is 17.6 GB, the draft 2.1 GB,
 plus KV cache), ~25 GB of free disk for the models, and everything in §2.
 
-**1. Check out the branch.**
+**1. Check out `main`.**
 
 ```bash
 git clone git@github.com:tetherto/qvac.git ~/qvac
-cd ~/qvac
-git checkout feat/llm-bench-vs-llama-server
-cd packages/llm-llamacpp
+cd ~/qvac/packages/llm-llamacpp
 npm install
 ```
 
-In an existing clone, `git fetch origin feat/llm-bench-vs-llama-server` first. After every
-`git pull`, run `npm install` again, so the installed `@qvac/fabric` matches
+In an existing clone, `git checkout main && git pull` first. After every `git pull`, run
+`npm install` again, so the installed `@qvac/fabric` matches
 `packages/fabric`; `run-local.cjs` warns when they differ.
 
 **2. Download the models.** #4849 names its speed-test files as "Qwen3.8-27B UD-Q4_K_XL"
@@ -410,8 +410,14 @@ curl -L --fail -o Qwen3.8-27B-DFlash2-Q8_0.gguf \
   https://huggingface.co/incoai/Qwen3.8-27B-DFlash2-GGUF/resolve/51962825493a48b846b40126d35c799ac4093ad0/Qwen3.8-27B-DFlash2-Q8_0.gguf
 curl -L --fail -o Qwen3.5-0.8B-MTP-Q8_0.gguf \
   https://huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF/resolve/8fea620810c4afa23dd6443f999a48574c1611a3/Qwen3.5-0.8B-Q8_0.gguf
-shasum -a 256 *.gguf                # Linux: sha256sum; Windows: certutil -hashfile <file> SHA256
+shasum -a 256 -c - <<'EOF'          # Linux: sha256sum -c -; Windows: certutil -hashfile <file> SHA256
+3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e  Qwen3.8-27B-UD-Q4_K_XL.gguf
+c18e800daedc59ca68fd13b6a856d795746af6d399a9279ac6a277d1d422f87e  Qwen3.8-27B-DFlash2-Q8_0.gguf
+37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f  Qwen3.5-0.8B-MTP-Q8_0.gguf
+EOF
 ```
+
+Every line must print `OK`; drop a line for a file you skipped.
 
 Use the 27B files only from these repositories: unsloth's other Qwen GGUFs (the Qwen3.5
 quants, for example) strip the MTP layers, and `incoai/Qwen3.8-27B-DFlash2` itself holds
@@ -454,7 +460,7 @@ keep two git worktrees of one clone:
 
 - the **clone itself** (`~/qvac`) on the branch under test, where the addon is built from
   source;
-- a **benchmark worktree** (`~/qvac-bench`) on this branch, which runs `run-local.cjs`
+- a **benchmark worktree** (`~/qvac-bench`) on `main`, which runs `run-local.cjs`
   against that build with `--addon-prebuild`.
 
 Each worktree keeps its own `node_modules/` and `prebuilds/`, so the benchmark checkout
@@ -483,9 +489,9 @@ The vcpkg registry (`tetherto/qvac-registry-vcpkg`) is public; no token is neede
 git clone git@github.com:tetherto/qvac.git ~/qvac      # or use an existing clone
 cd ~/qvac
 ADDON_BRANCH=fix/assessfit-speculative                 # the change under test
-git fetch origin "$ADDON_BRANCH" feat/llm-bench-vs-llama-server
+git fetch origin "$ADDON_BRANCH" main
 git checkout --detach "origin/$ADDON_BRANCH"           # needs a clean working tree
-git worktree add --detach ~/qvac-bench origin/feat/llm-bench-vs-llama-server
+git worktree add --detach ~/qvac-bench origin/main
 ```
 
 `--detach` avoids creating local branches; to follow a branch later, `git -C <checkout>
@@ -513,7 +519,16 @@ gh run download <run-id> --repo tetherto/qvac --name prebuild-llm-llamacpp-darwi
   --dir ~/qvac-addon-prebuild
 ```
 
-and use that directory in step 3. Take the run of the PR's current head commit.
+and use that directory in step 3. The artifact is native code that runs with your
+privileges, so first check that the run built the PR's current head in `tetherto/qvac`
+(not a fork you have not reviewed):
+
+```bash
+gh run view <run-id> --repo tetherto/qvac --json headSha,headRepository
+gh pr view <pr> --repo tetherto/qvac --json headRefOid
+```
+
+`headSha` must equal `headRefOid`.
 
 **3. Run the benchmark worktree against that build.**
 
@@ -529,9 +544,22 @@ npm run benchmarks:vlm -- --llm ~/models/Qwen3.5-0.8B-Q8_0.gguf \
 The two models, pinned:
 
 - `Qwen3.5-0.8B-Q8_0.gguf` (no MTP layers): [unsloth/Qwen3.5-0.8B-GGUF](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF)
-  at `6ab461498e2023f6e3c1baea90a8f0fe38ab64d0`, sha256
-  `0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c`.
-- `Qwen3.5-0.8B-MTP-Q8_0.gguf` (the head): the ggml-org file from the table in §7.
+  at `6ab461498e2023f6e3c1baea90a8f0fe38ab64d0`.
+- `Qwen3.5-0.8B-MTP-Q8_0.gguf` (the head): ggml-org's file, the same as in §7. Its
+  upstream name is also `Qwen3.5-0.8B-Q8_0.gguf`, so keep the `-MTP-` name it is saved
+  under.
+
+```bash
+mkdir -p ~/models && cd ~/models
+curl -L --fail -o Qwen3.5-0.8B-Q8_0.gguf \
+  https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q8_0.gguf
+curl -L --fail -o Qwen3.5-0.8B-MTP-Q8_0.gguf \
+  https://huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF/resolve/8fea620810c4afa23dd6443f999a48574c1611a3/Qwen3.5-0.8B-Q8_0.gguf
+shasum -a 256 -c - <<'EOF'          # Linux: sha256sum -c -
+0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c  Qwen3.5-0.8B-Q8_0.gguf
+37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f  Qwen3.5-0.8B-MTP-Q8_0.gguf
+EOF
+```
 
 **Larger examples.** #5232's opt-in tests use the models below
 (`QVAC_RUN_SPECULATIVE_27B=1`, `QVAC_RUN_SPECULATIVE_MTP_HEADS=1`). Each run gets its own
@@ -562,7 +590,14 @@ curl -L --fail -o google_gemma-4-E2B-it-Q4_K_M.gguf \
   $HF/bartowski/google_gemma-4-E2B-it-GGUF/resolve/b5e99bd964eaacc27ba484bb2eb3e9f6160b9143/google_gemma-4-E2B-it-Q4_K_M.gguf
 curl -L --fail -o gemma-4-E2B-it-assistant-Q8_0.gguf \
   $HF/AtomicChat/gemma-4-E2B-it-assistant-GGUF/resolve/5ba029771ba4efc3488835c4a137b30bd1f80b03/gemma-4-E2B-it-assistant.Q8_0.gguf
-shasum -a 256 *.gguf                # Linux: sha256sum
+shasum -a 256 -c - <<'EOF'          # Linux: sha256sum -c -
+3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e  Qwen3.8-27B-UD-Q4_K_XL.gguf
+50d9ce5a6da381bbcfb31061cf73df94a90e6faf8efeddee379a9cb8f1501c6e  mtp-Qwen3.8-27B-Q4_0.gguf
+cd70221bebaee0503e0f6717e174250cd7825aa88438b3aabec9ad55731d9bb1  Qwen3.5-2B-Q4_0.gguf
+5865aef7b9983e463901ad0683c7f11cde89c86420d239c7fb5f051ded7b070e  Qwen3.5-2B-MTP-Q4_0.gguf
+b5310340b3a23d31655d7119d100d5df1b2d8ee17b3ca8b0a23ad7e9eb5fa705  google_gemma-4-E2B-it-Q4_K_M.gguf
+bbb29c822cad3df242fd0f75fc0928a29e90bdd52aa1625b2d6bff476b739095  gemma-4-E2B-it-assistant-Q8_0.gguf
+EOF
 ```
 
 ```bash
@@ -621,7 +656,7 @@ Things to keep consistent between the two worktrees:
 - **Same JavaScript:** the benchmark worktree's `index.js` loads the other build's native
   addon. That is fine when the change is native only, as #5232 is (its `src/index.ts`
   changes are doc comments). If the change also edits `index.js`, check out the branch
-  under test in the benchmark worktree too (merge it into a local copy of this branch).
+  under test in the benchmark worktree too (check it out there instead of `main`).
 - **Comparison:** run the same command without `--addon-prebuild` for the released addon.
   For #5232 that gives the "before" picture: the addon's `draft-mtp` row fails with
   "spec-draft-model requires spec-type draft-dflash" and a hint to this section, while
