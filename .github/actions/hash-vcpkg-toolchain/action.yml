@@ -1,8 +1,0 @@
-name: Hash vcpkg toolchain
-description: Export TOOLCHAIN_FINGERPRINT (compiler, SDK and vcpkg versions) for vcpkg cache keys.
-
-runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: node "$GITHUB_ACTION_PATH/hash-vcpkg-toolchain.mjs"

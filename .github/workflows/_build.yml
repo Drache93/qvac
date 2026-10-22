@@ -35,7 +35,7 @@ jobs:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
-          ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
+          ref: feat/package-ci-contract-pilot-vla # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
             .github/actions
             .github/scripts
@@ -43,34 +43,40 @@ jobs:
             scripts/ci
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
       - if: runner.environment == 'github-hosted'
-        uses: ./.github/actions/free-disk-space
+        uses: tetherto/qvac-actions/runner-free-disk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           keep-android: ${{ matrix.row.platform == 'android' }}
       - if: runner.environment == 'github-hosted'
-        uses: ./.github/actions/install-apt-packages
+        uses: tetherto/qvac-actions/runner-apt-install@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           packages: >-
             ${{ matrix.row.platform == 'linux' && 'libxi-dev libxtst-dev libxrandr-dev' || '' }}
             ${{ matrix.row.platform == 'android' && 'gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross lld' || '' }}
             ${{ matrix.row.meta.linuxExtraPackages }}
       - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
-        uses: ./.github/actions/setup-android-ndk
+        uses: tetherto/qvac-actions/setup-android-ndk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          ndk-version: 29.0.14206865
+          api-level: "34"
       - if: runner.environment == 'github-hosted'
-        uses: ./.github/actions/setup-clang
-      - uses: ./.github/actions/configure-aws
+        uses: tetherto/qvac-actions/setup-clang@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          version: "22"
+          windows-version: 22.1.0
+      - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
-      - uses: ./.github/actions/setup-aws-cli
-      - uses: ./.github/actions/bootstrap-vcpkg
-      - uses: ./.github/actions/cache-vcpkg
+      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: ./.github/actions/vcpkg-bootstrap
+      - uses: ./.github/actions/vcpkg-cache-setup
         with:
           mode: s3
           cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
@@ -79,7 +85,7 @@ jobs:
       - uses: ./.github/actions/setup-windows-host
         with:
           arch: ${{ matrix.row.arch }}
-      - uses: ./.github/actions/setup-node
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - uses: ./.github/actions/setup-apple-clang
       - id: vulkan
         uses: ./.github/actions/setup-vulkan
@@ -98,7 +104,7 @@ jobs:
           npm install --no-save --ignore-scripts bare-make
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: ${{ matrix.row.waits[0].artifact }}
           run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
@@ -122,20 +128,20 @@ jobs:
       - if: failure()
         shell: bash
         run: for f in "$VCPKG_ROOT"/buildtrees/*/{config,install,build}-*.log; do [ -f "$f" ] && { echo "== $f"; tail -200 "$f"; }; done; true
-      - uses: ./.github/actions/strip-binaries
+      - uses: ./.github/actions/prebuilds-strip
         with:
           platform: ${{ matrix.row.platform }}
           workdir: ${{ env.WORKDIR }}
-      - uses: ./.github/actions/check-exported-symbols
+      - uses: ./.github/actions/prebuilds-check-exports
         with:
           platform: ${{ matrix.row.platform }}
           workdir: ${{ env.WORKDIR }}
           provider: ${{ matrix.row.provider }}
       - if: matrix.row.platform == 'win32'
-        uses: ./.github/actions/check-windows-runtime
+        uses: ./.github/actions/prebuilds-check-windows-runtime
         with:
           workdir: ${{ env.WORKDIR }}
-      - uses: ./.github/actions/upload-artifact
+      - uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}${{ matrix.row.tags }}
           path: ${{ env.WORKDIR }}/prebuilds

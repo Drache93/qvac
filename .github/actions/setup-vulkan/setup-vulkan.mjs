@@ -8,7 +8,8 @@ import { pathToFileURL } from 'node:url'
 
 export function resolveVersion(input, configText) {
   const v = (input || configText || 'latest').replace(/\s/g, '')
-  if (v !== 'latest' && !/^\d+\.\d+\.\d+\.\d+$/.test(v)) throw new Error(`Vulkan SDK version must be latest or x.y.z.n, got ${v}`)
+  if (v !== 'latest' && !/^\d+\.\d+\.\d+\.\d+$/.test(v))
+    throw new Error(`Vulkan SDK version must be latest or x.y.z.n, got ${v}`)
   return v
 }
 
@@ -31,9 +32,9 @@ export function envFor(os, sdk, env = {}) {
       `VULKAN_SDK=${sdk}`,
       `LD_LIBRARY_PATH=${join2(`${sdk}/lib`, env.LD_LIBRARY_PATH)}`,
       `VK_ADD_LAYER_PATH=${sdk}/share/vulkan/explicit_layer.d`,
-      `PKG_CONFIG_PATH=${join2(`${sdk}/share/pkgconfig:${sdk}/lib/pkgconfig`, env.PKG_CONFIG_PATH)}`,
+      `PKG_CONFIG_PATH=${join2(`${sdk}/share/pkgconfig:${sdk}/lib/pkgconfig`, env.PKG_CONFIG_PATH)}`
     ],
-    path: `${sdk}/bin`,
+    path: `${sdk}/bin`
   }
 }
 
@@ -50,7 +51,8 @@ async function download(url, out) {
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(url).catch((e) => ({ ok: false, statusText: e.message }))
     if (res.ok) return writeFileSync(out, Buffer.from(await res.arrayBuffer()))
-    if (attempt === 5) throw new Error(`download failed: ${url} ${res.status ?? ''} ${res.statusText}`)
+    if (attempt === 5)
+      throw new Error(`download failed: ${url} ${res.status ?? ''} ${res.statusText}`)
     await new Promise((r) => setTimeout(r, 10_000 * attempt))
   }
 }
@@ -62,7 +64,14 @@ async function install(env, version) {
   const out = join(env.RUNNER_TEMP, os === 'windows' ? 'vulkan-sdk.exe' : 'vulkansdk.tar.xz')
   await download(downloadUrl(os, version), out)
   if (os === 'windows') {
-    run(out, ['--root', 'C:\\VulkanSDK', '--accept-licenses', '--default-answer', '--confirm-command', 'install'])
+    run(out, [
+      '--root',
+      'C:\\VulkanSDK',
+      '--accept-licenses',
+      '--default-answer',
+      '--confirm-command',
+      'install'
+    ])
     return { sdk: 'C:\\VulkanSDK' }
   }
   const home = join(env.HOME, 'vulkan')
@@ -95,7 +104,10 @@ export function preinstalledRoot(env, exists) {
 async function main(env) {
   if (env.RUNNER_OS === 'macOS') return console.log('No Vulkan SDK step on macOS')
   const config = '.github/config/vulkan-sdk-version.txt'
-  const version = resolveVersion(env.INPUT_VERSION, existsSync(config) ? readFileSync(config, 'utf8') : '')
+  const version = resolveVersion(
+    env.INPUT_VERSION,
+    existsSync(config) ? readFileSync(config, 'utf8') : ''
+  )
   const os = env.RUNNER_OS === 'Windows' ? 'windows' : 'linux'
   const root = preinstalledRoot(env, existsSync)
   const preinstalled = Boolean(root)
@@ -103,7 +115,11 @@ async function main(env) {
   const { lines, path } = preinstalled ? preinstalledEnv(os, r.sdk) : envFor(os, r.sdk, env)
   appendFileSync(env.GITHUB_ENV, lines.map((l) => `${l}\n`).join(''))
   if (path) appendFileSync(env.GITHUB_PATH, `${path}\n`)
-  appendFileSync(env.GITHUB_OUTPUT, `upload-archive=${r.cacheHit === false ? r.archive : ''}\nupload-key=${r.key ?? ''}\n`)
+  appendFileSync(
+    env.GITHUB_OUTPUT,
+    `upload-archive=${r.cacheHit === false ? r.archive : ''}\nupload-key=${r.key ?? ''}\n`
+  )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.env)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  await main(process.env)

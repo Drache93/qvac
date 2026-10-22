@@ -73,15 +73,15 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
       # As pr-checks runs it: Node 22, which pnpm 11 needs, a workspace install, and the target through Nx.
-      - uses: ./.github/actions/setup-node
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           node-version: "22"
-      - uses: ./.github/actions/setup-pnpm
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           package-json-file: src/package.json
       - shell: bash
@@ -133,25 +133,25 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
       # The legs straight into place; this group has no merged bundle to wait for.
       - if: contains(matrix.row.targets, 'build')
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: prebuild-${{ matrix.row.slug }}-*
           path: ${{ runner.temp }}/prebuilds
           merge-multiple: "true"
       - if: contains(matrix.row.targets, 'build')
-        uses: ./.github/actions/place-prebuilds
+        uses: ./.github/actions/prebuilds-place
         with:
           staging: ${{ runner.temp }}/prebuilds
           workdir: ${{ env.WORKDIR }}
           extra-dirs: ${{ join(matrix.row.meta.prebuildExtraDirs, ' ') }}
-      - uses: ./.github/actions/setup-node
-      - uses: ./.github/actions/publish-gpr
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: ./.github/actions/gpr-publish
         with:
           workdir: ${{ env.WORKDIR }}
           tag: ${{ needs.logic.outputs.tag }}

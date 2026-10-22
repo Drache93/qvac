@@ -11,21 +11,25 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 
 // share/ is include()d by CMake, so only regular .cmake files may sit there.
 export function validateTree(src) {
-  if (!existsSync(join(src, 'include')) || !existsSync(join(src, 'share'))) throw new Error(`${src} needs include/ and share/`)
+  if (!existsSync(join(src, 'include')) || !existsSync(join(src, 'share')))
+    throw new Error(`${src} needs include/ and share/`)
   const walk = (dir, rel) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const child = rel ? `${rel}/${e.name}` : e.name
       if (e.isSymbolicLink()) throw new Error(`symlink in prebuilds: ${child}`)
       if (e.isDirectory()) walk(join(dir, e.name), child)
       else if (!e.isFile()) throw new Error(`non-regular file in prebuilds: ${child}`)
-      else if (child.startsWith('share/') && !e.name.endsWith('.cmake')) throw new Error(`non-cmake file under share/: ${child}`)
+      else if (child.startsWith('share/') && !e.name.endsWith('.cmake'))
+        throw new Error(`non-cmake file under share/: ${child}`)
     }
   }
   walk(src, '')
 }
 
 export function installedCopies(pkg, searchRoots) {
-  const found = searchRoots.map((r) => join(r, 'node_modules', pkg)).filter((d) => existsSync(d) && statSync(d).isDirectory())
+  const found = searchRoots
+    .map((r) => join(r, 'node_modules', pkg))
+    .filter((d) => existsSync(d) && statSync(d).isDirectory())
   return [...new Set(found)]
 }
 
@@ -64,18 +68,31 @@ export function overlay({ src, pkg, searchRoots, platformKey = '' }, slice) {
 function main() {
   const { values } = parseArgs({
     options: {
-      workdir: { type: 'string' }, package: { type: 'string' }, src: { type: 'string' },
-      platform: { type: 'string', default: '' }, arch: { type: 'string', default: '' }, tags: { type: 'string', default: '' },
-      'search-dirs': { type: 'string', default: '' },
-    },
+      workdir: { type: 'string' },
+      package: { type: 'string' },
+      src: { type: 'string' },
+      platform: { type: 'string', default: '' },
+      arch: { type: 'string', default: '' },
+      tags: { type: 'string', default: '' },
+      'search-dirs': { type: 'string', default: '' }
+    }
   })
-  const searchRoots = [values.workdir, process.env.GITHUB_WORKSPACE || '.', ...values['search-dirs'].split(' ')]
+  const searchRoots = [
+    values.workdir,
+    process.env.GITHUB_WORKSPACE || '.',
+    ...values['search-dirs'].split(' ')
+  ]
     .filter(Boolean)
     .map((d) => resolve(d))
-  const platformKey = values.platform && values.arch ? `${values.platform}-${values.arch}${values.tags}` : ''
+  const platformKey =
+    values.platform && values.arch ? `${values.platform}-${values.arch}${values.tags}` : ''
   const slicer = join(ROOT, 'scripts/ci/slice-platform-packages.mjs')
   overlay({ src: values.src, pkg: values.package, searchRoots, platformKey }, (copy) =>
-    execFileSync('node', [slicer, '--link-local', '--workdir', copy, '--keep-dirs', 'include share'], { stdio: 'inherit' }),
+    execFileSync(
+      'node',
+      [slicer, '--link-local', '--workdir', copy, '--keep-dirs', 'include share'],
+      { stdio: 'inherit' }
+    )
   )
 }
 

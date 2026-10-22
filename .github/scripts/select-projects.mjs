@@ -27,7 +27,7 @@ export const RUNNER_KEYS = {
   macos_15_intel: ['darwin', 'x64'],
   macos_15_large: ['darwin', 'x64'],
   win_2025_x64: ['win32', 'x64'],
-  win_2025_x64_gpu: ['win32', 'x64'],
+  win_2025_x64_gpu: ['win32', 'x64']
 }
 
 // reusable-prebuilds.yml's default legs, which every native package builds.
@@ -36,18 +36,27 @@ export const BUILD_LEGS = [
   { runnerKey: 'ubuntu_2204_arm', platform: 'linux', arch: 'arm64' },
   { runnerKey: 'ubuntu_2404', platform: 'android', arch: 'arm64' },
   { runnerKey: 'macos_15', platform: 'ios', arch: 'arm64' },
-  { runnerKey: 'macos_15', platform: 'ios', arch: 'arm64', tags: '-simulator', flags: '--simulator' },
+  {
+    runnerKey: 'macos_15',
+    platform: 'ios',
+    arch: 'arm64',
+    tags: '-simulator',
+    flags: '--simulator'
+  },
   { runnerKey: 'macos_15', platform: 'ios', arch: 'x64', tags: '-simulator', flags: '--simulator' },
   { runnerKey: 'macos_15', platform: 'darwin', arch: 'arm64' },
   { runnerKey: 'macos_15_intel', platform: 'darwin', arch: 'x64' },
-  { runnerKey: 'win_2025_x64', platform: 'win32', arch: 'x64' },
+  { runnerKey: 'win_2025_x64', platform: 'win32', arch: 'x64' }
 ]
 
 // A dependency needs its PR build only when the change touched what its binary is built from.
-export const NATIVE_INPUT = /(\.(cpp|hpp|c|h)|CMakeLists\.txt|\/cmake\/.*|\/vcpkg(-configuration)?\.json|\/binding\.js|\/exports\.txt|\/symbols[^/]*\.map)$/
+export const NATIVE_INPUT =
+  /(\.(cpp|hpp|c|h)|CMakeLists\.txt|\/cmake\/.*|\/vcpkg(-configuration)?\.json|\/binding\.js|\/exports\.txt|\/symbols[^/]*\.map)$/
 
 export function parseRunnerLabels(yaml) {
-  return Object.fromEntries([...yaml.matchAll(/echo "([a-z0-9_]+)=([^"]+)" >> "\$GITHUB_OUTPUT"/g)].map((m) => [m[1], m[2]]))
+  return Object.fromEntries(
+    [...yaml.matchAll(/echo "([a-z0-9_]+)=([^"]+)" >> "\$GITHUB_OUTPUT"/g)].map((m) => [m[1], m[2]])
+  )
 }
 
 // The gate's status key is the pr-gate-merge.yml filter key whose first path is the package; later paths are dependencies.
@@ -71,16 +80,27 @@ export function gateKeys(gateYaml) {
 
 export function rows(project, target, labels) {
   // A target running on another's rows inherits that target's settings under its own.
-  const meta = { ...project.targets[project.rowsFrom?.[target]]?.metadata, ...project.targets[target]?.metadata }
-  const base = { project: project.name, dir: project.root, target, timeout: meta.timeoutMinutes ?? 0, meta }
+  const meta = {
+    ...project.targets[project.rowsFrom?.[target]]?.metadata,
+    ...project.targets[target]?.metadata
+  }
+  const base = {
+    project: project.name,
+    dir: project.root,
+    target,
+    timeout: meta.timeoutMinutes ?? 0,
+    meta
+  }
   const runners = meta.runners ?? project.targets[project.rowsFrom?.[target]]?.metadata?.runners
   // A target with no runners is one job per package, on whatever runner the group picks.
-  if (target !== 'build' && !runners) return [{ ...base, platform: '', arch: '', tags: '', flags: '', runner: '' }]
+  if (target !== 'build' && !runners)
+    return [{ ...base, platform: '', arch: '', tags: '', flags: '', runner: '' }]
   const keys = target === 'build' ? BUILD_LEGS : runners.map((runnerKey) => ({ runnerKey }))
   return keys.map((leg) => {
     const [platform, arch] = RUNNER_KEYS[leg.runnerKey] ?? []
     const runner = labels[leg.runnerKey]
-    if (!runner || !platform) throw new Error(`${project.name} ${target}: unknown runner key ${leg.runnerKey}`)
+    if (!runner || !platform)
+      throw new Error(`${project.name} ${target}: unknown runner key ${leg.runnerKey}`)
     return { ...base, platform, arch, tags: '', flags: '', ...leg, runner }
   })
 }
@@ -89,25 +109,73 @@ export function rows(project, target, labels) {
 const ROWS_FROM = { 'cpp:tests': 'cpp:build' }
 
 // Owner targets run only for packages the change touched, not for their dependents; owners null means every package.
-export function select({ graph, affected, targets, labels, gate, changed, pr, owners = null, ownerTargets = [] }) {
+export function select({
+  graph,
+  affected,
+  targets,
+  labels,
+  gate,
+  changed,
+  pr,
+  owners = null,
+  ownerTargets = []
+}) {
   const tagged = Object.values(graph.nodes).filter((n) => n.data.tags?.includes(TAG))
   const chosen = tagged.filter((n) => affected === null || affected.includes(n.name))
   const out = { matrices: {}, projects: [] }
   for (const t of targets) out.matrices[t] = []
   for (const n of chosen) {
-    const project = { name: n.name, root: n.data.root, targets: n.data.targets, rowsFrom: ROWS_FROM }
+    const project = {
+      name: n.name,
+      root: n.data.root,
+      targets: n.data.targets,
+      rowsFrom: ROWS_FROM
+    }
     const dir = n.data.root.split('/').pop()
     const npm = n.data.metadata?.js?.packageName ?? n.name
     const waits = pr ? dependencyWaits(graph, n.name, changed, gate) : []
-    const own = targets.filter((t) => n.data.targets[t] && (owners === null || !ownerTargets.includes(t) || owners.includes(n.name)))
+    const own = targets.filter(
+      (t) =>
+        n.data.targets[t] &&
+        (owners === null || !ownerTargets.includes(t) || owners.includes(n.name))
+    )
     if (!own.length) continue
-    const commands = Object.fromEntries(own.map((t) => [t, { command: n.data.targets[t].options?.command ?? '', cwd: n.data.targets[t].options?.cwd ?? n.data.root }]))
+    const commands = Object.fromEntries(
+      own.map((t) => [
+        t,
+        {
+          command: n.data.targets[t].options?.command ?? '',
+          cwd: n.data.targets[t].options?.cwd ?? n.data.root
+        }
+      ])
+    )
     const { provider, providerArtifact } = nativeProvider(graph, n.name, gate)
-    const common = { slug: dir, npm, key: gate[dir] ?? '', provider, providerArtifact, waits, targets: own, commands }
-    out.projects.push({ name: n.name, dir: n.data.root, ...common, prebuildStatus: PREBUILD_KEYS.includes(gate[dir]), cppStatus: CPP_TEST_KEYS.includes(gate[dir]) })
+    const common = {
+      slug: dir,
+      npm,
+      key: gate[dir] ?? '',
+      provider,
+      providerArtifact,
+      waits,
+      targets: own,
+      commands
+    }
+    out.projects.push({
+      name: n.name,
+      dir: n.data.root,
+      ...common,
+      prebuildStatus: PREBUILD_KEYS.includes(gate[dir]),
+      cppStatus: CPP_TEST_KEYS.includes(gate[dir])
+    })
     for (const t of own) {
       const cmd = n.data.targets[t].options ?? {}
-      for (const r of rows(project, t, labels)) out.matrices[t].push({ ...r, ...common, command: cmd.command ?? '', cwd: cmd.cwd ?? n.data.root })
+      for (const r of rows(project, t, labels))
+        out.matrices[t].push({
+          ...r,
+          ...common,
+          command: cmd.command ?? '',
+          cwd: cmd.cwd ?? n.data.root
+        })
     }
   }
   return out
@@ -115,10 +183,18 @@ export function select({ graph, affected, targets, labels, gate, changed, pr, ow
 
 // The npm dependency the gate expects prebuilds from, and its <dir>-prebuilds bundle; its platform packages provide the addon's symbols.
 export function nativeProvider(graph, name, gate) {
-  const dep = (graph.dependencies[name] ?? []).find((d) => d.type === 'static' && graph.nodes[d.target] && PREBUILD_KEYS.includes(gate[graph.nodes[d.target].data.root.split('/').pop()]))
+  const dep = (graph.dependencies[name] ?? []).find(
+    (d) =>
+      d.type === 'static' &&
+      graph.nodes[d.target] &&
+      PREBUILD_KEYS.includes(gate[graph.nodes[d.target].data.root.split('/').pop()])
+  )
   if (!dep) return { provider: '', providerArtifact: '' }
   const node = graph.nodes[dep.target]
-  return { provider: node.data.metadata?.js?.packageName ?? dep.target, providerArtifact: `${node.data.root.split('/').pop()}-prebuilds` }
+  return {
+    provider: node.data.metadata?.js?.packageName ?? dep.target,
+    providerArtifact: `${node.data.root.split('/').pop()}-prebuilds`
+  }
 }
 
 // An untagged native dependency is not built in this run, so its own producer's output is awaited.
@@ -136,8 +212,19 @@ export function dependencyWaits(graph, name, changed, gate) {
       const dir = node.data.root.split('/').pop()
       const key = gate[dir]
       if (!PREBUILD_KEYS.includes(key)) continue
-      if (!changed.some((f) => f.startsWith(`${node.data.root}/`) && NATIVE_INPUT.test(f.slice(node.data.root.length)))) continue
-      waits.push({ key, project: d.target, npm: node.data.metadata?.js?.packageName ?? d.target, artifact: `${dir}-prebuilds` })
+      if (
+        !changed.some(
+          (f) =>
+            f.startsWith(`${node.data.root}/`) && NATIVE_INPUT.test(f.slice(node.data.root.length))
+        )
+      )
+        continue
+      waits.push({
+        key,
+        project: d.target,
+        npm: node.data.metadata?.js?.packageName ?? d.target,
+        artifact: `${dir}-prebuilds`
+      })
     }
   }
   return waits
@@ -146,14 +233,18 @@ export function dependencyWaits(graph, name, changed, gate) {
 // "desktop=test:integration+test:backend" adds one matrix holding both targets' rows, for targets that share a job.
 export function combine(matrices, spec = '') {
   const out = {}
-  for (const part of spec.split(',').map((s) => s.trim()).filter(Boolean)) {
+  for (const part of spec
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const [name, targets] = part.split('=')
     out[name] = targets.split('+').flatMap((t) => matrices[t] ?? [])
   }
   return out
 }
 
-const git = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim()
+const git = (args) =>
+  execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim()
 const ZERO = /^0+$/
 
 // Which commits a run compares. A pull request, on either PR event, is compared from its common ancestor with the
@@ -161,8 +252,15 @@ const ZERO = /^0+$/
 export function resolveRange({ eventName, event, packages = [], defaultBranch, sha, ref }) {
   if (packages.length) return { explicit: packages }
   const pr = event.pull_request
-  if (pr) return { base: pr.base.sha, head: pr.head.sha, mergeBase: true, headRepo: pr.head.repo?.full_name }
-  if (eventName === 'merge_group') return { base: event.merge_group.base_sha, head: event.merge_group.head_sha }
+  if (pr)
+    return {
+      base: pr.base.sha,
+      head: pr.head.sha,
+      mergeBase: true,
+      headRepo: pr.head.repo?.full_name
+    }
+  if (eventName === 'merge_group')
+    return { base: event.merge_group.base_sha, head: event.merge_group.head_sha }
   if (eventName === 'push') {
     const head = event.after || sha
     if (event.before && !ZERO.test(event.before)) return { base: event.before, head }
@@ -176,7 +274,8 @@ export function resolveRange({ eventName, event, packages = [], defaultBranch, s
 
 // Commits and trees only: paths are all a diff needs. --no-renames lists a move under both packages.
 export function changedFiles(range, run = git) {
-  const fetch = (rev, from = 'origin') => run(['fetch', '--no-tags', '--filter=blob:none', from, rev])
+  const fetch = (rev, from = 'origin') =>
+    run(['fetch', '--no-tags', '--filter=blob:none', from, rev])
   for (const rev of [range.base, range.head]) {
     if (rev.startsWith('origin/')) continue
     try {
@@ -192,7 +291,9 @@ export function changedFiles(range, run = git) {
 
 // A changed path belongs to the package whose root holds it.
 export function ownersOf(graph, files) {
-  return Object.values(graph.nodes).filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`))).map((n) => n.name)
+  return Object.values(graph.nodes)
+    .filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`)))
+    .map((n) => n.name)
 }
 
 function main(env) {
@@ -202,39 +303,78 @@ function main(env) {
   execFileSync('pnpm', ['exec', 'nx', 'graph', `--file=${tmp}`], { stdio: 'inherit' })
   const graph = JSON.parse(readFileSync(tmp, 'utf8')).graph
   const range = resolveRange({
-    eventName: env.GITHUB_EVENT_NAME, event, sha: env.GITHUB_SHA, ref: env.GITHUB_REF,
+    eventName: env.GITHUB_EVENT_NAME,
+    event,
+    sha: env.GITHUB_SHA,
+    ref: env.GITHUB_REF,
     packages: (env.PACKAGES || '').split(/[\s,]+/).filter(Boolean),
-    defaultBranch: event.repository?.default_branch,
+    defaultBranch: event.repository?.default_branch
   })
   // affected and owners stay null for "every tagged package": a named list, or no change worth diffing.
   let files = null
   let affected = null
   let owners = null
   if (range.explicit) {
-    affected = Object.values(graph.nodes).filter((n) => range.explicit.includes(n.name) || range.explicit.includes(n.data.root.split('/').pop())).map((n) => n.name)
+    affected = Object.values(graph.nodes)
+      .filter(
+        (n) =>
+          range.explicit.includes(n.name) || range.explicit.includes(n.data.root.split('/').pop())
+      )
+      .map((n) => n.name)
   } else if (!range.all) {
     try {
       files = changedFiles(range)
       console.log(`${files.length} files changed in ${range.base}..${range.head}`)
     } catch (e) {
-      console.log(`::warning::could not diff ${range.base}..${range.head}, selecting every tagged package: ${e.message}`)
+      console.log(
+        `::warning::could not diff ${range.base}..${range.head}, selecting every tagged package: ${e.message}`
+      )
     }
   }
   if (files) {
     owners = ownersOf(graph, files)
-    affected = env.MODE === 'owners' || !files.length
-      ? owners
-      : JSON.parse(execFileSync('pnpm', ['exec', 'nx', 'show', 'projects', '--affected', `--files=${files.join(',')}`, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }))
+    affected =
+      env.MODE === 'owners' || !files.length
+        ? owners
+        : JSON.parse(
+            execFileSync(
+              'pnpm',
+              [
+                'exec',
+                'nx',
+                'show',
+                'projects',
+                '--affected',
+                `--files=${files.join(',')}`,
+                '--json'
+              ],
+              { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
+            )
+          )
   }
-  const labels = parseRunnerLabels(readFileSync('.github/workflows/reusable-runner-names.yml', 'utf8'))
+  const labels = parseRunnerLabels(
+    readFileSync('.github/workflows/reusable-runner-names.yml', 'utf8')
+  )
   const result = select({
-    graph, affected, targets, changed: files ?? [], pr: Boolean(event.pull_request), labels, owners,
+    graph,
+    affected,
+    targets,
+    changed: files ?? [],
+    pr: Boolean(event.pull_request),
+    labels,
+    owners,
     ownerTargets: (env.OWNER_TARGETS || '').split(/[\s,]+/).filter(Boolean),
-    gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8')),
+    gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8'))
   })
   Object.assign(result.matrices, combine(result.matrices, env.COMBINE))
-  for (const [t, r] of Object.entries(result.matrices)) console.log(`${t}: ${r.map((x) => `${x.project}@${x.platform}-${x.arch}${x.tags}`).join(' ') || 'none'}`)
-  appendFileSync(env.GITHUB_OUTPUT, `matrices=${JSON.stringify(result.matrices)}\nprojects=${JSON.stringify(result.projects)}\nrunners=${JSON.stringify(labels)}\nany=${result.projects.length > 0}\n`)
+  for (const [t, r] of Object.entries(result.matrices))
+    console.log(
+      `${t}: ${r.map((x) => `${x.project}@${x.platform}-${x.arch}${x.tags}`).join(' ') || 'none'}`
+    )
+  appendFileSync(
+    env.GITHUB_OUTPUT,
+    `matrices=${JSON.stringify(result.matrices)}\nprojects=${JSON.stringify(result.projects)}\nrunners=${JSON.stringify(labels)}\nany=${result.projects.length > 0}\n`
+  )
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.env)

@@ -1,0 +1,39 @@
+name: Find prebuild run
+description: Find this PR's earlier run whose prebuilds match a native hash. Download with download-artifact and run-id.
+
+inputs:
+  github-token:
+    description: Token with actions:read
+    required: true
+  workflow-file:
+    description: Workflow file whose earlier runs are searched
+    required: true
+  marker:
+    description: Marker artifact name, built from the PR number and native hash
+    required: true
+  artifact-name:
+    description: Prebuilds artifact that must sit beside the marker
+    required: true
+
+outputs:
+  hit:
+    description: true when a matching run was found
+    value: ${{ steps.find.outputs.hit }}
+  run-id:
+    description: The matching run, empty on a miss
+    value: ${{ steps.find.outputs.run-id }}
+
+runs:
+  using: composite
+  steps:
+    - id: find
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        BRANCH: ${{ github.event.pull_request.head.ref }}
+        RUN_ID: ${{ github.run_id }}
+        WORKFLOW_FILE: ${{ inputs.workflow-file }}
+        MARKER: ${{ inputs.marker }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      run: node "$GITHUB_ACTION_PATH/prebuilds-find-reusable.mjs"

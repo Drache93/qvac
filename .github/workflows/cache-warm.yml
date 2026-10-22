@@ -13,10 +13,10 @@ on:
       - "vcpkg-overlays/toolchains/**"
       - ".github/workflows/cache-warm.yml"
       - ".github/workflows/_cpp-tests.yml"
-      - ".github/actions/hash-vcpkg-toolchain/**"
-      - ".github/actions/cache-vcpkg/**"
-      - ".github/actions/resolve-model-cache/**"
-      - ".github/actions/download-models/**"
+      - ".github/actions/vcpkg-toolchain-hash/**"
+      - ".github/actions/vcpkg-cache-setup/**"
+      - ".github/actions/models-cache-key/**"
+      - ".github/actions/models-download/**"
   # Every 2 days: the cache server prunes an entry after 5 days without an upload or a download.
   schedule:
     - cron: "17 6 */2 * *"
@@ -86,29 +86,29 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
-      - uses: ./.github/actions/setup-node
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - id: models
-        uses: ./.github/actions/resolve-model-cache
+        uses: ./.github/actions/models-cache-key
         with:
           workdir: ${{ env.WORKDIR }}
           target: ${{ matrix.target }}
       - if: steps.models.outputs.paths != ''
-        uses: ./.github/actions/configure-aws
+        uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
       - if: steps.models.outputs.paths != ''
-        uses: ./.github/actions/cache
+        uses: tetherto/qvac-actions/cache@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           key: ${{ steps.models.outputs.key }}
           path: ${{ steps.models.outputs.paths }}
           enable-cross-os-archive: "true"
       - if: steps.models.outputs.paths != ''
-        uses: ./.github/actions/download-models
+        uses: ./.github/actions/models-download
         with:
           workdir: ${{ env.WORKDIR }}
           bucket: ${{ secrets.MODEL_S3_BUCKET }}

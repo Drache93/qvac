@@ -44,7 +44,7 @@ jobs:
             .github/config
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -52,19 +52,19 @@ jobs:
           fetch-depth: "0"
           persist-credentials: "false"
       # vcpkg's S3 binary cache, which generate reads through the AWS CLI.
-      - uses: ./.github/actions/configure-aws
+      - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
-      - uses: ./.github/actions/setup-aws-cli
-      - uses: ./.github/actions/bootstrap-vcpkg
-      - uses: ./.github/actions/cache-vcpkg
+      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: ./.github/actions/vcpkg-bootstrap
+      - uses: ./.github/actions/vcpkg-cache-setup
         with:
           mode: s3
           cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
           platform: ${{ matrix.row.platform }}
           arch: ${{ matrix.row.arch }}
-      - uses: ./.github/actions/setup-node
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - uses: ./.github/actions/setup-vulkan
         with:
           arch: ${{ matrix.row.arch }}
@@ -76,7 +76,7 @@ jobs:
           npm install --no-save --ignore-scripts bare-make
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: ${{ matrix.row.waits[0].artifact }}
           run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
@@ -89,14 +89,14 @@ jobs:
         run: bare-make generate -D ENABLE_VULKAN=OFF
       - id: format
         continue-on-error: true
-        uses: ./.github/actions/check-cpp-format
+        uses: tetherto/qvac-actions/cpp-check-format@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repo-dir: src
           workdir: ${{ matrix.row.dir }}
           base: ${{ env.BASE }}
       - id: tidy
         continue-on-error: true
-        uses: ./.github/actions/tidy-changed-cpp
+        uses: ./.github/actions/cpp-tidy-changed
         with:
           workdir: ${{ env.WORKDIR }}
           base: ${{ env.BASE }}

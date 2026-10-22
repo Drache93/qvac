@@ -59,7 +59,7 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: route
-        uses: ./.github/actions/route-ci
+        uses: ./.github/actions/ci-route-stages
 
   trust:
     needs: [select, fork-approval]
@@ -79,7 +79,7 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - id: trust
-        uses: ./.github/actions/check-pr-trust
+        uses: ./.github/actions/pr-check-trust
         with:
           github-token: ${{ github.token }}
 
@@ -106,12 +106,12 @@ jobs:
           persist-credentials: false
       - id: diff
         if: contains(matrix.project.targets, 'build')
-        uses: ./.github/actions/diff-native-sources
+        uses: ./.github/actions/prebuilds-native-changes
         with:
           workdir: ${{ matrix.project.dir }}
       - id: find
         if: steps.diff.outputs.native_changed == 'false' && toJSON(matrix.project.waits) == '[]' && github.event_name == 'pull_request'
-        uses: ./.github/actions/find-prebuild-run
+        uses: ./.github/actions/prebuilds-find-reusable
         with:
           github-token: ${{ github.token }}
           workflow-file: pr-build-test.yml
@@ -125,7 +125,7 @@ jobs:
           HASH: ${{ steps.diff.outputs.native_hash }}
         run: |
           jq -n --arg dir "$DIR" --argjson hit "$HIT" --arg runId "$RUN_ID" --arg hash "$HASH" '{dir: $dir, hit: $hit, runId: $runId, hash: $hash}' > "$RUNNER_TEMP/plan.json"
-      - uses: ./.github/actions/upload-artifact
+      - uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: plan-${{ matrix.project.slug }}
           path: ${{ runner.temp }}/plan.json
@@ -156,7 +156,7 @@ jobs:
             .github/scripts
           persist-credentials: false
       - if: needs.reuse.result == 'success'
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: plan-*
           path: ${{ runner.temp }}/plans
@@ -209,13 +209,13 @@ jobs:
           sparse-checkout: .github/actions
           persist-credentials: false
       - if: env.BUILT == 'true'
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: prebuild-${{ matrix.project.slug }}-*
           path: prebuilds
           merge-multiple: "true"
       - if: env.BUILT == 'true'
-        uses: ./.github/actions/upload-artifact
+        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-${{ matrix.project.slug }}
           path: prebuilds
@@ -223,7 +223,7 @@ jobs:
         shell: bash
         run: echo "$HASH" > "$RUNNER_TEMP/marker"
       - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request'
-        uses: ./.github/actions/upload-artifact
+        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-cache-pr-${{ github.event.pull_request.number }}-${{ matrix.project.slug }}-${{ env.HASH }}
           path: ${{ runner.temp }}/marker

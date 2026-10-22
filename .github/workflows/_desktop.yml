@@ -51,13 +51,13 @@ jobs:
             scripts/test-utils
           persist-credentials: false
       - name: Checkout source
-        uses: ./.github/actions/checkout
+        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
-      - uses: ./.github/actions/setup-node
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - if: matrix.row.commands['ci:setup']
         shell: bash
         working-directory: src/${{ matrix.row.commands['ci:setup'].cwd }}
@@ -71,7 +71,7 @@ jobs:
         working-directory: ${{ env.WORKDIR }}
         run: npm install
       - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: ./.github/actions/download-artifact
+        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: ${{ matrix.row.waits[0].artifact }}
           run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
@@ -82,12 +82,12 @@ jobs:
       - shell: bash
         run: npm install -g --force bare bare-make@1.8.0 bare-runtime bare-https brittle
       # The bundle comes from this run, or from the earlier run whose prebuilds are reused.
-      - uses: ./.github/actions/download-artifact
+      - uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-${{ matrix.row.slug }}
           run-id: ${{ env.SOURCE != github.run_id && env.SOURCE || '' }}
           path: ${{ runner.temp }}/prebuilds-staging
-      - uses: ./.github/actions/place-prebuilds
+      - uses: ./.github/actions/prebuilds-place
         with:
           staging: ${{ runner.temp }}/prebuilds-staging
           workdir: ${{ env.WORKDIR }}
@@ -99,27 +99,27 @@ jobs:
         run: |
           if node -e 'process.exit(require("./package.json").scripts?.["link:platform"] ? 0 : 1)'; then npm run link:platform; fi
       - if: matrix.row.platform == 'linux' && matrix.row.arch == 'arm64'
-        uses: ./.github/actions/install-apt-packages
+        uses: tetherto/qvac-actions/runner-apt-install@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           packages: ${{ join(matrix.row.meta.linuxArmApt, ' ') }}
-      - uses: ./.github/actions/setup-aws-cli
-      - uses: ./.github/actions/configure-aws
+      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
       - id: models
-        uses: ./.github/actions/resolve-model-cache
+        uses: ./.github/actions/models-cache-key
         with:
           workdir: ${{ env.WORKDIR }}
           target: ${{ matrix.row.target }}
       - if: runner.environment != 'github-hosted'
-        uses: ./.github/actions/cache-restore
+        uses: tetherto/qvac-actions/cache-restore@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           key: ${{ steps.models.outputs.key }}
           restore-keys: ${{ steps.models.outputs.restore-prefix }}
           path: ${{ steps.models.outputs.paths }}
           enable-cross-os-archive: "true"
-      - uses: ./.github/actions/download-models
+      - uses: ./.github/actions/models-download
         with:
           workdir: ${{ env.WORKDIR }}
           bucket: ${{ secrets.MODEL_S3_BUCKET }}
@@ -151,7 +151,7 @@ jobs:
             node scripts/perf-report/render-step-summary.js "$r" "$GITHUB_STEP_SUMMARY"
           done
       - if: always() && !cancelled()
-        uses: ./.github/actions/upload-artifact
+        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: ${{ matrix.row.slug }}-perf-${{ matrix.row.platform }}-${{ matrix.row.arch }}-${{ matrix.row.runnerKey }}-${{ strategy.job-index }}
           path: ${{ env.WORKDIR }}/test/results/performance-report*.json

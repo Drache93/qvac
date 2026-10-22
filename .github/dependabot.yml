@@ -1,20 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    # "/" scans only .github/workflows, so the wrappers are listed.
-    directories:
-      - "/"
-      - "/.github/actions/checkout"
-      - "/.github/actions/setup-node"
-      - "/.github/actions/cache"
-      - "/.github/actions/cache-restore"
-      - "/.github/actions/cache-save"
-      - "/.github/actions/upload-artifact"
-      - "/.github/actions/download-artifact"
-      - "/.github/actions/configure-aws"
-      - "/.github/actions/setup-java"
-      - "/.github/actions/setup-android"
-      - "/.github/actions/setup-pnpm"
+    directory: "/"
     schedule:
       interval: "weekly"
     groups:

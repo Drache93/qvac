@@ -59,8 +59,8 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-      - uses: ./.github/actions/setup-node
-      - uses: ./.github/actions/setup-pnpm
+      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - shell: bash
         run: pnpm install --frozen-lockfile --ignore-scripts --filter .
       - id: select
