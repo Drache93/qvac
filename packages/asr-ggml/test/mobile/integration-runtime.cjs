@@ -45,7 +45,8 @@ const NATIVE_TAIL_MAX_BYTES = 8 * 1024 * 1024
 let _nativeTailPath = null
 let _nativeTailBytes = 0
 let _nativeTailStopped = false
-let _nativeTailWarned = false
+let _nativeTailWarnedNoDir = false
+let _nativeTailWarnedWrite = false
 
 function _nativeTailWrite (level, args) {
   if (!_nativeTailPath || _nativeTailStopped) return
@@ -85,18 +86,18 @@ function _nativeTailWrite (level, args) {
     fs.appendFileSync(_nativeTailPath, line)
     _nativeTailBytes += line.length
   } catch (_) {
-    // A broken tail must never take the run with it.
-    _nativeTailPath = null
+    // A broken tail must never take the run with it, nor be re-armed (that would truncate it).
+    _nativeTailStopped = true
   }
 }
 
 function initNativeTail () {
-  if (_nativeTailPath) return
+  if (_nativeTailPath || _nativeTailStopped) return
   const dir = global.testDir
   // Say why on every bail-out, so a run never looks instrumented when it isn't.
   if (!dir) {
-    if (!_nativeTailWarned) {
-      _nativeTailWarned = true
+    if (!_nativeTailWarnedNoDir) {
+      _nativeTailWarnedNoDir = true
       console.log('[native-tail] not started: global.testDir is not set')
     }
     return
@@ -105,8 +106,8 @@ function initNativeTail () {
   try {
     fs.writeFileSync(target, '')
   } catch (err) {
-    if (!_nativeTailWarned) {
-      _nativeTailWarned = true
+    if (!_nativeTailWarnedWrite) {
+      _nativeTailWarnedWrite = true
       console.log('[native-tail] not started: cannot write ' + target + ': ' + err.message)
     }
     return
