@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,6 +20,16 @@ test('mobile ABIs are copied from the built one and desktop hosts dropped', () =
   assert.deepEqual(prepare({ workdir: w }).sort(), [
     'android-arm', 'android-arm64', 'android-ia32', 'android-x64', 'ios-arm64', 'ios-arm64-simulator', 'ios-x64-simulator',
   ])
+})
+
+test('a built simulator slice is kept, not overwritten with the device binary', () => {
+  const w = pkg(['ios-arm64/qvac__vla-ggml.bare', 'ios-arm64-simulator/qvac__vla-ggml.bare', 'ios-x64-simulator/qvac__vla-ggml.bare'])
+  writeFileSync(join(w, 'prebuilds/ios-arm64/qvac__vla-ggml.bare'), 'device')
+  writeFileSync(join(w, 'prebuilds/ios-arm64-simulator/qvac__vla-ggml.bare'), 'simulator-arm64')
+  writeFileSync(join(w, 'prebuilds/ios-x64-simulator/qvac__vla-ggml.bare'), 'simulator-x64')
+  prepare({ workdir: w })
+  assert.equal(readFileSync(join(w, 'prebuilds/ios-arm64-simulator/qvac__vla-ggml.bare'), 'utf8'), 'simulator-arm64')
+  assert.equal(readFileSync(join(w, 'prebuilds/ios-x64-simulator/qvac__vla-ggml.bare'), 'utf8'), 'simulator-x64')
 })
 
 test('an empty prebuilds/ or a missing expected dir fails', () => {

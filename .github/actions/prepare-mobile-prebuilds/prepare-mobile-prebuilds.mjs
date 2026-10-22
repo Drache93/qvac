@@ -34,9 +34,10 @@ export function prepare({ workdir, expectedDirs = [], source = '' }) {
     const foreign = foreignStem(list(join(dir, d)), basename(workdir), d)
     if (foreign) throw new Error(`${source || dir} contains ${foreign}, not a build of ${basename(workdir)}`)
   }
+  // Only an ABI nobody built: the simulator legs are real builds, and a device binary in their place breaks bare-link.
   for (const [from, tos] of Object.entries(COPIES)) {
     if (!existsSync(join(dir, from))) continue
-    for (const to of tos) cpSync(join(dir, from), join(dir, to), { recursive: true })
+    for (const to of tos) if (!existsSync(join(dir, to))) cpSync(join(dir, from), join(dir, to), { recursive: true })
   }
   for (const d of list(dir)) if (/^(darwin|win32|linux)-/.test(d)) rmSync(join(dir, d), { recursive: true, force: true })
   return list(dir)
