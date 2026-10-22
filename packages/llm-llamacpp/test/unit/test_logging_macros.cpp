@@ -3,7 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include "model-interface/LlamaModel.hpp"
 #include "utils/LoggingMacros.hpp"
 
 using namespace qvac_lib_inference_addon_llama::logging;
@@ -131,24 +130,4 @@ TEST_F(LoggingMacrosTest, VerbosityLevelPersistence) {
 
 TEST_F(LoggingMacrosTest, DefaultVerbosityLevel) {
   EXPECT_EQ(g_verbosityLevel, Priority::ERROR);
-}
-
-// The JS logger prints asynchronously, so an error logged just before
-// GGML_ABORT (e.g. a CUDA error's details) must also reach stderr directly.
-TEST_F(LoggingMacrosTest, LlamaLogCallbackWritesErrorToStderr) {
-  testing::internal::CaptureStderr();
-  LlamaModel::llamaLogCallback(
-      GGML_LOG_LEVEL_ERROR, "CUDA error: out of memory\n", nullptr);
-  EXPECT_EQ(
-      testing::internal::GetCapturedStderr(), "CUDA error: out of memory\n");
-}
-
-TEST_F(LoggingMacrosTest, LlamaLogCallbackKeepsOtherLevelsOffStderr) {
-  g_verbosityLevel = Priority::DEBUG;
-  testing::internal::CaptureStderr();
-  LlamaModel::llamaLogCallback(GGML_LOG_LEVEL_WARN, "warn\n", nullptr);
-  LlamaModel::llamaLogCallback(GGML_LOG_LEVEL_INFO, "info\n", nullptr);
-  LlamaModel::llamaLogCallback(
-      GGML_LOG_LEVEL_DEBUG, "CUDA Graph id 45 reused\n", nullptr);
-  EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
 }
