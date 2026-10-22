@@ -108,9 +108,10 @@ async function main () {
   } catch (e) {
     // Record the failed configuration so the report shows it instead of a gap.
     let msg = String((e && e.message) || e).replace(/\s+/g, ' ').trim()
-    if (job.spec === 'draft-mtp' && plan.mtpHead && /spec-draft-model|draft/i.test(msg)) {
+    // Hint only on the two rejections an older addon gives; other errors stay as is.
+    if (job.spec === 'draft-mtp' && plan.mtpHead && /spec-draft-model requires spec-type/.test(msg)) {
       msg += ' (an external MTP head needs an addon with tetherto/qvac#5232; see LOCAL.md §8)'
-    } else if (job.spec && job.spec !== 'none' && /spec/i.test(msg)) {
+    } else if (/invalid argument: --spec-type/.test(msg)) {
       msg += ' (speculative decoding needs @qvac/llm-llamacpp >= 0.63.0)'
     }
     emit('TEXTROW', { ...base, warmup: false, error: `load failed: ${msg}` })
