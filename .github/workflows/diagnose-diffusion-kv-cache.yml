@@ -2,6 +2,11 @@ name: Diagnose diffusion KV-cache parity
 
 on:
   workflow_dispatch:
+    inputs:
+      history_only:
+        description: Run the preceding-test lifecycle comparison without the full suite
+        type: boolean
+        default: false
   # Bootstrap this diagnostic before it exists on the default branch.
   push:
     branches: [feature-diffusion-kv-cache-diagnostics]
@@ -11,6 +16,8 @@ on:
       - .github/scripts/collect-cuda-runtime-info.py
       - .github/scripts/capture-diffusion-ci-diagnostics.mjs
       - .github/scripts/test/capture-diffusion-ci-diagnostics.test.mjs
+      - .github/scripts/diffusion-history-diagnostic.mjs
+      - .github/scripts/test/diffusion-history-diagnostic.test.mjs
 
 permissions:
   contents: read
@@ -34,7 +41,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test failure capture
-        run: node --test .github/scripts/test/capture-diffusion-ci-diagnostics.test.mjs
+        run: node --test .github/scripts/test/capture-diffusion-ci-diagnostics.test.mjs .github/scripts/test/diffusion-history-diagnostic.test.mjs
       - name: Capture initial environment
         run: node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-fixture before
       - name: Simulate a failing suite
@@ -139,6 +146,7 @@ jobs:
           git -C diagnostic-source rev-parse HEAD > diagnostic-results/source-sha.txt
 
       - name: Install package dependencies and isolated Bare runtime
+        id: dependencies
         working-directory: diagnostic-source/packages/diffusion-cpp
         shell: bash
         run: |
@@ -158,6 +166,9 @@ jobs:
           node .github/scripts/capture-diffusion-ci-diagnostics.mjs diagnostic-source/packages/diffusion-cpp before
 
       - name: Run original full integration suite
+        id: full-suite
+        if: inputs.history_only != true
+        continue-on-error: true
         working-directory: diagnostic-source/packages/diffusion-cpp
         shell: bash
         env:
@@ -169,6 +180,11 @@ jobs:
           set -euo pipefail
           export PATH="$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin:$PATH"
           npm run test:integration 2>&1 | tee test-output.log
+
+      - name: Build generated JavaScript for a history-only dispatch
+        if: inputs.history_only == true
+        working-directory: diagnostic-source/packages/diffusion-cpp
+        run: npm run build:ts
 
       - name: Capture NVIDIA environment after the full suite
         if: always()
@@ -190,12 +206,22 @@ jobs:
           retention-days: 30
 
       - name: Repeat parity with original GPU selection, CUDA and Vulkan
+        if: inputs.history_only != true && steps.full-suite.outcome == 'success'
         shell: bash
         run: |
           node .github/scripts/diffusion-kv-diagnostic.mjs \
             --workdir "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp" \
             --output "$GITHUB_WORKSPACE/diagnostic-results" \
             --bare "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare"
+
+      - name: Compare parity with and without preceding ABot sessions
+        if: always() && !cancelled() && steps.dependencies.outcome == 'success'
+        shell: bash
+        run: |
+          node .github/scripts/diffusion-history-diagnostic.mjs \
+            "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp" \
+            "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare" \
+            "$GITHUB_WORKSPACE/diagnostic-results/history"
 
       - name: Upload diagnostics even on failure
         if: always()
@@ -205,3 +231,7 @@ jobs:
           path: diagnostic-results
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Preserve original full-suite failure
+        if: always() && steps.full-suite.outcome == 'failure'
+        run: exit 1
