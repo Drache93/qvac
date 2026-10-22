@@ -52,10 +52,13 @@ def stage_order(name):
     return int(block), order.get(stage, 1 + int(step) * 2 + (stage == 'renoise')), name
 
 
-def compare_capture(root, blocks=4):
+def compare_capture(root, blocks=4, reference=None):
     results = []
-    for baseline, candidate in PAIRS:
-        a = {p.name: p for p in (root / baseline).glob('*.f32') if not p.name.endswith('-node.f32')}
+    # Across processes, compare each lane with its own earlier execution. A
+    # resident reference can drift even when a within-process pair agrees.
+    pairs = PAIRS if reference is None else [(lane, lane) for lane in sorted({x for pair in PAIRS for x in pair})]
+    for baseline, candidate in pairs:
+        a = {p.name: p for p in ((reference or root) / baseline).glob('*.f32') if not p.name.endswith('-node.f32')}
         b = {p.name: p for p in (root / candidate).glob('*.f32') if not p.name.endswith('-node.f32')}
         if not a or a.keys() != b.keys():
             raise ValueError(f'Missing/unmatched captures for {baseline}/{candidate}')

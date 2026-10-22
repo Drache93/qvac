@@ -85,6 +85,29 @@ class DiagnosticsTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 compare.compare_capture(root, 1)
 
+    def test_cross_process_comparison_detects_shared_reference_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            reference, current = Path(tmp) / 'first', Path(tmp) / 'next'
+            names = ['b0-s-1-' + s + '.f32' for s in ('initial-noise', 'final-latents', 'decoder-input', 'decoder-output')]
+            names += [f'b0-s{s}-flow.f32' for s in range(4)]
+            names += [f'b0-s{s}-renoise.f32' for s in range(3)]
+            for root in (reference, current):
+                for lane in {x for pair in compare.PAIRS for x in pair}:
+                    (root / lane).mkdir(parents=True)
+                    for name in names:
+                        (root / lane / name).write_bytes(array('f', [1, 2]).tobytes())
+            # A shared shift leaves every within-process comparison equal.
+            for lane in ('resident-kv', 'stream-kv', 'disk-kv'):
+                (current / lane / 'b0-s0-flow.f32').write_bytes(array('f', [1, 3]).tobytes())
+            self.assertTrue(all(row['firstDifference'] is None for row in compare.compare_capture(current, 1)))
+            rows = compare.compare_capture(current, 1, reference)
+            changed = {row['candidate']: row['firstDifference'] for row in rows if row['firstDifference']}
+            self.assertEqual(set(changed), {'resident-kv', 'stream-kv', 'disk-kv'})
+            self.assertTrue(all(row['file'] == 'b0-s0-flow.f32' and row['maxAbs'] == 1 for row in changed.values()))
+            (reference / 'resident-kv/b0-s0-flow.f32').unlink()
+            with self.assertRaisesRegex(ValueError, 'Missing'):
+                compare.compare_capture(current, 1, reference)
+
 
 class HeaderTest(unittest.TestCase):
     def test_compiled_hooks_are_opt_in_and_write_valid_float_data(self):

@@ -48,6 +48,12 @@ test('graph and fusion probes change one CUDA control at a time', () => {
   assert.equal(fusion.env.GGML_CUDA_DISABLE_GRAPHS, undefined)
   assert.equal(graph.command, input.bare)
 })
+
+test('native repetition provisions with the original addon without extra CUDA controls', () => {
+  const repeated = originalProbe({ ...input, probe: 'repeat' })
+  const baseline = originalProbe({ ...input, probe: 'baseline' })
+  assert.deepEqual(repeated, baseline)
+})
 test('profiler arguments preserve paths and unsupported probes fail closed', () => {
   const r = originalProbe({ ...input, probe: 'nsys' })
   assert.equal(

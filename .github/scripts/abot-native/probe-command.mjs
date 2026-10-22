@@ -5,6 +5,7 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
   assert(
     [
       'baseline',
+      'repeat',
       'sync',
       'node',
       'no-graphs',

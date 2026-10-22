@@ -7,7 +7,7 @@ on:
         description: Capture mode (intrusive probes run separately from baseline)
         type: choice
         default: baseline
-        options: [baseline, sync, no-graphs, no-fusion, memcheck, initcheck, nsys, node]
+        options: [baseline, sync, no-graphs, no-fusion, memcheck, initcheck, nsys, node, repeat]
       node_filter:
         description: Tensor-name substring required for the node probe
         type: string
@@ -151,6 +151,7 @@ jobs:
           export PATH="/usr/local/cuda/bin:$PATH"
           repeats=1
           if [ "$PROBE" = baseline ]; then repeats=2; fi
+          if [ "$PROBE" = repeat ]; then repeats=10; fi
           python3 .github/scripts/abot-native/run.py \
             --cli "$GITHUB_WORKSPACE/diagnostic-build/bin/sd-abot-session" \
             --inputs native-results/inputs.json --cuda-module "$CUDA_MODULE" \
