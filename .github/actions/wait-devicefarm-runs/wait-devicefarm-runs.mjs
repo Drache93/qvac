@@ -34,6 +34,8 @@ export async function wait({ arns, aws, sleep, maxWait, log = console.log }) {
       prev[i] = status
     }
     if (done.size === arns.length) return
+    // A line every three minutes, so a long RUNNING stretch never looks like a hang.
+    if (t && t % 180 === 0) log(`${t}s: ${arns.map((_, i) => `run ${i + 1} ${done.has(i) ? 'COMPLETED' : prev[i] || 'UNKNOWN'}`).join(', ')}`)
     if (t >= maxWait) throw new Error(`Device Farm runs still going after ${maxWait}s`)
     await sleep()
   }

@@ -21,6 +21,13 @@ test('waiting ends when every run completes, or fails at the ceiling', async () 
   await assert.rejects(wait({ arns: [RUN], aws: async () => ({ run: { status: 'RUNNING' } }), sleep: async () => {}, maxWait: 60, log: () => {} }), /after 60s/)
 })
 
+test('a long RUNNING stretch still logs a status line every three minutes', async () => {
+  const states = [...Array(8).fill('RUNNING'), 'COMPLETED']
+  const logs = []
+  await wait({ arns: [RUN], aws: async () => ({ run: { status: states.shift(), result: 'PASSED' } }), sleep: async () => {}, maxWait: 600, log: (l) => logs.push(l) })
+  assert.deepEqual(logs.filter((l) => /^\d+s: /.test(l)), ['180s: run 1 RUNNING'])
+})
+
 test('a device stopped by the timeout with every test passed counts as passed', () => {
   assert.equal(judge({ result: 'WARNED' }), true)
   assert.equal(judge({ result: 'STOPPED', counters: { passed: 3, failed: 0, errored: 0 } }), true)
