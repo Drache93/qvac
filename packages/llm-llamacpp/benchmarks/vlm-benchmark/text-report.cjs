@@ -12,9 +12,12 @@ const fs = require('fs')
 const path = require('path')
 const { parseArgs } = require('./utils')
 const { median } = require('./methodology.cjs')
+const { SPEC_TYPES, ADDON_SPEC_TYPES } = require('./text-workload.cjs')
 
 const ROW_RE = /\[(TEXTROW|TEXTBATCH)\](.*?)\[\/\1\]/g
 const ENGINES = ['addon', 'llama-server']
+// Rows for a configuration that never ran (model load / server start failed).
+const FAILED_RE = /^(load|start) failed/
 
 // ── parsing ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +58,7 @@ const measured = rs => rs.filter(r => !r.warmup && !r.error)
 function summarize ({ rows, batches }) {
   const hosts = uniq(rows.concat(batches).map(r => r.host))
   const backends = uniq(rows.concat(batches).map(r => r.backend))
-  const out = { hosts, backends, single: [], conc: [], spec: [], errors: rows.filter(r => r.error).length }
+  const out = { hosts, backends, single: [], conc: [], spec: [], errors: rows.filter(r => r.error && !FAILED_RE.test(r.error)).length }
 
   // single stream: per host/backend/engine/prompt length
   const single = measured(rows.filter(r => r.suite === 'single'))
@@ -163,7 +166,7 @@ function summarize ({ rows, batches }) {
   // configurations that failed outright (load / server start), one entry per job
   const seen = new Set()
   out.failed = []
-  for (const r of rows.filter(r => r.error && /^(load|start) failed/.test(r.error))) {
+  for (const r of rows.filter(r => r.error && FAILED_RE.test(r.error))) {
     const k = `${r.host}|${r.backend}|${r.engine}|${r.job}`
     if (seen.has(k)) continue
     seen.add(k)
@@ -172,7 +175,8 @@ function summarize ({ rows, batches }) {
   return out
 }
 
-const SPEC_NOTE = 'Modes both engines support (draft-mtp, draft-dflash; the addon\'s since llm-llamacpp 0.63.0, draft-mtp with an external head with tetherto/qvac#5232) run on both; ngram-* and draft-simple run on llama-server only. A mode that loads a draft model or external MTP head names it in brackets. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).'
+const SERVER_ONLY_SPEC = uniq(SPEC_TYPES.filter(s => !ADDON_SPEC_TYPES.includes(s)).map(s => s.startsWith('ngram-') ? 'ngram-*' : s))
+const SPEC_NOTE = `Modes both engines support (${ADDON_SPEC_TYPES.join(', ')}; the addon's since llm-llamacpp 0.63.0, draft-mtp with an external head with tetherto/qvac#5232) run on both; ${SERVER_ONLY_SPEC.join(', ')} run on llama-server only. A mode that loads a draft model or external MTP head names it in brackets. Speedup is against the same engine without speculation; "addon vs server" compares the two engines on the same mode. Acceptance = accepted ÷ drafted tokens. Generation stops at EOS (max as configured).`
 const SPEC_HEAD = kinds => ['N', 'engine · spec', ...kinds.map(k => `${k} t/s`), 'mean t/s', 'aggregate t/s', 'speedup', 'addon vs server', 'acceptance']
 function specCells (r, kinds) {
   const x = v => v == null ? '—' : v.toFixed(2) + '×'
@@ -195,22 +199,24 @@ const hostMeta = (meta, host) => (meta.byHost && meta.byHost[host]) || meta
 function provenance (sum, meta) {
   return sum.hosts.map(host => {
     const m = hostMeta(meta, host)
-    return { host, model: m.label || null, addon: m.addon || null, server: m.server || null, params: m.params || null }
+    return { host, model: m.label || null, shape: m.text_preset || null, addon: m.addon || null, server: m.server || null, params: m.params || null }
   })
 }
-// The model, or one per host when merged runs used different models.
-function modelLabel (prov, meta) {
-  const models = uniq(prov.map(p => p.model))
-  if (models.length <= 1) return models[0] || meta.label || '?'
-  return prov.map(p => `${p.host}: ${p.model || '?'}`).join(', ')
+// One value, or one per host when merged runs differ.
+function perHost (prov, key, fallback) {
+  const vs = uniq(prov.map(p => p[key]))
+  if (vs.length <= 1) return vs[0] || fallback || '?'
+  return prov.map(p => `${p.host}: ${p[key] || '?'}`).join(', ')
 }
+const modelLabel = (prov, meta) => perHost(prov, 'model', meta.label)
+const shapeLabel = (prov, meta) => perHost(prov, 'shape', meta.text_preset)
 const pair = (list, f) => ENGINES.map(e => list.find(x => x.engine === e && f(x)) || null)
 
 function markdown (sum, meta, title) {
   const L = []
   L.push(`## ${title}`, '')
   const prov = provenance(sum, meta)
-  L.push(`**Model:** \`${modelLabel(prov, meta)}\` · **Hosts:** ${sum.hosts.join(', ')} · **Backends:** ${sum.backends.map(b => backendLabel(b, meta)).join(', ')} · **Shape:** \`${meta.text_preset || '?'}\``, '')
+  L.push(`**Model:** \`${modelLabel(prov, meta)}\` · **Hosts:** ${sum.hosts.join(', ')} · **Backends:** ${sum.backends.map(b => backendLabel(b, meta)).join(', ')} · **Shape:** \`${shapeLabel(prov, meta)}\``, '')
   for (const p of prov) {
     const at = prov.length > 1 ? ` (${p.host})` : ''
     if (p.addon) L.push(`- addon${at}: \`${p.addon}\``)
@@ -432,7 +438,7 @@ function html (sum, meta, title) {
     ['Model', modelLabel(prov, meta)],
     ['Hosts', sum.hosts.join(', ')],
     ['Backends', sum.backends.map(b => backendLabel(b, meta)).join(', ')],
-    ['Shape', meta.text_preset || '?'],
+    ['Shape', shapeLabel(prov, meta)],
     ...prov.flatMap(p => {
       const at = prov.length > 1 ? ` · ${p.host}` : ''
       return [[`Addon${at}`, p.addon || '—'], [`llama-server${at}`, p.server || '—']]
@@ -476,8 +482,8 @@ ${sum.errors ? `<li><b>${sum.errors} request(s) failed</b>; see the text-*.log f
 }
 
 // Provenance is per host: each results dir has its own text-meta.json. `meta` keeps
-// the first dir's run-wide fields (model, shape) and adds byHost; gpu_api is kept only
-// when every host used the same one.
+// the first dir's fields as fallbacks and adds byHost, from which the header reads
+// each host's model and shape; gpu_api is kept only when every host used the same one.
 function loadMeta (dirs) {
   const metas = dirs.map(d => ({ dir: d, m: readJson(path.join(d, 'text-meta.json')) || {} }))
   const byHost = {}

@@ -585,13 +585,13 @@ npm run benchmarks:vlm -- --llm ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf \
 # c) a target without MTP layers, with a head carrying them (what external heads are for)
 npm run benchmarks:vlm -- --llm ~/models/Qwen3.5-2B-Q4_0.gguf \
   --mtp-head ~/models/Qwen3.5-2B-MTP-Q4_0.gguf --spec-types draft-mtp \
-  --suite text --text-suites spec --spec-gen 512 \
+  --suite text --text-suites spec --text-preset standard \
   --addon-prebuild $PREBUILD --host-label m4qwen2b
 
 # d) Gemma 4 E2B with its Gemma 4 assistant as the MTP head
 npm run benchmarks:vlm -- --llm ~/models/google_gemma-4-E2B-it-Q4_K_M.gguf \
   --mtp-head ~/models/gemma-4-E2B-it-assistant-Q8_0.gguf --spec-types draft-mtp \
-  --suite text --text-suites spec --spec-gen 512 \
+  --suite text --text-suites spec --text-preset standard \
   --addon-prebuild $PREBUILD --host-label m4gemma
 ```
 
@@ -599,6 +599,8 @@ npm run benchmarks:vlm -- --llm ~/models/google_gemma-4-E2B-it-Q4_K_M.gguf \
   head file.
 - a) alone needs no #5232 build; drop `--addon-prebuild` to measure the released addon.
 - `--spec-draft-n-max 3` is both engines' default, pinned; see §6 *Draft length*.
+- All four use `--text-preset standard` (4 prompts × 2 runs at up to 512 tokens), so the
+  merged report compares like with like; its header lists each label's shape.
 - A Gemma 4 assistant's memory is not in the addon's fit (fabric cannot measure it yet),
   so leave room for it. Use assistant GGUFs whose `general.architecture` is
   `gemma4-assistant`, the name fabric loads; some uploads use `gemma4_mtp` instead.
