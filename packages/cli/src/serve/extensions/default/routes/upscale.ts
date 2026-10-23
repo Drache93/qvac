@@ -18,9 +18,13 @@ type UpscaleParams = Parameters<typeof upscale>[0]
 
 // The formats the ESRGAN upscaler decodes.
 const IMAGE_SIGNATURES: readonly (readonly number[])[] = [
-  [0x89, 0x50, 0x4e, 0x47],
+  [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
   [0xff, 0xd8, 0xff]
 ]
+
+// The addon's message when a PNG or JPEG header is followed by data it cannot
+// decode; the SDK passes it through with no error code.
+const DECODE_FAILURE = /Failed to decode input image/
 
 // Filled before the model is required, so a bad image is refused without loading it.
 const images = new WeakMap<FastifyRequest, Buffer>()
@@ -62,6 +66,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
               invalid_data_url: '`image` is a data URL that is not base64',
               file_not_found: '`image` is neither a data URL nor an uploaded file id',
               unsupported_image_format: '`image` is not a PNG or JPEG',
+              invalid_image: '`image` has a PNG or JPEG header but cannot be decoded',
               invalid_repeats: `\`repeats\` is not an integer from 1 to ${MAX_UPSCALE_REPEATS}`,
               invalid_request: 'The body carries an unknown field',
               invalid_model_type: 'The alias is not an `upscale` model'
@@ -104,7 +109,14 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
         image: bytes as unknown as UpscaleParams['image'],
         ...(repeats !== undefined ? { repeats } : {})
       })
-      const [buffers, stats] = await Promise.all([result.outputs, result.stats])
+      const [buffers, stats] = await Promise.all([result.outputs, result.stats]).catch(
+        (err: unknown) => {
+          if (err instanceof Error && DECODE_FAILURE.test(err.message)) {
+            throw new HttpError(400, 'invalid_image', `image: ${err.message}`)
+          }
+          throw err
+        }
+      )
       app.qvac.logger.info(`  image_upscale done ms=${stats?.upscaleMs ?? 0}`)
 
       const size = buildSizeString(undefined, undefined, stats?.width, stats?.height)

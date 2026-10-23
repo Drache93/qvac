@@ -413,17 +413,18 @@ curl -sS http://localhost:11434/qvac/v1/images/upscale \
 
 ### Errors
 
-| HTTP | `error.code`               | When                                          |
-| ---- | -------------------------- | --------------------------------------------- |
-| 400  | `invalid_json`             | Body is not valid JSON                        |
-| 400  | `missing_model`            | `model` is missing                            |
-| 400  | `missing_image`            | `image` is missing                            |
-| 400  | `unsupported_image_format` | `image` is not a PNG or JPEG                  |
-| 400  | `invalid_repeats`          | `repeats` is not an integer from 1 to 4       |
-| 400  | `invalid_request`          | The body carries an unknown field             |
-| 400  | `invalid_model_type`       | Alias is not an `upscale` model               |
-| 404  | `model_not_found`          | Unknown alias                                 |
-| 503  | `model_not_loaded`         | Model not loaded and lazy loading is disabled |
+| HTTP | `error.code`               | When                                                   |
+| ---- | -------------------------- | ------------------------------------------------------ |
+| 400  | `invalid_json`             | Body is not valid JSON                                 |
+| 400  | `missing_model`            | `model` is missing                                     |
+| 400  | `missing_image`            | `image` is missing                                     |
+| 400  | `unsupported_image_format` | `image` is not a PNG or JPEG                           |
+| 400  | `invalid_image`            | `image` has a PNG or JPEG header but cannot be decoded |
+| 400  | `invalid_repeats`          | `repeats` is not an integer from 1 to 4                |
+| 400  | `invalid_request`          | The body carries an unknown field                      |
+| 400  | `invalid_model_type`       | Alias is not an `upscale` model                        |
+| 404  | `model_not_found`          | Unknown alias                                          |
+| 503  | `model_not_loaded`         | Model not loaded and lazy loading is disabled          |
 
 `image` can also fail with the [binary input](#binary-inputs) codes.
 

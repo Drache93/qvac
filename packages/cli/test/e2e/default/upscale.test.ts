@@ -116,6 +116,15 @@ describe('qvac images upscale: validation', () => {
     assertStatusAndError(res, 400, 'unsupported_image_format')
   })
 
+  it('refuses a PNG prefix without the full 8-byte signature', async () => {
+    const fake = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.from('junk')])
+    const res = await upscale({
+      model: 'upscaler',
+      image: `data:image/png;base64,${fake.toString('base64')}`
+    })
+    assertStatusAndError(res, 400, 'unsupported_image_format')
+  })
+
   it('unknown model returns 404', async () => {
     assertStatusAndError(
       await upscale({ model: 'nope', image: PNG_DATA_URL }),
