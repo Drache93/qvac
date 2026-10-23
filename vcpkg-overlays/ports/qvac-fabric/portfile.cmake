@@ -1,12 +1,12 @@
 # Staging pin for the b11739 sync: until that fabric tag exists, the port builds the
-# Adreno q8_1-quantize workaround branch (v11259.0.0 + 2 commits) from the zoq fork so
+# Adreno q8_1-quantize workaround + check-results diagnostics (TEMPORARY) from the zoq fork so
 # the mobile suite can validate it on the Galaxy S26 Ultra. Switching to b11739 is a
 # REPO/REF/SHA512 (and vcpkg.json version) update here only.
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
   REPO zoq/qvac-ext-lib-llama.cpp
-  REF 2199abec9d5f0fc4db451cb22522c4a4582dec9c
-  SHA512 1eaa08672f5c759be14c9607f9e652492b1b7a3fa494715f3f487c913ece456591258cd5655404c08620222ce0916caf18fed59f17f70a2f6fbd63ab18cb3409
+  REF 9002438fa4586eee668f5c708a854bf6fd48a6ca
+  SHA512 23ebbc04c81de6a882325615d2be23f4b6c61b276e675fa45a06d8e19a8bce6bf0e73031e94b310cc00618a018b88b7ec822ac4914fa83c0cebb400f25e605d3
 )
 
 # Upstream CMake options only — passed through to vcpkg_cmake_configure.
@@ -48,6 +48,9 @@ if (VCPKG_TARGET_IS_ANDROID AND BUILD_GPU_BACKENDS)
   # `if (ANDROID)` block). The registry vcpkg-cmake sets FETCHCONTENT_FULLY_DISCONNECTED=ON
   # globally, so allow the fetch here (same as the kleidiai path below).
   list(APPEND PLATFORM_OPTIONS -DFETCHCONTENT_FULLY_DISCONNECTED=OFF)
+  # TEMPORARY diagnostics: compare every Vulkan op with the CPU on the device and log
+  # the first divergence to logcat (Adreno 840 finetune). Revert before merging.
+  list(APPEND PLATFORM_OPTIONS -DGGML_VULKAN_CHECK_RESULTS=ON)
 endif()
 
 if(NOT BUILD_GPU_BACKENDS)
