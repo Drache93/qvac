@@ -7,7 +7,11 @@ import {
   extractInternalLinks,
   contentPathsOfLink,
 } from '../scripts/lib/link-validator'
-import { getCurrentLine, getDocumentedSoftware } from '../src/lib/versions'
+import {
+  getCurrentLine,
+  getDocumentedSoftware,
+  isCurrentLineFolder,
+} from '../src/lib/versions'
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url))
 const WEBSITE_DIR = path.resolve(TESTS_DIR, '..')
@@ -77,9 +81,16 @@ describe('contentPathsOfLink', () => {
   // a test naming it would have to be edited by every cut.
   const sdkGroup = getCurrentLine(getDocumentedSoftware('/sdk')!)!.folder
 
+  // A plain line comes from the manifest for the same reason: the oldest lines
+  // are retired as newer ones are cut, so a test naming one would break on the
+  // retirement rather than on the behaviour it covers.
+  const sdkLine = getDocumentedSoftware('/sdk')!.versions.find(
+    (entry) => !isCurrentLineFolder(entry.folder),
+  )!.folder
+
   it("resolves a same-collection link in the reader's own line", () => {
-    expect(contentPathsOfLink('/sdk/quickstart', 'sdk/v0.18/index.mdx')[0])
-      .toBe('sdk/v0.18/quickstart')
+    expect(contentPathsOfLink('/sdk/quickstart', `sdk/${sdkLine}/index.mdx`)[0])
+      .toBe(`sdk/${sdkLine}/quickstart`)
   })
 
   it('resolves a link from the current line inside the group', () => {
@@ -93,18 +104,18 @@ describe('contentPathsOfLink', () => {
   })
 
   it('leaves a link that names its version alone', () => {
-    expect(contentPathsOfLink('/sdk/v0.18/quickstart', 'ecosystem/index.mdx'))
-      .toEqual(['sdk/v0.18/quickstart'])
+    expect(contentPathsOfLink(`/sdk/${sdkLine}/quickstart`, 'ecosystem/index.mdx'))
+      .toEqual([`sdk/${sdkLine}/quickstart`])
   })
 
   it('leaves a link to an unversioned collection alone', () => {
-    expect(contentPathsOfLink('/ecosystem/addons', 'sdk/v0.18/index.mdx'))
+    expect(contentPathsOfLink('/ecosystem/addons', `sdk/${sdkLine}/index.mdx`))
       .toEqual(['ecosystem/addons'])
   })
 
   it('points a link at a page missing from the line, so the check fails', () => {
-    const [inLine] = contentPathsOfLink('/sdk/nowhere', 'sdk/v0.18/index.mdx')
-    expect(inLine).toBe('sdk/v0.18/nowhere')
+    const [inLine] = contentPathsOfLink('/sdk/nowhere', `sdk/${sdkLine}/index.mdx`)
+    expect(inLine).toBe(`sdk/${sdkLine}/nowhere`)
     expect(fs.existsSync(path.join(DOCS_BASE, `${inLine}.mdx`))).toBe(false)
   })
 })
