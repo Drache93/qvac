@@ -1195,6 +1195,14 @@ to 30 seconds.  It is not a speech model, and it ships as one GGUF.  Select it
 with `engine: TTSGgml.ENGINE_MOSS_SFX` or by staging `moss-sfx-*.gguf` in the
 `modelDir`.
 
+Native generation reuses fixed cross-attention K/V across diffusion steps and
+uses Metal DiT FlashAttention when the GPU supports both attention shapes.
+Memory preflight includes the request cache (360 MiB for guided generation
+with the released models) and the selected graph workspace. FlashAttention
+can slightly change waveform samples. See the
+[native SoundEffect guide](https://github.com/tetherto/qvac-fabric-speech.cpp/blob/e697a9cbff56addfaed2aa304bd5a9bb1f1b9b71/engines/tts/docs/moss.md#moss-soundeffect)
+for precision details and the M1 Ultra measurements.
+
 ```js
 const sfx = new TTSGgml({
   engine: TTSGgml.ENGINE_MOSS_SFX,

@@ -14,6 +14,10 @@ restarts at `0.1.0`; the two pre-merge histories are preserved verbatim as
 
 ## [Unreleased]
 
+### Changed
+
+- Align the shared native `speech-cpp` source to `2026-10-23#4` across the speech addons.
+
 ### Added
 
 - `assessFit` reports `coremlBytes` for Parakeet models on macOS and iOS: the
