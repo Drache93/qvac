@@ -4,6 +4,7 @@ import { CHAT_BATCH_FIELD_CODES } from '@/serve/extensions/default/schemas/chat-
 import { MODEL_FIT_FIELD_CODES } from '@/serve/extensions/default/schemas/model-fit'
 import { SYSTEM_FIELD_CODES } from '@/serve/extensions/default/schemas/system'
 import { TRANSLATE_FIELD_CODES } from '@/serve/extensions/default/schemas/translate'
+import { UPSCALE_FIELD_CODES } from '@/serve/extensions/default/schemas/upscale'
 import { TAG_DESCRIPTIONS } from '@/serve/extensions/default/tags'
 
 const defaultExtension: ServeExtension = {
@@ -14,7 +15,8 @@ const defaultExtension: ServeExtension = {
     ...CHAT_BATCH_FIELD_CODES,
     ...SYSTEM_FIELD_CODES,
     ...MODEL_FIT_FIELD_CODES,
-    ...TRANSLATE_FIELD_CODES
+    ...TRANSLATE_FIELD_CODES,
+    ...UPSCALE_FIELD_CODES
   },
   async register(app) {
     for (const route of routes) {
