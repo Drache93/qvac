@@ -1,12 +1,12 @@
 # Staging pin for the b11739 sync: until that fabric tag exists, the port builds the
-# Adreno coopmat-off workaround branch (v11259.0.0 + 2 commits) from the zoq fork so
+# Adreno q8_1-quantize workaround branch (v11259.0.0 + 2 commits) from the zoq fork so
 # the mobile suite can validate it on the Galaxy S26 Ultra. Switching to b11739 is a
 # REPO/REF/SHA512 (and vcpkg.json version) update here only.
 vcpkg_from_github(
   OUT_SOURCE_PATH SOURCE_PATH
   REPO zoq/qvac-ext-lib-llama.cpp
-  REF c95b37201b1bd353936562342d26947cc05ce1c8
-  SHA512 d3a940017c155b2dd7585aa4cae9611edfbd2b799471f4d9c52c96d3362d035467098b2ac8f785fc4bac9b0142280768e129d46e3cd8349c031025ab0cefff49
+  REF 2199abec9d5f0fc4db451cb22522c4a4582dec9c
+  SHA512 1eaa08672f5c759be14c9607f9e652492b1b7a3fa494715f3f487c913ece456591258cd5655404c08620222ce0916caf18fed59f17f70a2f6fbd63ab18cb3409
 )
 
 # Upstream CMake options only — passed through to vcpkg_cmake_configure.
