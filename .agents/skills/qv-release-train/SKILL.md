@@ -38,9 +38,11 @@ the per-package flow in `docs/gitflow.md`.
   whole train.
 - Invoke `qv-docs-cutoff` right after cutting the train branch, passing the new
   version of each documented collection's package (`@qvac/sdk`, `@qvac/cli`),
-  not the train's anchor version. A train that moves neither cuts nothing. It
-  opens one documentation PR into `main` and reports its URL. Nothing in steps
-  7 and 8 waits on it.
+  not the train's anchor version, plus the train branch itself. The branch is
+  what gives it the release base, since the cutoff publishes the tree the train
+  was cut from rather than `main`'s tip. A train that moves neither collection
+  cuts nothing. It opens one documentation PR into `main` and reports its URL.
+  Nothing in steps 7 and 8 waits on it.
 - Do not approve or merge the documentation PR. The documentation engineer
   reviews it — that review is the only gate on the documentation side of the
   release.
