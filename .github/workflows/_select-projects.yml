@@ -16,20 +16,16 @@ on:
         description: Extra matrices for targets sharing a job, e.g. desktop=test:integration+test:backend
         type: string
         default: ""
-      owner-targets:
-        description: Comma-separated targets selected for the changed packages only, never their dependents
+      configs:
+        description: Comma-separated leg configurations to keep, e.g. ios-arm64; empty keeps every leg
         type: string
         default: ""
-      mode:
-        description: affected (changed packages and their dependents) or owners (changed packages only)
-        type: string
-        default: affected
     outputs:
       matrices:
         description: JSON object of target to matrix rows
         value: ${{ jobs.select.outputs.matrices }}
       projects:
-        description: JSON array of selected packages with their gate key and dependency waits
+        description: JSON array of selected packages with their gate key
         value: ${{ jobs.select.outputs.projects }}
       runners:
         description: JSON map of reusable-runner-names.yml runner key to label
@@ -69,8 +65,7 @@ jobs:
           TARGETS: ${{ inputs.targets }}
           PACKAGES: ${{ inputs.packages }}
           COMBINE: ${{ inputs.combine }}
-          OWNER_TARGETS: ${{ inputs.owner-targets }}
-          MODE: ${{ inputs.mode }}
+          CONFIGS: ${{ inputs.configs }}
           NX_DAEMON: "false"
           NX_NO_CLOUD: "true"
         run: node .github/scripts/select-projects.mjs

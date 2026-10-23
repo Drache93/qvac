@@ -27,8 +27,6 @@ jobs:
     with:
       targets: ci:setup,build,cpp:lint,cpp:build,cpp:tests,test:integration,test:backend
       combine: desktop=test:integration+test:backend
-      # cpp:lint checks a package's own changed lines, so a dependent with no changes has nothing to lint.
-      owner-targets: cpp:lint
       packages: ${{ inputs.packages }}
 
   fork-approval:
@@ -154,8 +152,8 @@ jobs:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
 
   desktop:
-    needs: [select, route, build, merge]
-    if: always() && !cancelled() && needs.route.outputs.run_desktop == 'true' && needs.merge.result == 'success'
+    needs: [select, route, trust]
+    if: needs.trust.outputs.allowed == 'true' && needs.route.outputs.run_desktop == 'true'
     permissions:
       contents: read
       actions: read

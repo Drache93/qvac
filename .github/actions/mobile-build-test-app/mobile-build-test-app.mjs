@@ -106,6 +106,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const env = process.env
   if (!LINK_OUT[env.PLATFORM])
     throw new Error(`platform must be Android or iOS, got '${env.PLATFORM}'`)
+  const run = (cmd, args, opts) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
+  // The test app is an Expo app; its CLI is what builds it.
+  run('npm', ['install', '-g', '--force', '@expo/cli@latest'])
   build({
     platform: env.PLATFORM,
     appDir: resolve(env.APP_DIR),
@@ -113,6 +116,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     npmName: env.NPM_NAME,
     dependencyPrebuilds: env.DEPENDENCY_PREBUILDS || '',
     timeoutMinutes: env.TIMEOUT_MINUTES || '',
-    run: (cmd, args, opts) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
+    run
   })
 }

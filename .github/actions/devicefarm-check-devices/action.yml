@@ -20,6 +20,12 @@ inputs:
   runner-source:
     description: Path to the package's test/mobile/integration.auto.cjs, when it does not
     default: ""
+  package:
+    description: The published build the run installs, if any; not together with prebuild-run-id
+    default: ""
+  prebuild-run-id:
+    description: The run whose prebuilds the run installs, if any; not together with package
+    default: ""
 
 runs:
   using: composite
@@ -32,4 +38,6 @@ runs:
         TESTS: ${{ inputs.tests }}
         GROUPS_PATH: ${{ inputs.test-groups }}
         AUTO_PATH: ${{ inputs.runner-source }}
+        PACKAGE: ${{ inputs.package }}
+        PREBUILD_RUN_ID: ${{ inputs.prebuild-run-id }}
       run: node "$GITHUB_ACTION_PATH/devicefarm-check-devices.mjs"

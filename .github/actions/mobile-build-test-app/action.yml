@@ -1,5 +1,5 @@
 name: Build mobile test app
-description: Build the mobile test framework's JS app around a package and link its native addons, ready for a native project.
+description: Install the Expo CLI, then build the mobile test framework's JS app around a package and link its native addons, ready for a native project.
 
 inputs:
   platform:

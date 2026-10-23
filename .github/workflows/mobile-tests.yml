@@ -79,6 +79,7 @@ jobs:
     with:
       targets: test:mobile
       packages: ${{ inputs.packages }}
+      configs: ${{ inputs.platform == 'iOS' && 'ios-arm64' || 'android-arm64' }}
 
   # Fails before any build: who dispatched, which install source, and whether the devices exist.
   check:
@@ -102,23 +103,6 @@ jobs:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
           persist-credentials: false
-      - id: trust
-        uses: ./.github/actions/pr-check-trust
-        with:
-          github-token: ${{ github.token }}
-      - shell: bash
-        env:
-          HAS_WRITE: ${{ steps.trust.outputs.has_write }}
-          SUFFIX: ${{ matrix.row.meta.devicefarmSecrets }}
-          PACKAGE: ${{ inputs.package }}
-          RUN_ID: ${{ inputs.prebuild_run_id }}
-        run: |
-          if [ "$HAS_WRITE" != 1 ]; then echo "::error::Dispatching mobile tests needs write access"; exit 1; fi
-          if [ -n "$PACKAGE" ] && [ -n "$RUN_ID" ]; then echo "::error::Set package or prebuild_run_id, not both"; exit 1; fi
-          case "$SUFFIX" in
-            LLAMACPP_EMBED) ;;
-            *) echo "::error::No Device Farm project secret is mapped for '$SUFFIX'; add it to PROJECT_ARN in mobile-tests.yml"; exit 1 ;;
-          esac
       # Data only, from the ref the build will use; nothing here is executed.
       - name: Checkout test groups
         uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
@@ -139,11 +123,13 @@ jobs:
           tests: ${{ inputs.tests }}
           test-groups: ${{ hashFiles(format('src/{0}/test/mobile/test-groups.json', matrix.row.dir)) != '' && format('src/{0}/test/mobile/test-groups.json', matrix.row.dir) || '' }}
           runner-source: ${{ hashFiles(format('src/{0}/test/mobile/integration.auto.cjs', matrix.row.dir)) != '' && format('src/{0}/test/mobile/integration.auto.cjs', matrix.row.dir) || '' }}
+          package: ${{ inputs.package }}
+          prebuild-run-id: ${{ inputs.prebuild_run_id }}
 
   test:
     needs: [select, check]
-    name: ${{ matrix.row.slug }} ${{ inputs.platform }}
-    runs-on: ${{ fromJSON(needs.select.outputs.runners)[inputs.platform == 'iOS' && 'macos_ios' || 'linux_ubuntu2204_x64'] }}
+    name: ${{ matrix.row.slug }} ${{ matrix.row.config }}
+    runs-on: ${{ matrix.row.runner }}
     environment: release
     # No continue-on-error: a Device Farm failure must fail the run.
     timeout-minutes: 120
@@ -158,8 +144,10 @@ jobs:
         row: ${{ fromJSON(needs.select.outputs.matrices)['test:mobile'] }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
       # Named one by one: indexing secrets by an expression hands every secret to the runner.
-      PROJECT_ARN: ${{ matrix.row.meta.devicefarmSecrets == 'LLAMACPP_EMBED' && secrets.AWS_DEVICE_FARM_PROJECT_ARN_LLAMACPP_EMBED || '' }}
+      PROJECT_ARN: ${{ matrix.row.meta.mobile.devicefarmProject == 'LLAMACPP_EMBED' && secrets.AWS_DEVICE_FARM_PROJECT_ARN_LLAMACPP_EMBED || '' }}
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -190,8 +178,14 @@ jobs:
         with:
           keep-android: "true"
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - shell: bash
-        run: npm install -g --force @expo/cli@latest
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          package-json-file: src/package.json
+      # Nx only: test:mobile runs a package script on Node built-ins, so the workspace root is enough.
+      - name: Install
+        shell: bash
+        working-directory: src
+        run: pnpm install --frozen-lockfile --filter .
       # Prebuilds: a named run's, else a published build's; prepare-mobile-prebuilds checks either is this package's.
       - id: run
         if: inputs.prebuild_run_id != ''
@@ -201,9 +195,6 @@ jobs:
           workdir: ${{ matrix.row.dir }}
           platform: ${{ inputs.platform }}
           github-token: ${{ github.token }}
-      - if: inputs.prebuild_run_id != ''
-        shell: bash
-        run: rm -rf "$WORKDIR/prebuilds"
       - if: inputs.prebuild_run_id != ''
         uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -233,16 +224,14 @@ jobs:
       - id: prepare
         name: test:mobile
         shell: bash
-        working-directory: src/${{ matrix.row.cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.row.command }}
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
           PLATFORM: ${{ inputs.platform }}
           AWS_REGION: us-west-2
           MODEL_S3_BUCKET: tether-ai-dev-us
-        run: bash -c "$COMMAND"
-      - if: inputs.dependency_prebuild_run_id != ''
-        shell: bash
-        run: rm -rf "$RUNNER_TEMP/dep-prebuilds"
+        run: pnpm exec nx run-many -t test:mobile -p "$PROJECT" -c "$CONFIG" --outputStyle=stream
       - if: inputs.dependency_prebuild_run_id != ''
         uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -256,7 +245,7 @@ jobs:
           npm-name: ${{ matrix.row.npm }}
           app-dir: test-framework
           dependency-prebuilds: ${{ inputs.dependency_prebuild_run_id != '' && format('{0}={1}/dep-prebuilds', matrix.row.provider, runner.temp) || '' }}
-          per-test-timeout-minutes: ${{ matrix.row.meta.perTestTimeoutMinutes[inputs.platform] || '' }}
+          per-test-timeout-minutes: ${{ matrix.row.meta.mobile.perTestTimeoutMinutes[inputs.platform] || '' }}
       - if: inputs.platform == 'Android'
         uses: tetherto/qvac-actions/setup-java@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -293,29 +282,17 @@ jobs:
           team-id: ${{ secrets.APPLE_TEAM_ID }}
           bundle-id: ${{ env.BUNDLE_ID }}
           app-dir: test-framework
-      # A tests filter collapses the package's shards into one grepped spec.
-      - id: filter
-        if: inputs.tests != ''
-        shell: bash
-        env:
-          TESTS: ${{ inputs.tests }}
-        run: |
-          echo "groups=$(jq -nc --arg g "$TESTS" '[{name: "manual", grep: $g}]')" >> "$GITHUB_OUTPUT"
       - id: specs
         uses: ./.github/actions/devicefarm-write-specs
         with:
           platform: ${{ inputs.platform }}
           workdir: ${{ env.WORKDIR }}
-          test-groups: ${{ steps.filter.outputs.groups }}
-          enables-perf: ${{ matrix.row.meta.enablesPerf == true }}
-          mocha-timeout-ms: ${{ matrix.row.meta.mochaTimeoutMs || '1800000' }}
+          tests: ${{ inputs.tests }}
+          app-dir: test-framework
+          enables-perf: ${{ matrix.row.meta.mobile.enablesPerf == true }}
+          mocha-timeout-ms: ${{ matrix.row.meta.mobile.mochaTimeoutMs || '1800000' }}
           extra-pre-test-commands: ${{ steps.prepare.outputs.pre-test-commands }}
           bundle-id: ${{ env.BUNDLE_ID }}
-      - shell: bash
-        working-directory: test-framework/e2e
-        run: |
-          npm install && npm pack
-          zip -r "$RUNNER_TEMP/e2e-tests-${{ inputs.platform }}.zip" package.json tests/ ./*.tgz
       - id: app
         uses: tetherto/qvac-actions/devicefarm-upload@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -328,7 +305,7 @@ jobs:
         with:
           project-arn: ${{ env.PROJECT_ARN }}
           type: APPIUM_NODE_TEST_PACKAGE
-          files: ${{ runner.temp }}/e2e-tests-${{ inputs.platform }}.zip
+          files: ${{ steps.specs.outputs.test-package }}
       - id: spec-uploads
         uses: tetherto/qvac-actions/devicefarm-upload@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -389,13 +366,13 @@ jobs:
           retention-days: "30"
           if-no-files-found: ignore
       - id: perf
-        if: always() && steps.logs.outcome == 'success' && matrix.row.meta.perfReport
+        if: always() && steps.logs.outcome == 'success' && matrix.row.meta.mobile.perfReport
         uses: ./.github/actions/devicefarm-perf-report
         with:
           log-dir: ${{ steps.logs.outputs.log-dir }}
           output-dir: ${{ runner.temp }}/perf-report
-          title: ${{ format('{0} ({1})', matrix.row.meta.perfReport.title, inputs.platform) }}
-          merge: ${{ matrix.row.meta.perfReport.merge == true }}
+          title: ${{ format('{0} ({1})', matrix.row.meta.mobile.perfReport.title, inputs.platform) }}
+          merge: ${{ matrix.row.meta.mobile.perfReport.merge == true }}
       - if: always() && steps.perf.outputs.extracted == 'true'
         uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:

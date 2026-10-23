@@ -67,6 +67,12 @@ overrides:
   "@qvac/diffusion-cpp-darwin-arm64": "-"
   "@qvac/diffusion-cpp-darwin-x64": "-"
   "@qvac/diffusion-cpp-win32-x64": "-"
+  # bare-make's LLVM resource packages find their own directory through
+  # require-asset. 1.2.2 resolves it to index.js, which breaks clang's resource
+  # dir on Windows; 1.2.4, what a fresh npm install gets, returns the directory.
+  "llvm-runtime-resources-darwin>require-asset": "^1.2.4"
+  "llvm-runtime-resources-linux>require-asset": "^1.2.4"
+  "llvm-runtime-resources-win32>require-asset": "^1.2.4"
 
 blockExoticSubdeps: true
 

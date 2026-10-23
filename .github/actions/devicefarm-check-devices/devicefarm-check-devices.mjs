@@ -81,6 +81,8 @@ export function check({ models, operator, tests, source, fleet }) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = process.env
+  if (env.PACKAGE && env.PREBUILD_RUN_ID)
+    throw new Error('Set package or prebuild_run_id, not both')
   const filter = JSON.stringify([
     {
       attribute: 'PLATFORM',

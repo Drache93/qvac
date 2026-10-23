@@ -38,7 +38,6 @@ jobs:
     with:
       targets: build,verify:generated,publish
       packages: ${{ inputs.packages }}
-      mode: owners
 
   logic:
     needs: select
@@ -197,12 +196,6 @@ jobs:
         with:
           packages: ${{ toJSON(fromJSON(needs.select.outputs.matrices).publish.*.slug) }}
           workdir: ${{ env.WORKDIR }}
-      - if: inputs.npm_tag != ''
-        shell: bash
-        env:
-          NPM_TAG: ${{ inputs.npm_tag }}
-        run: |
-          grep -qE '^[a-zA-Z0-9][a-zA-Z0-9._-]*$' <<< "$NPM_TAG" || { echo "::error::Invalid npm dist-tag '$NPM_TAG'"; exit 1; }
       # npm 11.5 or newer for OIDC trusted publishing; 24.14.1 ships 11.11.0.
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
@@ -213,7 +206,7 @@ jobs:
         uses: tetherto/qvac-actions/npm-release-dist-tag@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           workdir: ${{ env.WORKDIR }}
-          tag: ${{ matrix.row.meta.npmTagOverride || inputs.npm_tag || 'latest' }}
+          tag: ${{ inputs.npm_tag || 'latest' }}
       - id: publish
         if: ${{ !inputs.dry_run }}
         uses: tetherto/qvac-actions/npm-release-publish@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
@@ -246,5 +239,5 @@ jobs:
       contents: write
     uses: ./.github/workflows/create-release-tag.yml
     with:
-      repo_name: ${{ matrix.row.meta.repoName }}
+      repo_name: ${{ matrix.row.meta.publish.tagPrefix }}
       published_version: ${{ needs.publish.outputs.published_version }}

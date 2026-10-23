@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// The one selection pass: which tagged packages run which targets, on which runners, from the trusted checkout.
+// The one selection pass. It resolves the commits a run compares, lets `nx show projects --affected` pick the packages
+// on the CI contract, checks their project.json against the standard (docs/ci/workflow-standard.md), and turns each
+// target's legs into job rows.
 
 import { appendFileSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -10,37 +12,37 @@ import { CPP_TEST_KEYS, PREBUILD_KEYS } from './prebuild-status/lib.mjs'
 
 export const TAG = 'ci:contract'
 
-// Platform and arch of each reusable-runner-names.yml key; the labels themselves stay in that file.
-export const RUNNER_KEYS = {
-  linux_ubuntu2204_x64: ['linux', 'x64'],
-  linux_ubuntu2204_x64_gpu: ['linux', 'x64'],
-  linux_ubuntu2404_x64: ['linux', 'x64'],
-  linux_ubuntu2404_x64_gpu: ['linux', 'x64'],
-  ubuntu_2204: ['linux', 'x64'],
-  ubuntu_2404: ['linux', 'x64'],
-  ubuntu_2604: ['linux', 'x64'],
-  ubuntu_2204_arm: ['linux', 'arm64'],
-  ubuntu_2404_arm: ['linux', 'arm64'],
-  macos_arm64_gpu: ['darwin', 'arm64'],
-  macos_15: ['darwin', 'arm64'],
-  macos_ios: ['darwin', 'arm64'],
-  macos_15_intel: ['darwin', 'x64'],
-  macos_15_large: ['darwin', 'x64'],
-  win_2025_x64: ['win32', 'x64'],
-  win_2025_x64_gpu: ['win32', 'x64']
-}
-
-// A leg is one of a target's configurations: <platform>-<arch>[-simulator], holding only args or commands and a
-// ci object with its runner. Anything else breaks the package standard (docs/ci/workflow-standard.md).
-const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-simulator)?$/
+// A leg is one of a target's configurations, <platform>-<arch>[-<variant>], holding only args or commands and a ci
+// object with its runner and any extra host setup it needs.
+const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
 const LEG_KEYS = ['args', 'commands', 'ci']
-const CI_KEYS = ['runner']
+const CI_KEYS = ['runner', 'setup']
+// Host setup a leg may ask for; each is one workflow step, its version pinned in nx.json.
+const SETUP = ['cuda']
+
+// The metadata a target may carry, and on which targets. toolchain is nx.json's, merged into every build target.
+const METADATA = {
+  timeoutMinutes: null,
+  toolchain: ['build'],
+  mobile: ['test:mobile'],
+  publish: ['publish']
+}
+const PUBLISH_KEYS = ['tagPrefix']
+const MOBILE_KEYS = [
+  'devicefarmProject',
+  'enablesPerf',
+  'mochaTimeoutMs',
+  'perTestTimeoutMinutes',
+  'perfReport'
+]
+// Each needs its secret named in mobile-tests.yml's PROJECT_ARN.
+export const DEVICEFARM_PROJECTS = ['LLAMACPP_EMBED']
 
 export function legs(project, target) {
   return Object.entries(project.targets[target].configurations ?? {}).map(([config, cfg]) => {
     const where = `${project.name} ${target} configuration ${config}`
     const m = config.match(LEG_NAME)
-    if (!m) throw new Error(`${where}: the name must be <platform>-<arch>[-simulator]`)
+    if (!m) throw new Error(`${where}: the name must be <platform>-<arch>[-<variant>]`)
     const extra = Object.keys(cfg).filter((k) => !LEG_KEYS.includes(k))
     if (extra.length)
       throw new Error(
@@ -50,7 +52,70 @@ export function legs(project, target) {
     if (ciExtra.length)
       throw new Error(`${where}: ci holds only ${CI_KEYS.join(', ')}, found ${ciExtra.join(', ')}`)
     if (!cfg.ci?.runner) throw new Error(`${where}: ci.runner names the runner key it runs on`)
-    return { config, runnerKey: cfg.ci.runner, platform: m[1], arch: m[2], tags: m[3] ?? '' }
+    const setup = cfg.ci.setup ?? []
+    const unknown = setup.filter((s) => !SETUP.includes(s))
+    if (unknown.length)
+      throw new Error(`${where}: ci.setup takes ${SETUP.join(', ')}, found ${unknown.join(', ')}`)
+    return { config, runnerKey: cfg.ci.runner, platform: m[1], arch: m[2], tags: m[3] ?? '', setup }
+  })
+}
+
+export function checkMetadata(project, target) {
+  const meta = project.targets[target]?.metadata ?? {}
+  for (const key of Object.keys(meta)) {
+    const on = METADATA[key]
+    if (on === undefined || (on && !on.includes(target)))
+      throw new Error(
+        `${project.name} ${target}: metadata.${key} is not part of the package standard`
+      )
+  }
+  if (meta.mobile) {
+    const extra = Object.keys(meta.mobile).filter((k) => !MOBILE_KEYS.includes(k))
+    if (extra.length)
+      throw new Error(
+        `${project.name} ${target}: metadata.mobile takes ${MOBILE_KEYS.join(', ')}, found ${extra.join(', ')}`
+      )
+    if (!DEVICEFARM_PROJECTS.includes(meta.mobile.devicefarmProject))
+      throw new Error(
+        `${project.name} ${target}: no Device Farm project secret is mapped for '${meta.mobile.devicefarmProject}'`
+      )
+  }
+  if (meta.publish) {
+    const extra = Object.keys(meta.publish).filter((k) => !PUBLISH_KEYS.includes(k))
+    if (extra.length)
+      throw new Error(
+        `${project.name} ${target}: metadata.publish takes ${PUBLISH_KEYS.join(', ')}, found ${extra.join(', ')}`
+      )
+  }
+  return meta
+}
+
+// One row per leg; a target without legs is one job per package, on whatever runner the group picks.
+export function rows(project, target, labels) {
+  const meta = checkMetadata(project, target)
+  const base = {
+    project: project.name,
+    dir: project.root,
+    target,
+    timeout: meta.timeoutMinutes ?? 0,
+    meta,
+    // The workspace toolchain pins live on nx.json's build target defaults.
+    toolchain: project.targets.build?.metadata?.toolchain ?? {},
+    config: '',
+    platform: '',
+    arch: '',
+    tags: '',
+    setup: [],
+    runner: ''
+  }
+  if (!project.targets[target]?.configurations) return [base]
+  return legs(project, target).map((leg) => {
+    const runner = labels[leg.runnerKey]
+    if (!runner)
+      throw new Error(
+        `${project.name} ${target} configuration ${leg.config}: unknown runner key ${leg.runnerKey}`
+      )
+    return { ...base, ...leg, runner }
   })
 }
 
@@ -79,76 +144,25 @@ export function gateKeys(gateYaml) {
   return keys
 }
 
-export function rows(project, target, labels) {
-  const meta = project.targets[target]?.metadata ?? {}
-  const base = {
-    project: project.name,
-    dir: project.root,
-    target,
-    timeout: meta.timeoutMinutes ?? 0,
-    meta
-  }
-  // Legs come from the target's configurations; a target not yet converted still lists metadata.runners.
-  const configured = Boolean(project.targets[target]?.configurations)
-  const runners = meta.runners
-  // A target with neither is one job per package, on whatever runner the group picks.
-  if (!configured && !runners) return [{ ...base, platform: '', arch: '', tags: '', runner: '' }]
-  const keys = configured ? legs(project, target) : runners.map((runnerKey) => ({ runnerKey }))
-  return keys.map((leg) => {
-    const [platform, arch] = RUNNER_KEYS[leg.runnerKey] ?? []
-    const runner = labels[leg.runnerKey]
-    if (!runner || !platform)
-      throw new Error(`${project.name} ${target}: unknown runner key ${leg.runnerKey}`)
-    return { ...base, platform, arch, tags: '', ...leg, runner }
-  })
-}
-
-// Owner targets run only for packages the change touched, not for their dependents; owners null means every package.
-export function select({
-  graph,
-  affected,
-  targets,
-  labels,
-  gate,
-  owners = null,
-  ownerTargets = []
-}) {
+// configs, when set, keeps only those legs: a mobile dispatch runs its one platform.
+export function select({ graph, affected, targets, labels, gate, configs = [] }) {
   const tagged = Object.values(graph.nodes).filter((n) => n.data.tags?.includes(TAG))
   const chosen = tagged.filter((n) => affected === null || affected.includes(n.name))
   const out = { matrices: {}, projects: [] }
   for (const t of targets) out.matrices[t] = []
   for (const n of chosen) {
-    const project = {
-      name: n.name,
-      root: n.data.root,
-      targets: n.data.targets
-    }
-    const dir = n.data.root.split('/').pop()
-    const npm = n.data.metadata?.js?.packageName ?? n.name
-    const own = targets.filter(
-      (t) =>
-        n.data.targets[t] &&
-        (owners === null || !ownerTargets.includes(t) || owners.includes(n.name))
-    )
+    const project = { name: n.name, root: n.data.root, targets: n.data.targets }
+    const own = targets.filter((t) => n.data.targets[t])
     if (!own.length) continue
-    const commands = Object.fromEntries(
-      own.map((t) => [
-        t,
-        {
-          command: n.data.targets[t].options?.command ?? '',
-          cwd: n.data.targets[t].options?.cwd ?? n.data.root
-        }
-      ])
-    )
+    const dir = n.data.root.split('/').pop()
     const { provider, providerArtifact } = nativeProvider(graph, n.name, gate)
     const common = {
       slug: dir,
-      npm,
+      npm: n.data.metadata?.js?.packageName ?? n.name,
       key: gate[dir] ?? '',
       provider,
       providerArtifact,
-      targets: own,
-      commands
+      targets: own
     }
     out.projects.push({
       name: n.name,
@@ -158,14 +172,10 @@ export function select({
       cppStatus: CPP_TEST_KEYS.includes(gate[dir])
     })
     for (const t of own) {
-      const cmd = n.data.targets[t].options ?? {}
-      for (const r of rows(project, t, labels))
-        out.matrices[t].push({
-          ...r,
-          ...common,
-          command: cmd.command ?? '',
-          cwd: cmd.cwd ?? n.data.root
-        })
+      for (const r of rows(project, t, labels)) {
+        if (configs.length && r.config && !configs.includes(r.config)) continue
+        out.matrices[t].push({ ...r, ...common })
+      }
     }
   }
   return out
@@ -208,6 +218,10 @@ const ZERO = /^0+$/
 // base, as GitHub's "Files changed" shows it. workflow_call carries its caller's event, so it needs no row of its own.
 export function resolveRange({ eventName, event, packages = [], defaultBranch, sha, ref }) {
   if (packages.length) return { explicit: packages }
+  // A release-<dir>-<x.y.z> push publishes exactly the package its name holds, never its dependents.
+  const release =
+    eventName === 'push' && (ref ?? '').match(/^refs\/heads\/release-(.+)-\d+\.\d+\.\d+$/)
+  if (release) return { explicit: [release[1]] }
   const pr = event.pull_request
   if (pr)
     return {
@@ -229,8 +243,8 @@ export function resolveRange({ eventName, event, packages = [], defaultBranch, s
   return { all: true }
 }
 
-// Commits and trees only: paths are all a diff needs. --no-renames lists a move under both packages.
-export function changedFiles(range, run = git) {
+// The base and head commits, fetched (commits and trees only) so Nx can diff them; a merge base for a PR or a new branch.
+export function shas(range, run = git) {
   const fetch = (rev, from = 'origin') =>
     run(['fetch', '--no-tags', '--filter=blob:none', from, rev])
   for (const rev of [range.base, range.head]) {
@@ -242,22 +256,23 @@ export function changedFiles(range, run = git) {
       fetch(rev, `https://github.com/${range.headRepo}.git`)
     }
   }
-  const base = range.mergeBase ? run(['merge-base', range.base, range.head]) : range.base
-  return run(['diff', '--name-only', '--no-renames', base, range.head]).split('\n').filter(Boolean)
-}
-
-// A changed path belongs to the package whose root holds it.
-export function ownersOf(graph, files) {
-  return Object.values(graph.nodes)
-    .filter((n) => files.some((f) => f.startsWith(`${n.data.root}/`)))
-    .map((n) => n.name)
+  return {
+    base: range.mergeBase ? run(['merge-base', range.base, range.head]) : range.base,
+    head: range.head
+  }
 }
 
 function main(env) {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'))
   const targets = env.TARGETS.split(/[\s,]+/).filter(Boolean)
+  const nx = (args, opts = {}) =>
+    execFileSync('pnpm', ['exec', 'nx', ...args], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      ...opts
+    })
   const tmp = join(env.RUNNER_TEMP, 'nx-graph.json')
-  execFileSync('pnpm', ['exec', 'nx', 'graph', `--file=${tmp}`], { stdio: 'inherit' })
+  nx(['graph', `--file=${tmp}`], { stdio: 'inherit' })
   const graph = JSON.parse(readFileSync(tmp, 'utf8')).graph
   const range = resolveRange({
     eventName: env.GITHUB_EVENT_NAME,
@@ -267,10 +282,8 @@ function main(env) {
     packages: (env.PACKAGES || '').split(/[\s,]+/).filter(Boolean),
     defaultBranch: event.repository?.default_branch
   })
-  // affected and owners stay null for "every tagged package": a named list, or no change worth diffing.
-  let files = null
+  // affected stays null for "every tagged package": no change worth comparing, or commits that could not be fetched.
   let affected = null
-  let owners = null
   if (range.explicit) {
     affected = Object.values(graph.nodes)
       .filter(
@@ -280,34 +293,16 @@ function main(env) {
       .map((n) => n.name)
   } else if (!range.all) {
     try {
-      files = changedFiles(range)
-      console.log(`${files.length} files changed in ${range.base}..${range.head}`)
+      const { base, head } = shas(range)
+      console.log(`Comparing ${base}..${head}`)
+      affected = JSON.parse(
+        nx(['show', 'projects', '--affected', `--base=${base}`, `--head=${head}`, '--json'])
+      )
     } catch (e) {
       console.log(
-        `::warning::could not diff ${range.base}..${range.head}, selecting every tagged package: ${e.message}`
+        `::warning::could not compare ${range.base}..${range.head}, selecting every tagged package: ${e.message}`
       )
     }
-  }
-  if (files) {
-    owners = ownersOf(graph, files)
-    affected =
-      env.MODE === 'owners' || !files.length
-        ? owners
-        : JSON.parse(
-            execFileSync(
-              'pnpm',
-              [
-                'exec',
-                'nx',
-                'show',
-                'projects',
-                '--affected',
-                `--files=${files.join(',')}`,
-                '--json'
-              ],
-              { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }
-            )
-          )
   }
   const labels = parseRunnerLabels(
     readFileSync('.github/workflows/reusable-runner-names.yml', 'utf8')
@@ -317,14 +312,13 @@ function main(env) {
     affected,
     targets,
     labels,
-    owners,
-    ownerTargets: (env.OWNER_TARGETS || '').split(/[\s,]+/).filter(Boolean),
+    configs: (env.CONFIGS || '').split(/[\s,]+/).filter(Boolean),
     gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8'))
   })
   Object.assign(result.matrices, combine(result.matrices, env.COMBINE))
   for (const [t, r] of Object.entries(result.matrices))
     console.log(
-      `${t}: ${r.map((x) => `${x.project}@${x.platform}-${x.arch}${x.tags}`).join(' ') || 'none'}`
+      `${t}: ${r.map((x) => `${x.project}${x.config ? `@${x.config}` : ''}`).join(' ') || 'none'}`
     )
   appendFileSync(
     env.GITHUB_OUTPUT,

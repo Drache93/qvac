@@ -61,31 +61,12 @@ jobs:
         with:
           package-json-file: src/package.json
       # A workspace install, so a package checks against its dependencies' sources in this PR, not their published builds.
-      - working-directory: src
-        run: |
-          pnpm install --frozen-lockfile
-          npm install --global --force bare --registry=https://registry.npmjs.org/
-      - name: typecheck
-        if: contains(matrix.project.targets, 'typecheck')
+      - name: Install
+        working-directory: src
+        run: pnpm install --frozen-lockfile
+      # Nx runs whichever of these targets the package declares.
+      - name: Checks
         working-directory: src
         env:
           PROJECT: ${{ matrix.project.name }}
-        run: pnpm exec nx run "$PROJECT:typecheck" --outputStyle=stream
-      - name: lint
-        if: contains(matrix.project.targets, 'lint')
-        working-directory: src
-        env:
-          PROJECT: ${{ matrix.project.name }}
-        run: pnpm exec nx run "$PROJECT:lint" --outputStyle=stream
-      - name: test:unit
-        if: contains(matrix.project.targets, 'test:unit')
-        working-directory: src
-        env:
-          PROJECT: ${{ matrix.project.name }}
-        run: pnpm exec nx run "$PROJECT:test:unit" --outputStyle=stream
-      - name: verify:generated
-        if: contains(matrix.project.targets, 'verify:generated')
-        working-directory: src
-        env:
-          PROJECT: ${{ matrix.project.name }}
-        run: pnpm exec nx run "$PROJECT:verify:generated" --outputStyle=stream
+        run: pnpm exec nx run-many -t lint,typecheck,test:unit,verify:generated -p "$PROJECT" --parallel=1 --outputStyle=stream

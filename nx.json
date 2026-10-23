@@ -11,7 +11,8 @@
             "apiLevel": "34",
             "aptPackages": "gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross lld"
           },
-          "llvm": { "linux": "22", "windows": "22.1.0" }
+          "llvm": { "linux": "22", "windows": "22.1.0" },
+          "cuda": "13.0.3"
         }
       }
     }

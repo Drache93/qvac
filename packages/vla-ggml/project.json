@@ -49,14 +49,22 @@
       "configurations": {
         "linux-x64": {
           "commands": [
-            "sudo apt-get update",
-            "sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev"
+            "dpkg -s libxi-dev libxtst-dev libxrandr-dev >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev)"
+          ]
+        },
+        "linux-x64-gpu": {
+          "commands": [
+            "dpkg -s libxi-dev libxtst-dev libxrandr-dev >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev)"
           ]
         },
         "linux-arm64": {
           "commands": [
-            "sudo apt-get update",
-            "sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev"
+            "dpkg -s libxi-dev libxtst-dev libxrandr-dev mesa-vulkan-drivers >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev mesa-vulkan-drivers)"
+          ]
+        },
+        "linux-arm64-2404": {
+          "commands": [
+            "dpkg -s libxi-dev libxtst-dev libxrandr-dev mesa-vulkan-drivers >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev mesa-vulkan-drivers)"
           ]
         }
       }
@@ -263,50 +271,96 @@
     },
     "test:integration": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "node ci/run-integration.mjs",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "command": "pnpm exec node ci/run-integration.mjs"
       },
-      "metadata": {
-        "runners": [
-          "linux_ubuntu2204_x64",
-          "linux_ubuntu2404_x64_gpu",
-          "ubuntu_2204_arm",
-          "ubuntu_2404_arm",
-          "macos_arm64_gpu",
-          "macos_15_large",
-          "win_2025_x64_gpu"
-        ],
-        "linuxArmApt": ["mesa-vulkan-drivers"],
-        "tolerateSigsegv": true
+      "configurations": {
+        "linux-x64": {
+          "ci": {
+            "runner": "linux_ubuntu2204_x64"
+          }
+        },
+        "linux-x64-gpu": {
+          "ci": {
+            "runner": "linux_ubuntu2404_x64_gpu",
+            "setup": ["cuda"]
+          }
+        },
+        "linux-arm64": {
+          "ci": {
+            "runner": "ubuntu_2204_arm"
+          }
+        },
+        "linux-arm64-2404": {
+          "ci": {
+            "runner": "ubuntu_2404_arm"
+          }
+        },
+        "darwin-arm64": {
+          "ci": {
+            "runner": "macos_arm64_gpu"
+          }
+        },
+        "darwin-x64": {
+          "ci": {
+            "runner": "macos_15_large"
+          }
+        },
+        "win32-x64": {
+          "ci": {
+            "runner": "win_2025_x64_gpu"
+          }
+        }
       }
     },
     "test:backend": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "node ci/run-backend.mjs",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "command": "pnpm exec node ci/run-backend.mjs"
       },
-      "metadata": {
-        "runners": ["linux_ubuntu2404_x64_gpu"]
+      "configurations": {
+        "linux-x64-gpu": {
+          "ci": {
+            "runner": "linux_ubuntu2404_x64_gpu",
+            "setup": ["cuda"]
+          }
+        }
       }
     },
     "test:mobile": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node ci/prepare-mobile.mjs",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "command": "pnpm exec node ci/prepare-mobile.mjs"
+      },
+      "configurations": {
+        "android-arm64": {
+          "ci": {
+            "runner": "linux_ubuntu2204_x64"
+          }
+        },
+        "ios-arm64": {
+          "ci": {
+            "runner": "macos_ios"
+          }
+        }
       },
       "metadata": {
-        "devicefarmSecrets": "LLAMACPP_EMBED",
-        "enablesPerf": true,
-        "mochaTimeoutMs": 4200000,
-        "perTestTimeoutMinutes": {
-          "Android": 60
-        },
-        "perfReport": {
-          "title": "VLA Mobile Performance Report",
-          "merge": true
+        "mobile": {
+          "devicefarmProject": "LLAMACPP_EMBED",
+          "enablesPerf": true,
+          "mochaTimeoutMs": 4200000,
+          "perTestTimeoutMinutes": {
+            "Android": 60
+          },
+          "perfReport": {
+            "title": "VLA Mobile Performance Report",
+            "merge": true
+          }
         }
       }
     },
@@ -316,10 +370,9 @@
     "publish": {
       "executor": "nx:noop",
       "metadata": {
-        "nameTransform": "none",
-        "repoName": "vla",
-        "testGateMode": "none",
-        "npmTagOverride": "latest"
+        "publish": {
+          "tagPrefix": "vla"
+        }
       }
     }
   },

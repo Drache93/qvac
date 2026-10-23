@@ -1,6 +1,7 @@
 name: Desktop tests
 
-# One job per row of the targets that test the built addon on a desktop runner: test:integration, test:backend.
+# Each package's desktop targets (test:integration, test:backend) through Nx, one job per leg on the runner its
+# configuration names. Nx builds the package and its native dependencies on that machine before the tests.
 on:
   workflow_call:
     inputs:
@@ -14,10 +15,10 @@ permissions: {}
 jobs:
   test:
     if: inputs.rows != '[]'
-    name: ${{ matrix.row.slug }} ${{ matrix.row.target }} ${{ matrix.row.platform }}-${{ matrix.row.arch }} (${{ matrix.row.runnerKey }})
+    name: ${{ matrix.row.slug }} ${{ matrix.row.target }} ${{ matrix.row.config }}
     runs-on: ${{ matrix.row.runner }}
     environment: release
-    timeout-minutes: ${{ matrix.row.timeout || 60 }}
+    timeout-minutes: ${{ matrix.row.timeout || 180 }}
     permissions:
       contents: read
       actions: read
@@ -29,6 +30,8 @@ jobs:
         row: ${{ fromJSON(inputs.rows) }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -36,10 +39,7 @@ jobs:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
             .github/actions
-            .github/scripts
             .github/config
-            scripts/perf-report
-            scripts/test-utils
           persist-credentials: false
       - name: Checkout source
         uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
@@ -49,45 +49,39 @@ jobs:
           path: src
           persist-credentials: "false"
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - if: matrix.row.commands['ci:setup']
-        shell: bash
-        working-directory: src/${{ matrix.row.commands['ci:setup'].cwd }}
-        env:
-          COMMAND: ${{ matrix.row.commands['ci:setup'].command }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GPR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GIT_PAT: ${{ secrets.GITHUB_TOKEN }}
-        run: bash -c "$COMMAND"
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: npm install
-      - shell: bash
-        run: npm install -g --force bare bare-make@1.8.0 bare-runtime bare-https brittle
-      # The bundle this run's merge job folded from its build legs.
-      - uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: prebuilds-${{ matrix.row.slug }}
-          path: ${{ runner.temp }}/prebuilds-staging
-      - uses: ./.github/actions/prebuilds-place
+          package-json-file: src/package.json
+      - if: runner.environment == 'github-hosted'
+        uses: tetherto/qvac-actions/setup-clang@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          staging: ${{ runner.temp }}/prebuilds-staging
-          workdir: ${{ env.WORKDIR }}
-          platform: ${{ matrix.row.platform }}
-          arch: ${{ matrix.row.arch }}
-      # binding.js loads the host's platform package; link:platform wraps prebuilds/<host>/ as that package.
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: |
-          if node -e 'process.exit(require("./package.json").scripts?.["link:platform"] ? 0 : 1)'; then npm run link:platform; fi
-      - if: matrix.row.platform == 'linux' && matrix.row.arch == 'arm64'
-        uses: tetherto/qvac-actions/runner-apt-install@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          packages: ${{ join(matrix.row.meta.linuxArmApt, ' ') }}
-      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+          version: ${{ matrix.row.toolchain.llvm.linux }}
+          windows-version: ${{ matrix.row.toolchain.llvm.windows }}
       - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
+      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: ./.github/actions/vcpkg-bootstrap
+      - uses: ./.github/actions/vcpkg-cache-setup
+        with:
+          mode: s3
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+          platform: ${{ matrix.row.platform }}
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-windows-host
+        with:
+          arch: ${{ matrix.row.arch }}
+      - uses: ./.github/actions/setup-apple-clang
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          arch: ${{ matrix.row.arch }}
+          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
+      # A leg's extra host setup comes from its configuration's ci.setup; the version is the workspace pin.
+      - if: contains(matrix.row.setup, 'cuda')
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: ${{ matrix.row.toolchain.cuda }}
       - id: models
         uses: ./.github/actions/models-cache-key
         with:
@@ -105,36 +99,32 @@ jobs:
           workdir: ${{ env.WORKDIR }}
           bucket: ${{ secrets.MODEL_S3_BUCKET }}
           target: ${{ matrix.row.target }}
-      - if: runner.os == 'Windows'
-        uses: ./.github/actions/setup-vulkan
-        with:
-          arch: ${{ matrix.row.arch }}
+      - name: Install
+        shell: bash
+        working-directory: src
+        env:
+          NPM: ${{ matrix.row.npm }}
+        run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
+      - name: ${{ matrix.row.target }}
+        shell: bash
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.row.project }}
+          TARGET: ${{ matrix.row.target }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t "ci:system,$TARGET" -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
       # Diagnostic: the addon's DLL imports, for when LoadLibrary misses one.
-      - if: runner.os == 'Windows'
+      - if: failure() && runner.os == 'Windows'
         shell: powershell
         working-directory: ${{ env.WORKDIR }}
         run: |
-          $addon = Get-ChildItem -Recurse -Filter '*.bare' prebuilds/ | Select-Object -First 1
+          $addon = Get-ChildItem -Recurse -Filter '*.bare' prebuilds/ -ErrorAction SilentlyContinue | Select-Object -First 1
           $dumpbin = Get-ChildItem -Path 'C:\Program Files\Microsoft Visual Studio', 'C:\Program Files (x86)\Microsoft Visual Studio' -Filter dumpbin.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($addon -and $dumpbin) { & $dumpbin.FullName /dependents $addon.FullName }
-      - name: ${{ matrix.row.target }}
-        shell: bash
-        working-directory: src/${{ matrix.row.cwd }}
-        env:
-          COMMAND: ${{ matrix.row.command }}
-        run: bash -c "$COMMAND"
-      - name: perf summary
-        if: always() && !cancelled()
-        shell: bash
-        run: |
-          shopt -s nullglob
-          for r in "$WORKDIR"/test/results/performance-report*.json; do
-            node scripts/perf-report/render-step-summary.js "$r" "$GITHUB_STEP_SUMMARY"
-          done
       - if: always() && !cancelled()
         uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.platform }}-${{ matrix.row.arch }}-${{ matrix.row.runnerKey }}-${{ strategy.job-index }}
+          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.target }}-${{ matrix.row.config }}
           path: ${{ env.WORKDIR }}/test/results/performance-report*.json
           if-no-files-found: ignore
           retention-days: "14"

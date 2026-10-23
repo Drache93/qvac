@@ -2,6 +2,7 @@
 // Runs the integration suite as main's vla workflow did, then on the CUDA box checks an explicit Vulkan request.
 
 import { execFileSync } from 'node:child_process'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -15,6 +16,21 @@ export const MODELS = {
   PI05_TEST_ACTIVATIONS: 'pi05-activations.safetensors',
   GROOT_TEST_GGUF: 'groot-multi-q8_vf16.gguf',
   GROOT_TEST_ACTIVATIONS_V4: 'groot-libero-activations_v4.safetensors'
+}
+
+// The suite's performance reports, into the run's step summary; passing or not, as the workflow step did.
+function renderPerfSummary() {
+  if (!process.env.GITHUB_STEP_SUMMARY) return
+  const dir = join(PKG, 'test/results')
+  const reports = existsSync(dir)
+    ? readdirSync(dir).filter((f) => /^performance-report.*\.json$/.test(f))
+    : []
+  const renderer = join(PKG, '../../scripts/perf-report/render-step-summary.js')
+  for (const report of reports) {
+    execFileSync('node', [renderer, join(dir, report), process.env.GITHUB_STEP_SUMMARY], {
+      stdio: 'inherit'
+    })
+  }
 }
 
 const hasNvidia = () => {
@@ -40,6 +56,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     env,
     logFile: join(PKG, 'integration-test.log')
   })
+  renderPerfSummary()
   if (run.code !== 0) process.exit(run.code)
   if (backend === 'cuda') {
     execFileSync('bare', ['test/integration/backend-selection.test.js', '--exit'], {

@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 // Writes one Device Farm test spec per test group, each carrying its own WDIO config.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync
+} from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -123,7 +130,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     waitforMs: env.WAITFOR_MS,
     outDir,
     groups: resolveGroups(
-      env.TEST_GROUPS,
+      env.TESTS ? JSON.stringify([{ name: 'manual', grep: env.TESTS }]) : '',
       join(env.WORKDIR, 'test/mobile/test-groups.json'),
       env.PLATFORM
     ),
@@ -149,5 +156,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   })
   // Specs can carry presigned URLs from the pre-test commands, so only names are printed.
   for (const s of specs) console.log(`${s.file}: grep '${s.grep}'`)
-  appendFileSync(env.GITHUB_OUTPUT, `specs=${JSON.stringify(specs)}\n`)
+  // The framework's e2e suite, packed with its dependencies, is the test package every spec runs.
+  const e2e = join(env.APP_DIR, 'e2e')
+  execFileSync('npm', ['install'], { cwd: e2e, stdio: 'inherit' })
+  execFileSync('npm', ['pack'], { cwd: e2e, stdio: 'inherit' })
+  const testPackage = join(env.RUNNER_TEMP, `e2e-tests-${env.PLATFORM}.zip`)
+  const tarballs = readdirSync(e2e).filter((f) => f.endsWith('.tgz'))
+  execFileSync('zip', ['-r', testPackage, 'package.json', 'tests/', ...tarballs], {
+    cwd: e2e,
+    stdio: 'inherit'
+  })
+  appendFileSync(env.GITHUB_OUTPUT, `specs=${JSON.stringify(specs)}\ntest-package=${testPackage}\n`)
 }
