@@ -20,10 +20,6 @@ on:
         description: Comma-separated leg configurations to keep, e.g. ios-arm64; empty keeps every leg
         type: string
         default: ""
-      build-for:
-        description: Comma-separated targets; keeps only the build legs whose outputs they restore. Empty keeps every leg
-        type: string
-        default: ""
     outputs:
       matrices:
         description: JSON object of target to matrix rows
@@ -70,7 +66,6 @@ jobs:
           PACKAGES: ${{ inputs.packages }}
           COMBINE: ${{ inputs.combine }}
           CONFIGS: ${{ inputs.configs }}
-          BUILD_FOR: ${{ inputs.build-for }}
           NX_DAEMON: "false"
           NX_NO_CLOUD: "true"
         run: node .github/scripts/select-projects.mjs

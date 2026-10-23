@@ -1,7 +1,7 @@
 name: Desktop tests
 
 # Each package's desktop targets (test:integration, test:backend) through Nx, one job per leg on the runner its
-# configuration names, against the build job's outputs for that platform.
+# configuration names, against the build job's prebuilds for that platform.
 on:
   workflow_call:
     inputs:
@@ -61,7 +61,7 @@ jobs:
         with:
           arch: ${{ matrix.row.arch }}
           cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
-      # The build's outputs come prebuilt, so only the toolkits the leg itself asks for.
+      # The native dependencies come prebuilt, so only the toolkits the leg itself asks for.
       - if: contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:
@@ -95,10 +95,10 @@ jobs:
         env:
           NPM: ${{ matrix.row.npm }}
         run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
-      # The build job's outputs for this platform: the package's prebuilds and its native dependencies'.
+      # The build job's prebuilds for this platform: the package's and its native dependencies'.
       - uses: tetherto/qvac-actions/download-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: outputs-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
+          name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
           path: src
       - name: ci:system
         shell: bash
@@ -107,14 +107,13 @@ jobs:
           PROJECT: ${{ matrix.row.project }}
           CONFIG: ${{ matrix.row.config }}
         run: pnpm exec nx run-many -t ci:system -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
-      # Puts the dependencies' restored prebuilds where the package resolves them, without rebuilding.
-      - if: matrix.row.buildDeps != ''
-        name: link:platform
+      # Links each restored package's prebuilds where its dependents look for them, without rebuilding.
+      - name: link:platform
         shell: bash
         working-directory: src
-        env:
-          BUILD_DEPS: ${{ matrix.row.buildDeps }}
-        run: pnpm exec nx run-many -t link:platform -p "$BUILD_DEPS" --exclude-task-dependencies --outputStyle=stream
+        run: |
+          dirs=$(printf "%s\n" packages/*/prebuilds | sed "s|/prebuilds$||" | paste -sd, -)
+          pnpm exec nx run-many -t link:platform -p "$dirs" --exclude-task-dependencies --outputStyle=stream
       - name: ${{ matrix.row.target }}
         shell: bash
         working-directory: src
@@ -134,7 +133,7 @@ jobs:
       - if: always() && !cancelled()
         uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.targetKey }}-${{ matrix.row.config }}
+          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.config }}-${{ strategy.job-index }}
           path: ${{ env.WORKDIR }}/test/results/performance-report*.json
           if-no-files-found: ignore
           retention-days: "14"

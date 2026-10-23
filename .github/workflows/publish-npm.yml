@@ -187,7 +187,7 @@ jobs:
       - if: contains(matrix.row.targets, 'build')
         uses: ./.github/actions/prebuilds-place
         with:
-          staging: ${{ runner.temp }}/prebuilds
+          staging: ${{ runner.temp }}/prebuilds/${{ matrix.row.dir }}/prebuilds
           workdir: ${{ env.WORKDIR }}
           extra-dirs: ${{ join(matrix.row.meta.prebuildExtraDirs, ' ') }}
       # Again at the last step: whatever the selection did, a release ref publishes its own package at its own version.

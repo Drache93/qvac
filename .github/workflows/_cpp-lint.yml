@@ -68,11 +68,11 @@ jobs:
         with:
           arch: ${{ matrix.row.arch }}
       # Lint generates against native dependencies it builds here, so it takes the host's toolkits plus the leg's.
-      - if: contains(matrix.row.hostSetup, 'cuda') || contains(matrix.row.setup, 'cuda')
+      - if: contains(matrix.row.toolchain.hostSetup[format('{0}-{1}', matrix.row.platform, matrix.row.arch)], 'cuda') || contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:
           cuda-version: ${{ matrix.row.toolchain.cuda }}
-      - if: contains(matrix.row.hostSetup, 'rocm') || contains(matrix.row.setup, 'rocm')
+      - if: contains(matrix.row.toolchain.hostSetup[format('{0}-{1}', matrix.row.platform, matrix.row.arch)], 'rocm') || contains(matrix.row.setup, 'rocm')
         uses: ./.github/actions/setup-rocm
         with:
           rocm-version: ${{ matrix.row.toolchain.rocm.version }}

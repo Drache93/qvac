@@ -58,7 +58,6 @@ jobs:
     with:
       targets: cache:models,build,cpp:tests
       packages: ${{ inputs.packages }}
-      build-for: cpp:tests
 
   # One entry per package and target that restores models; a hit is still downloaded, which resets the prune clock.
   models:
@@ -115,7 +114,7 @@ jobs:
           bucket: ${{ secrets.MODEL_S3_BUCKET }}
           target: ${{ matrix.target }}
 
-  # The builds cpp:tests restores, on its platforms only.
+  # The prebuilds cpp:tests restores.
   build:
     needs: select
     if: toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) != '[]'

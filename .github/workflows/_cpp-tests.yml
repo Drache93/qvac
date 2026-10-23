@@ -1,7 +1,7 @@
 name: C++ tests
 
 # Each package's cpp:build and cpp:tests targets through Nx, on the runner each leg's configuration names: cpp:build
-# builds the test binary against the build job's outputs for that platform, then cpp:tests runs it with its models.
+# builds the test binary against the build job's prebuilds for that platform, then cpp:tests runs it with its models.
 on:
   workflow_call:
     inputs:
@@ -94,10 +94,10 @@ jobs:
         env:
           NPM: ${{ matrix.row.npm }}
         run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
-      # The build job's outputs for this platform: the package's prebuilds and its native dependencies'.
+      # The build job's prebuilds for this platform: the package's and its native dependencies'.
       - uses: tetherto/qvac-actions/download-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: outputs-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
+          name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
           path: src
       - name: ci:system
         shell: bash
@@ -106,14 +106,13 @@ jobs:
           PROJECT: ${{ matrix.row.project }}
           CONFIG: ${{ matrix.row.config }}
         run: pnpm exec nx run-many -t ci:system -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
-      # Puts the dependencies' restored prebuilds where the package's CMake finds them, without rebuilding.
-      - if: matrix.row.buildDeps != ''
-        name: link:platform
+      # Links each restored package's prebuilds where its dependents look for them, without rebuilding.
+      - name: link:platform
         shell: bash
         working-directory: src
-        env:
-          BUILD_DEPS: ${{ matrix.row.buildDeps }}
-        run: pnpm exec nx run-many -t link:platform -p "$BUILD_DEPS" --exclude-task-dependencies --outputStyle=stream
+        run: |
+          dirs=$(printf "%s\n" packages/*/prebuilds | sed "s|/prebuilds$||" | paste -sd, -)
+          pnpm exec nx run-many -t link:platform -p "$dirs" --exclude-task-dependencies --outputStyle=stream
       - name: cpp:build
         shell: bash
         working-directory: src

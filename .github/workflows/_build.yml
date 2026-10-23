@@ -94,11 +94,11 @@ jobs:
         shell: bash
         run: aws s3 cp "${{ steps.vulkan.outputs.upload-archive }}" "s3://${{ secrets.MODEL_S3_BUCKET }}/${{ steps.vulkan.outputs.upload-key }}"
       # The build compiles its native dependencies here, so it takes the host's toolkits plus any the leg asks for.
-      - if: contains(matrix.row.hostSetup, 'cuda') || contains(matrix.row.setup, 'cuda')
+      - if: contains(matrix.row.toolchain.hostSetup[format('{0}-{1}', matrix.row.platform, matrix.row.arch)], 'cuda') || contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:
           cuda-version: ${{ matrix.row.toolchain.cuda }}
-      - if: contains(matrix.row.hostSetup, 'rocm') || contains(matrix.row.setup, 'rocm')
+      - if: contains(matrix.row.toolchain.hostSetup[format('{0}-{1}', matrix.row.platform, matrix.row.arch)], 'rocm') || contains(matrix.row.setup, 'rocm')
         uses: ./.github/actions/setup-rocm
         with:
           rocm-version: ${{ matrix.row.toolchain.rocm.version }}
@@ -134,17 +134,11 @@ jobs:
         uses: ./.github/actions/prebuilds-check-windows-runtime
         with:
           workdir: ${{ env.WORKDIR }}
+      # Every package this job built, its native dependencies too, as packages/<dir>/prebuilds; package.json keeps
+      # that root when only one package built. Consumers take the <dir>/prebuilds they need.
       - uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.config }}
-          path: ${{ env.WORKDIR }}/prebuilds
-      # Every package's prebuilds from this job, its native dependencies' too, for the desktop and C++ test jobs to
-      # restore. package.json pins the artifact root at src/ even when only one package built.
-      - if: contains(fromJSON('["linux","darwin","win32"]'), matrix.row.platform)
-        uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: outputs-${{ matrix.row.slug }}-${{ matrix.row.config }}
           path: |
             src/package.json
             src/packages/*/prebuilds
-          retention-days: "3"
