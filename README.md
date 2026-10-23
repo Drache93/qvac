@@ -38,6 +38,7 @@
 **QVAC** lets you run a comprehensive range of AI workloads locally using open models across Linux, macOS, Windows, Android, and iOS.
 
 QVAC provides:
+
 - **SDK** for building local-first AI applications and systems in JavaScript/TypeScript and Python.
 - **HTTP server** for using QVAC as a local model provider. Its OpenAI-compatible API lets you connect AI tools such as OpenCode and OpenClaw, or any other compatible tool.
 
@@ -48,6 +49,11 @@ QVAC provides:
 - **One SDK, all of AI:** a comprehensive range of AI capabilities through one interface.
 - **Cross-platform:** one codebase for Linux, macOS, Windows, Android, and iOS, using JavaScript/TypeScript or Python.
 - **Peer-to-peer:** fetch AI models directly between peers and build unstoppable internet systems, like BitTorrent or IPFS, but for AI.
+
+MiniMax AudioGen exposes a full Core ML route on macOS 15+ through the SDK's
+`coremlProfileDir` and `coremlComputeUnits` load configuration, including
+CPU + ANE and all-device policies. See the [SDK guide](packages/sdk/README.md#minimax-core-ml-and-ane-on-macos)
+for the compiled profile, build feature, and generation example.
 
 ## Quickstart
 
@@ -86,7 +92,12 @@ npm i @qvac/sdk
 4. Create the `quickstart.js` script:
 
 ```js
-import { loadModel, LLAMA_3_2_1B_INST_Q4_0, completion, unloadModel } from '@qvac/sdk';
+import {
+  loadModel,
+  LLAMA_3_2_1B_INST_Q4_0,
+  completion,
+  unloadModel,
+} from "@qvac/sdk";
 try {
   const modelId = await loadModel({
     modelSrc: LLAMA_3_2_1B_INST_Q4_0,
@@ -94,17 +105,19 @@ try {
       const mb = (n) => (n / 1e6).toFixed(1);
       const line = `▸ Downloading ${p.percentage.toFixed(0)}% (${mb(p.downloaded)}/${mb(p.total)} MB)`;
       process.stderr.write(process.stderr.isTTY ? `\r${line}` : `${line}\n`);
-      if (p.percentage >= 100) process.stderr.write('\n');
+      if (p.percentage >= 100) process.stderr.write("\n");
     },
   });
-  const history = [{ role: 'user', content: 'Explain quantum computing in one sentence' }];
+  const history = [
+    { role: "user", content: "Explain quantum computing in one sentence" },
+  ];
   const result = completion({ modelId, history, stream: true });
   for await (const token of result.tokenStream) {
     process.stdout.write(token);
   }
   await unloadModel({ modelId });
 } catch (error) {
-  console.error('✖', error);
+  console.error("✖", error);
   process.exit(1);
 }
 ```
@@ -214,6 +227,7 @@ npm install -g @qvac/cli
 ```
 
 2. Create the examples workspace:
+
 ```bash
 mkdir qvac-server
 cd qvac-server
@@ -265,29 +279,29 @@ The response comes back as a single JSON payload with the model's answer. Add `"
 
 <br>
 
-> ⭐  If QVAC saves you from shipping yet another cloud dependency, give it a star, it helps other developers find the project!
+> ⭐ If QVAC saves you from shipping yet another cloud dependency, give it a star, it helps other developers find the project!
 
 ## AI capabilities
 
-| Task | Description |
-| --- | --- |
-| **Text generation** | LLM inference for text generation and chat via [Fabric LLM](https://github.com/tetherto/qvac-fabric-llm.cpp). |
-| **Text embeddings** | Vector embedding generation for semantic search, clustering, and retrieval. |
-| **RAG** | Out-of-the-box retrieval-augmented generation workflow. |
-| **Fine-tuning** | Adapting LLMs to domain-specific tasks via LoRA. |
-| **Multimodal** | LLM inference over text, images, and other media in one context. |
-| **Image generation** | Text-to-image and image-to-image generation via a Diffusion backend. |
-| **Video generation** | Text-to-video and image-to-video generation via a Diffusion backend. |
-| **Music generation** | Generate music from text, lyrics, and musical controls via [ACE-Step](https://github.com/ace-step/ACE-Step-1.5) or [MiniMax-Music3](https://huggingface.co/MiniMaxAI/MiniMax-Music3) (desktop). |
-| **Transcription** | Speech-to-text via a [Whisper backend](https://github.com/tetherto/qvac/tree/main/packages/asr-ggml), [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), [TranscribePsy](https://huggingface.co/qvac/TranscribePsy-250M-EU-sub-gguf), or [MOSS-Transcribe-Diarize](https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize) (speaker-labelled transcripts with hotwords and metadata-only memory fit via `assessFit`). |
-| **Speaker diarization** | Whisper tinydiarize speaker turns, four-speaker Sortformer, up to eight-speaker [Nemotron 3 Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization), and speaker-labelled MOSS-Transcribe-Diarize transcripts through [`@qvac/asr-ggml`](packages/asr-ggml/README.md). |
-| **Audio decoding** | [FFmpeg audio decoder](packages/decoder-audio/README.md) with streaming PCM output and a default 64 MiB decoded-output limit. |
-| **Text-to-Speech** | Speech synthesis, speech-to-speech replies and text-to-sound-effects generation via a GGML backend, with [memory preflight for MOSS-SoundEffect](packages/tts-ggml/README.md#moss-soundeffect-fit), [LavaSR denoising on Android Mali GPUs](packages/tts-ggml/README.md#denoiser), and [Pocket TTS](packages/tts-ggml/README.md#pocket-tts) (CPU through the addon; Metal, CUDA, Vulkan and OpenCL support in the native library). Exact native dependency versions are declared in the [package manifest](packages/tts-ggml/vcpkg.json). [CosyVoice3 Core ML sidecars](packages/tts-ggml/README.md#cosyvoice3-core-ml-sidecars) are optional on Apple platforms. Re-export existing CosyVoice3 LM sidecars after upgrading. |
-| **Translation** | Neural machine translation, via Fabric LLM and [Bergamot](https://browser.mt). |
-| **BCI** | Brain–computer interface transcription via [a Whisper backend](https://github.com/tetherto/qvac/tree/main/packages/bci-whispercpp). |
-| **VLA** | Vision-language-action for robot control via [a GGML backend](https://github.com/tetherto/qvac/tree/main/packages/vla-ggml). |
-| **OCR** | Extract text from images via ONNX Runtime or GGML backends. See [OCR GPU selection (`main-gpu`)](packages/ocr-ggml/README.md#shared-gpu-selection-main-gpu) to select a GGML GPU by registry index or device class. |
-| **Image classification and embeddings** | Classify images with MobileNet or generate MegaLoc descriptors for image retrieval via [a GGML/Fabric backend](https://github.com/tetherto/qvac/tree/main/packages/classification-ggml). |
+| Task                                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Text generation**                     | LLM inference for text generation and chat via [Fabric LLM](https://github.com/tetherto/qvac-fabric-llm.cpp).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Text embeddings**                     | Vector embedding generation for semantic search, clustering, and retrieval.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **RAG**                                 | Out-of-the-box retrieval-augmented generation workflow.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **Fine-tuning**                         | Adapting LLMs to domain-specific tasks via LoRA.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Multimodal**                          | LLM inference over text, images, and other media in one context.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Image generation**                    | Text-to-image and image-to-image generation via a Diffusion backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Video generation**                    | Text-to-video and image-to-video generation via a Diffusion backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Music generation**                    | Generate music from text, lyrics, and musical controls via [ACE-Step](https://github.com/ace-step/ACE-Step-1.5) or [MiniMax-Music3](https://huggingface.co/MiniMaxAI/MiniMax-Music3) (desktop).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Transcription**                       | Speech-to-text via a [Whisper backend](https://github.com/tetherto/qvac/tree/main/packages/asr-ggml), [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), [TranscribePsy](https://huggingface.co/qvac/TranscribePsy-250M-EU-sub-gguf), or [MOSS-Transcribe-Diarize](https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize) (speaker-labelled transcripts with hotwords and metadata-only memory fit via `assessFit`).                                                                                                                                                                                                                                                                              |
+| **Speaker diarization**                 | Whisper tinydiarize speaker turns, four-speaker Sortformer, up to eight-speaker [Nemotron 3 Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization), and speaker-labelled MOSS-Transcribe-Diarize transcripts through [`@qvac/asr-ggml`](packages/asr-ggml/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Audio decoding**                      | [FFmpeg audio decoder](packages/decoder-audio/README.md) with streaming PCM output and a default 64 MiB decoded-output limit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Text-to-Speech**                      | Speech synthesis, speech-to-speech replies and text-to-sound-effects generation via a GGML backend, with [memory preflight for MOSS-SoundEffect](packages/tts-ggml/README.md#moss-soundeffect-fit), [LavaSR denoising on Android Mali GPUs](packages/tts-ggml/README.md#denoiser), and [Pocket TTS](packages/tts-ggml/README.md#pocket-tts) (CPU through the addon; Metal, CUDA, Vulkan and OpenCL support in the native library). Exact native dependency versions are declared in the [package manifest](packages/tts-ggml/vcpkg.json). [CosyVoice3 Core ML sidecars](packages/tts-ggml/README.md#cosyvoice3-core-ml-sidecars) are optional on Apple platforms. Re-export existing CosyVoice3 LM sidecars after upgrading. |
+| **Translation**                         | Neural machine translation, via Fabric LLM and [Bergamot](https://browser.mt).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **BCI**                                 | Brain–computer interface transcription via [a Whisper backend](https://github.com/tetherto/qvac/tree/main/packages/bci-whispercpp).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **VLA**                                 | Vision-language-action for robot control via [a GGML backend](https://github.com/tetherto/qvac/tree/main/packages/vla-ggml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **OCR**                                 | Extract text from images via ONNX Runtime or GGML backends. See [OCR GPU selection (`main-gpu`)](packages/ocr-ggml/README.md#shared-gpu-selection-main-gpu) to select a GGML GPU by registry index or device class.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Image classification and embeddings** | Classify images with MobileNet or generate MegaLoc descriptors for image retrieval via [a GGML/Fabric backend](https://github.com/tetherto/qvac/tree/main/packages/classification-ggml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ## Peer-to-peer
 
@@ -300,17 +314,17 @@ QVAC's built-in P2P capabilities let you build unstoppable internet systems with
 
 Explore and use QVAC:
 
-| Resource | Description |
-| --- | --- |
-| [**Docs**](https://docs.qvac.tether.io) | Comprehensive QVAC documentation. |
-| [**Examples**](https://github.com/tetherto/qvac-examples/) | Sample apps and PoCs built with QVAC SDK. |
-| [**Local model provider**](https://docs.qvac.tether.io/cli/http-server/connection/) | Use QVAC as a local model provider connected to your favorite AI tools. |
-| [**QV.AC**](https://qv.ac) | Get to know our local AI assistant. |
-| **Support and community** | We gather on [Discord](https://discord.com/invite/tetherdev) and [Keet](https://docs.qvac.tether.io/keet/). Ask for help, give feedback, and discuss QVAC. |
-| [**Blog**](https://qvac.tether.io/blog/) | Tutorials, deep dives, engineering notes, and announcements. |
-| [**Ecosystem**](https://qvac.tether.io) | Discover the broader QVAC ecosystem. |
-| [**Research**](https://huggingface.co/qvac) | Papers, datasets, and models optimized for edge devices. |
-| [**Our vision**](https://docs.qvac.tether.io/about/vision/) | Learn why Tether built QVAC. |
+| Resource                                                                            | Description                                                                                                                                                |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Docs**](https://docs.qvac.tether.io)                                             | Comprehensive QVAC documentation.                                                                                                                          |
+| [**Examples**](https://github.com/tetherto/qvac-examples/)                          | Sample apps and PoCs built with QVAC SDK.                                                                                                                  |
+| [**Local model provider**](https://docs.qvac.tether.io/cli/http-server/connection/) | Use QVAC as a local model provider connected to your favorite AI tools.                                                                                    |
+| [**QV.AC**](https://qv.ac)                                                          | Get to know our local AI assistant.                                                                                                                        |
+| **Support and community**                                                           | We gather on [Discord](https://discord.com/invite/tetherdev) and [Keet](https://docs.qvac.tether.io/keet/). Ask for help, give feedback, and discuss QVAC. |
+| [**Blog**](https://qvac.tether.io/blog/)                                            | Tutorials, deep dives, engineering notes, and announcements.                                                                                               |
+| [**Ecosystem**](https://qvac.tether.io)                                             | Discover the broader QVAC ecosystem.                                                                                                                       |
+| [**Research**](https://huggingface.co/qvac)                                         | Papers, datasets, and models optimized for edge devices.                                                                                                   |
+| [**Our vision**](https://docs.qvac.tether.io/about/vision/)                         | Learn why Tether built QVAC.                                                                                                                               |
 
 ## Contributing
 

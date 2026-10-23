@@ -86,3 +86,14 @@ test('the published linux-x64 prebuild builds the CUDA backend', () => {
   assert.equal(publishBuildCi().includeCuda, true)
   assert.match(platformDefines(PUBLISHED_CUDA_HOST), new RegExp(`-D ${CUDA_OPTION}=ON`))
 })
+
+test('full MiniMax Core ML is enabled only in macOS prebuilds', () => {
+  const speech = namedDependencies(vcpkgManifest.dependencies, SPEECH_PORT)
+  const mac = speech.find((dependency) => dependency.platform === 'osx')
+  assert.ok(mac)
+  assert.ok(mac.features.includes('minimax-coreml'))
+  assert.equal(mac.features.includes('coreml'), false)
+  for (const dependency of speech.filter((entry) => entry !== mac)) {
+    assert.equal(dependency.features.includes('minimax-coreml'), false)
+  }
+})

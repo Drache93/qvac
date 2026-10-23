@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose the full MiniMax Core ML runtime through `coremlProfileDir` and
+  `coremlComputeUnits` on macOS 15+, with four explicit Apple device policies.
+  The compiled profile stays resident across generations. Native generation
+  keeps its existing behavior when these options are absent.
+
 - Bounded FuzzTest coverage for the JS-adapter number parsers
   (`parseInteger`, `parseFloat`, `checkedInteger`, `checkedFloat`). Linux C++
   CI runs the suite after the native build's caches are saved; this addon has
@@ -227,17 +232,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cause for clearer diagnostics. Without this the wrong module was returned
   verbatim and the first symptom was `createInstance is not a function` deep in
   a model load. Local source-build behaviour is unchanged.
-  
+
 ### Fixed
 
 - Mobile platform packages (`@qvac/audiogen-ggml-android-arm64`,
-`@qvac/audiogen-ggml-ios`) are no longer `os`-filtered `optionalDependencies`
-of the meta package. No build host ever reports a mobile `os`, so installers
-could never select them during a cross-build and mobile bundles failed
-verification with missing prebuilds. They now publish without install filters;
-mobile applications declare the target's platform package as a direct
-dependency pinned to the exact meta package version.
-
+  `@qvac/audiogen-ggml-ios`) are no longer `os`-filtered `optionalDependencies`
+  of the meta package. No build host ever reports a mobile `os`, so installers
+  could never select them during a cross-build and mobile bundles failed
+  verification with missing prebuilds. They now publish without install filters;
+  mobile applications declare the target's platform package as a direct
+  dependency pinned to the exact meta package version.
 
 ## [0.4.0] - 2026-09-11
 
@@ -249,7 +253,7 @@ dependency pinned to the exact meta package version.
   CUDA stays a runtime-loaded module — the engine prefers it over Vulkan only
   where the NVIDIA driver and the CUDA 13 runtime libraries (cudart, cuBLAS)
   resolve at load time; every other host keeps Vulkan or CPU. `npm run
-  build:cuda` builds the same configuration from source.
+build:cuda` builds the same configuration from source.
 
 - Extend opt-in CUDA builds (`ENABLE_CUDA=ON`) from linux-x64 to linux-arm64
   and win32-x64. CUDA, Vulkan, and CPU variants ship as runtime-loaded modules
@@ -625,7 +629,7 @@ dependency pinned to the exact meta package version.
   progress ticks + the interleaved-Int16 PCM chunk and resolves with the run
   stats (`audioDurationMs`, `totalTimeMs`, `realTimeFactor`), plus `cancel()` /
   `unload()` / `destroy()`.
-- Run stats report the *resolved* backend via `backendDevice` (0 = CPU, 1 = GPU)
+- Run stats report the _resolved_ backend via `backendDevice` (0 = CPU, 1 = GPU)
   and `backendId` (0 = CPU, 1 = Metal, 2 = CUDA, 3 = Vulkan, 4 = OpenCL,
   99 = other), matching `@qvac/tts-ggml`. The GPU integration smoke asserts on
   them, so a `useGPU: true` run that silently falls back to the CPU now fails
@@ -648,4 +652,4 @@ dependency pinned to the exact meta package version.
   (every encoder/muxer verified present in the vendored build). MP3 is not
   offered — that build ships no MP3 encoder. Accepts a single format or an array
   (one file per format, input order); each result carries `{ format, data,
-  extension, mimeType }`. `OUTPUT_FORMATS` exports the allowed list.
+extension, mimeType }`. `OUTPUT_FORMATS` exports the allowed list.
