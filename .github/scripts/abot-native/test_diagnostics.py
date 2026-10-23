@@ -13,6 +13,7 @@ import tempfile
 import unittest
 from run import first_uninitialized_read, wait_for_probe
 from run_mmq_isolate import classify_read
+from compare_trace import compare_nodes, read_trace
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('compare', HERE / 'compare.py')
@@ -21,6 +22,25 @@ spec.loader.exec_module(compare)
 
 
 class DiagnosticsTest(unittest.TestCase):
+    def test_trace_finds_first_change_and_rejects_missing_or_different_graphs(self):
+        tensor = {'name': 'out', 'type': 0, 'op': 'MUL_MAT', 'ne': [2, 1, 1, 1], 'nb': [4, 8, 8, 8]}
+        nodes = [{'event': 'node', 'index': i, 'output': tensor, 'sources': [], 'fnv1a64': str(i)} for i in range(3)]
+        changed = json.loads(json.dumps(nodes))
+        changed[1]['fnv1a64'] = 'different'
+        self.assertEqual(compare_nodes(nodes, changed)['firstDifference']['index'], 1)
+        self.assertIsNone(compare_nodes(nodes, nodes)['firstDifference'])
+        changed[0]['output']['ne'][0] = 3
+        self.assertFalse(compare_nodes(nodes, changed)['comparable'])
+        self.assertFalse(compare_nodes(nodes, nodes[:-1])['comparable'])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'operations.jsonl'
+            path.write_text('\n'.join(json.dumps(row) for row in nodes))
+            with self.assertRaisesRegex(ValueError, 'Incomplete'):
+                read_trace(path)
+            with path.open('a') as f:
+                f.write('\n' + json.dumps({'event': 'end', 'nodes': 3}) + '\n')
+            self.assertEqual(read_trace(path), nodes)
+
     def test_scratch_read_classification_distinguishes_payload_padding_and_out_of_bounds(self):
         allocation = {'base': '0x1000', 'tail': '0x1800', 'payloadBytes': 2048, 'allocatedBytes': 2304}
         prefix = 'MMQ_SCRATCH ' + json.dumps(allocation) + '\n'
@@ -144,6 +164,35 @@ class DiagnosticsTest(unittest.TestCase):
 
 
 class HeaderTest(unittest.TestCase):
+    def test_trace_hash_ignores_stride_padding_but_detects_changed_values(self):
+        compiler = shutil.which('c++')
+        include = Path(os.environ.get('ABOT_DIAGNOSTIC_GGML_INCLUDE', HERE.parents[2] / 'diagnostic-engine/ggml/include'))
+        if not compiler or not include.exists():
+            self.skipTest('C++ compiler and ggml headers required')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'trace.cpp'
+            source.write_text('''#include "diagnostics.h"
+extern "C" size_t ggml_type_size(enum ggml_type) { return 4; }
+int main() {
+    ggml_tensor t = {};
+    t.ne[0]=2; t.ne[1]=2; t.ne[2]=1; t.ne[3]=1;
+    t.nb[0]=4; t.nb[1]=12; t.nb[2]=24; t.nb[3]=24;
+    float strided[] = {1,2,99,3,4,99};
+    float compact[] = {1,2,3,4};
+    const auto expected = abot_trace_hash(reinterpret_cast<unsigned char*>(strided), &t);
+    strided[2] = -999;
+    if (expected != abot_trace_hash(reinterpret_cast<unsigned char*>(strided), &t)) return 1;
+    t.nb[1]=8; t.nb[2]=16; t.nb[3]=16;
+    if (expected != abot_trace_hash(reinterpret_cast<unsigned char*>(compact), &t)) return 2;
+    compact[1] = 3;
+    if (expected == abot_trace_hash(reinterpret_cast<unsigned char*>(compact), &t)) return 3;
+}
+''')
+            exe = root / 'trace'
+            subprocess.run([compiler, '-std=c++17', '-I' + str(HERE), '-I' + str(include), str(source), '-o', str(exe)], check=True, capture_output=True)
+            subprocess.run([str(exe)], check=True)
+
     def test_compiled_hooks_are_opt_in_and_write_valid_float_data(self):
         compiler = shutil.which('c++')
         if not compiler:

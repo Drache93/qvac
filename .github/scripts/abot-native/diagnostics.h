@@ -40,9 +40,12 @@ inline void abot_diag_event(const char* event, const void* pointer, size_t bytes
     if (!out) std::abort();
 }
 
+#include "abot_trace.h"
+
 inline void abot_diag_dump(const char* stage, int block, int step, const float* data, size_t count) {
     const char* dir = abot_diag_dir();
     if (!dir) return;
+    abot_trace_boundary(stage, block, step);
     // The runner creates this directory. Only activations/noise are passed here.
     if (count > 32 * 1024 * 1024 || (count && !data)) std::abort();
     std::ostringstream name;
@@ -60,6 +63,7 @@ inline void abot_diag_sync(ggml_backend_t backend, const char* stage) {
 }
 
 inline bool abot_diag_node(ggml_tensor* tensor, bool ask, void*) {
+    if (abot_diag_dir() && std::getenv("SD_ABOT_DIAGNOSTIC_TRACE")) return abot_trace_node(tensor, ask);
     if (abot_diag_dir() && std::getenv("SD_ABOT_DIAGNOSTIC_MMQ")) {
         const bool selected = tensor->op == GGML_OP_MUL_MAT && tensor->src[0] &&
                               tensor->src[0]->type == GGML_TYPE_Q8_0;

@@ -55,7 +55,7 @@ endif()''')
     if (const char* module = std::getenv("SD_ABOT_DIAGNOSTIC_CUDA_MODULE")) {
         if (!ggml_backend_load(module)) return 2;
     }
-    if (std::getenv("SD_ABOT_DIAGNOSTIC_NODE") || std::getenv("SD_ABOT_DIAGNOSTIC_MMQ")) sd_set_backend_eval_callback(abot_diag_node, nullptr);
+    if (std::getenv("SD_ABOT_DIAGNOSTIC_NODE") || std::getenv("SD_ABOT_DIAGNOSTIC_MMQ") || std::getenv("SD_ABOT_DIAGNOSTIC_TRACE")) sd_set_backend_eval_callback(abot_diag_node, nullptr);
 #endif''')
     s = replace_once(s, '    if (mode == "create-scene") {', '''#ifdef SD_ABOT_DIAGNOSTICS
     if (mode == "diagnostic-parity") {
@@ -82,6 +82,7 @@ endif()''')
     for p, text in edits.items():
         p.write_text(text)
     shutil.copyfile(Path(__file__).with_name('diagnostics.h'), root / 'src/core/abot_diagnostics.h')
+    shutil.copyfile(Path(__file__).with_name('abot_trace.h'), root / 'src/core/abot_trace.h')
 
 
 if __name__ == '__main__':

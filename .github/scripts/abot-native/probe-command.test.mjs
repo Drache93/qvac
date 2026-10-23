@@ -54,6 +54,7 @@ test('native repetition provisions with the original addon without extra CUDA co
   const baseline = originalProbe({ ...input, probe: 'baseline' })
   assert.deepEqual(repeated, baseline)
   assert.deepEqual(originalProbe({ ...input, probe: 'mmq-initcheck' }), baseline)
+  assert.deepEqual(originalProbe({ ...input, probe: 'trace-repeat' }), baseline)
 })
 test('profiler arguments preserve paths and unsupported probes fail closed', () => {
   const r = originalProbe({ ...input, probe: 'nsys' })

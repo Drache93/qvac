@@ -12,6 +12,7 @@ import threading
 import time
 
 from compare import compare_capture
+from compare_trace import compare_traces
 
 
 def first_uninitialized_read(log):
@@ -82,6 +83,9 @@ def execute(args):
         if not args.node_filter:
             raise ValueError('Node capture requires an explicit tensor-name filter')
         env['SD_ABOT_DIAGNOSTIC_NODE'] = args.node_filter
+    if args.probe == 'trace-repeat':
+        env['SD_ABOT_DIAGNOSTIC_TRACE'] = '1'
+        env['SD_ABOT_TRACE_DUMP'] = args.node_filter
     prefix = []
     if args.probe == 'mmq-initcheck':
         env['SD_ABOT_DIAGNOSTIC_MMQ'] = '1'
@@ -106,7 +110,7 @@ def execute(args):
         for repeat in range(args.repeats):
             capture = args.output / f'repeat-{repeat + 1}'
             capture.mkdir()
-            blocks = 1 if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat') else 4
+            blocks = 1 if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat', 'trace-repeat') else 4
             actions = 'idle:1' if blocks == 1 else 'idle:1,W:1,WL:1,S:1'
             cmd = [*prefix, str(args.cli), '--mode', 'diagnostic-parity', '--backend', 'cuda0',
                    '--dit', inputs['model'], '--taehv', inputs['taehv'], '--scene', inputs['scene'],
@@ -140,11 +144,18 @@ def execute(args):
                     raise RuntimeError('Node probe did not capture the requested activation in every lane')
                 comparisons = compare_capture(capture, blocks)
                 row['comparisons'] = comparisons
-                if args.probe == 'repeat':
+                if args.probe in ('repeat', 'trace-repeat'):
                     cross = compare_capture(capture, blocks, args.output / 'repeat-1') if repeat else []
                     row['crossProcessComparisons'] = cross
                     row['tensorDivergence'] = any(pair['firstDifference'] for pair in comparisons + cross)
                     (capture / 'cross-process-comparisons.json').write_text(json.dumps(cross, indent=2, allow_nan=False) + '\n')
+                if args.probe == 'trace-repeat':
+                    traces = {'withinProcess': compare_traces(capture),
+                              'crossProcess': compare_traces(capture, args.output / 'repeat-1') if repeat else []}
+                    row['operationDivergence'] = any(pair['firstDifference'] for group in traces.values() for pair in group)
+                    row['traceStructureChanged'] = any(not pair['comparable'] for pair in traces['crossProcess'])
+                    row['tensorDivergence'] = row['tensorDivergence'] or row['operationDivergence'] or row['traceStructureChanged']
+                    (capture / 'trace-comparisons.json').write_text(json.dumps(traces, indent=2) + '\n')
                 png = subprocess.run(['node', str(Path(__file__).with_name('compare-png.mjs')), str(capture), str(args.guards), str(9 if blocks == 1 else 45)], capture_output=True, text=True, timeout=120)
                 (capture / 'png-comparisons.json').write_text(png.stdout)
                 if png.stderr:
@@ -161,7 +172,7 @@ def execute(args):
                 # Keep the first process as a reference until the search ends.
                 # On divergence retain both complete captures for attribution;
                 # this reference is a repeatability check, not a golden oracle.
-                retain = args.probe == 'repeat' and (repeat == 0 or row['tensorDivergence'] or png.returncode)
+                retain = args.probe in ('repeat', 'trace-repeat') and (repeat == 0 or row['tensorDivergence'] or png.returncode)
                 if not retain:
                     for raw in capture.rglob('*.f32'):
                         if raw not in keep and not raw.name.endswith('-node.f32'):
@@ -171,7 +182,7 @@ def execute(args):
             print(json.dumps({key: value for key, value in row.items() if key not in ('comparisons', 'crossProcessComparisons')}), flush=True)
             if status or row.get('pixelParityExitCode', 0) or row.get('tensorDivergence'):
                 raise RuntimeError(f'Native diagnostic stopped: exit={status}, pixelParityExit={row.get("pixelParityExitCode")}, tensorDivergence={row.get("tensorDivergence")}; capture retained')
-        if args.probe == 'repeat':
+        if args.probe in ('repeat', 'trace-repeat'):
             for raw in (args.output / 'repeat-1').rglob('*.f32'):
                 raw.unlink()
     finally:
@@ -183,11 +194,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     for name in ('cli', 'inputs', 'cuda-module', 'cpu-module', 'output', 'guards'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--probe', choices=['baseline', 'sync', 'no-graphs', 'no-fusion', 'memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat'], default='baseline')
+    parser.add_argument('--probe', choices=['baseline', 'sync', 'no-graphs', 'no-fusion', 'memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat', 'trace-repeat'], default='baseline')
     parser.add_argument('--node-filter', default='')
     parser.add_argument('--repeats', type=int, default=2)
     args = parser.parse_args()
-    limit = 10 if args.probe == 'repeat' else 3
+    limit = 10 if args.probe in ('repeat', 'trace-repeat') else 3
     if not 1 <= args.repeats <= limit:
         parser.error(f'Repeats must be between 1 and {limit}')
     execute(args)

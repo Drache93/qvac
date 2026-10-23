@@ -6,6 +6,7 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
     [
       'baseline',
       'repeat',
+      'trace-repeat',
       'sync',
       'node',
       'no-graphs',
