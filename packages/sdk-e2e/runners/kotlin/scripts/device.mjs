@@ -54,7 +54,9 @@ function build() {
   if (!sdk) fail('no Android SDK found: set ANDROID_HOME')
   // No daemon on CI: a persistent runner would keep it after the job.
   const daemon = process.env.CI ? ['--no-daemon'] : []
-  const result = spawnSync(gradlew, [':app:assembleRelease', '--console=plain', ...daemon], {
+  // Only the all-in-one runtime profile: building the Kotlin SDK's other profiles is wasted here.
+  const args = [':app:assembleRelease', '-PqvacProfile=aio', '--console=plain', ...daemon]
+  const result = spawnSync(gradlew, args, {
     cwd: projectDir,
     stdio: 'inherit',
     env: { ...process.env, ANDROID_HOME: sdk }

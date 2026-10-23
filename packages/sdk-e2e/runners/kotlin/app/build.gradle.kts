@@ -128,7 +128,8 @@ android {
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
-        missingDimensionStrategy("qvacProfile", providers.gradleProperty("qvacProfile").orElse("aio").get())
+        // The runtime profile the app carries; -PqvacProfile also limits the Kotlin SDK's build to it.
+        missingDimensionStrategy("qvacProfile", providers.gradleProperty("qvacProfile").filter { it.isNotBlank() }.orElse("aio").get())
         applicationId = "io.tether.qvac.e2e.kotlin"
         minSdk = 29
         targetSdk = 36
