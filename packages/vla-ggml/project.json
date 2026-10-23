@@ -63,6 +63,12 @@
     },
     "build": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["@qvac/fabric"],
+          "target": "build"
+        }
+      ],
       "options": {
         "cwd": "packages/vla-ggml",
         "parallel": false,
@@ -146,7 +152,12 @@
     },
     "cpp:lint": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        {
+          "projects": ["@qvac/fabric"],
+          "target": "build"
+        }
+      ],
       "options": {
         "cwd": "packages/vla-ggml",
         "parallel": false,
@@ -174,21 +185,77 @@
     },
     "cpp:build": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["@qvac/fabric"],
+          "target": "build"
+        }
+      ],
       "options": {
-        "command": "npm run test:cpp:build",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "parallel": false,
+        "commands": [
+          {
+            "command": "pnpm exec bare-make generate -D BUILD_TESTING=ON",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "pnpm exec bare-make build --target addon-test",
+            "forwardAllArgs": false
+          }
+        ]
       },
-      "metadata": {
-        "runners": ["linux_ubuntu2404_x64", "macos_arm64_gpu", "macos_15_intel", "win_2025_x64"],
-        "mode": "standard",
-        "windowsVsGenerator": true
+      "configurations": {
+        "linux-x64": {
+          "ci": {
+            "runner": "linux_ubuntu2404_x64"
+          }
+        },
+        "darwin-arm64": {
+          "ci": {
+            "runner": "macos_arm64_gpu"
+          }
+        },
+        "darwin-x64": {
+          "ci": {
+            "runner": "macos_15_intel"
+          }
+        },
+        "win32-x64": {
+          "ci": {
+            "runner": "win_2025_x64"
+          }
+        }
       }
     },
     "cpp:tests": {
       "executor": "nx:run-commands",
+      "dependsOn": ["cpp:build"],
       "options": {
-        "command": "node ci/run-cpp-tests.mjs",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "command": "node ci/run-cpp-tests.mjs"
+      },
+      "configurations": {
+        "linux-x64": {
+          "ci": {
+            "runner": "linux_ubuntu2404_x64"
+          }
+        },
+        "darwin-arm64": {
+          "ci": {
+            "runner": "macos_arm64_gpu"
+          }
+        },
+        "darwin-x64": {
+          "ci": {
+            "runner": "macos_15_intel"
+          }
+        },
+        "win32-x64": {
+          "ci": {
+            "runner": "win_2025_x64"
+          }
+        }
       },
       "metadata": {
         "timeoutMinutes": 60

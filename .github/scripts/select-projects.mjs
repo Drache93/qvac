@@ -80,11 +80,7 @@ export function gateKeys(gateYaml) {
 }
 
 export function rows(project, target, labels) {
-  // A target running on another's rows inherits that target's settings under its own.
-  const meta = {
-    ...project.targets[project.rowsFrom?.[target]]?.metadata,
-    ...project.targets[target]?.metadata
-  }
+  const meta = project.targets[target]?.metadata ?? {}
   const base = {
     project: project.name,
     dir: project.root,
@@ -93,12 +89,11 @@ export function rows(project, target, labels) {
     meta
   }
   // Legs come from the target's configurations; a target not yet converted still lists metadata.runners.
-  const own = project.targets[target]?.configurations ? target : project.rowsFrom?.[target]
-  const configured = Boolean(project.targets[own]?.configurations)
-  const runners = meta.runners ?? project.targets[project.rowsFrom?.[target]]?.metadata?.runners
+  const configured = Boolean(project.targets[target]?.configurations)
+  const runners = meta.runners
   // A target with neither is one job per package, on whatever runner the group picks.
   if (!configured && !runners) return [{ ...base, platform: '', arch: '', tags: '', runner: '' }]
-  const keys = configured ? legs(project, own) : runners.map((runnerKey) => ({ runnerKey }))
+  const keys = configured ? legs(project, target) : runners.map((runnerKey) => ({ runnerKey }))
   return keys.map((leg) => {
     const [platform, arch] = RUNNER_KEYS[leg.runnerKey] ?? []
     const runner = labels[leg.runnerKey]
@@ -107,9 +102,6 @@ export function rows(project, target, labels) {
     return { ...base, platform, arch, tags: '', ...leg, runner }
   })
 }
-
-// cpp:tests runs on cpp:build's rows, in the same job.
-const ROWS_FROM = { 'cpp:tests': 'cpp:build' }
 
 // Owner targets run only for packages the change touched, not for their dependents; owners null means every package.
 export function select({
@@ -129,8 +121,7 @@ export function select({
     const project = {
       name: n.name,
       root: n.data.root,
-      targets: n.data.targets,
-      rowsFrom: ROWS_FROM
+      targets: n.data.targets
     }
     const dir = n.data.root.split('/').pop()
     const npm = n.data.metadata?.js?.packageName ?? n.name

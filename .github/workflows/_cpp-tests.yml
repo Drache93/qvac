@@ -1,7 +1,7 @@
 name: C++ tests
 
-# cpp:build builds the test binary, then cpp:tests runs it on the same runner. These commands use npm: they run
-# against the package-local install, and a pnpm run would reinstall the whole workspace over it.
+# Each package's cpp:build and cpp:tests targets through Nx, on the runner each leg's configuration names: cpp:build
+# builds the test binary after its native dependencies, then cpp:tests runs it with the models it needs.
 on:
   workflow_call:
     inputs:
@@ -19,7 +19,7 @@ permissions: {}
 jobs:
   tests:
     if: inputs.rows != '[]'
-    name: ${{ matrix.row.slug }} ${{ matrix.row.platform }}-${{ matrix.row.arch }}
+    name: ${{ matrix.row.slug }} ${{ matrix.row.config }}
     runs-on: ${{ matrix.row.runner }}
     environment: release
     timeout-minutes: ${{ matrix.row.timeout || 60 }}
@@ -34,6 +34,8 @@ jobs:
         row: ${{ fromJSON(inputs.rows) }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
       TRUSTED: ${{ inputs.trusted && github.event_name != 'pull_request_target' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     steps:
       - name: Checkout actions
@@ -42,7 +44,6 @@ jobs:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
             .github/actions
-            .github/scripts
             .github/config
           persist-credentials: false
       - name: Checkout source
@@ -53,22 +54,10 @@ jobs:
           path: src
           persist-credentials: "false"
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - if: matrix.row.commands['ci:setup']
-        shell: bash
-        working-directory: src/${{ matrix.row.commands['ci:setup'].cwd }}
-        env:
-          COMMAND: ${{ matrix.row.commands['ci:setup'].command }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GPR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GIT_PAT: ${{ secrets.GITHUB_TOKEN }}
-        run: bash -c "$COMMAND"
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: npm install
-      - shell: bash
-        run: npm install -g --force bare bare-make@1.8.0
-      - if: runner.os == 'Linux'
-        uses: ./.github/actions/setup-vulkan
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          package-json-file: src/package.json
+      - uses: ./.github/actions/setup-vulkan
         with:
           arch: ${{ matrix.row.arch }}
       - uses: ./.github/actions/vcpkg-bootstrap
@@ -88,12 +77,19 @@ jobs:
           key: cpp-tests-v6-${{ matrix.row.key || matrix.row.slug }}-${{ matrix.row.platform == 'win32' && 'windows' || matrix.row.platform }}-${{ matrix.row.arch }}-${{ hashFiles(format('{0}/vcpkg.json', env.WORKDIR), format('{0}/vcpkg-configuration.json', env.WORKDIR), 'src/vcpkg-overlays/triplets/**', 'src/vcpkg-overlays/toolchains/**') }}-${{ env.TOOLCHAIN_FINGERPRINT }}
           path: ${{ env.WORKDIR }}/vcpkg/cache
       - uses: ./.github/actions/setup-apple-clang
+      - name: Install
+        shell: bash
+        working-directory: src
+        env:
+          NPM: ${{ matrix.row.npm }}
+        run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
       - name: cpp:build
         shell: bash
-        working-directory: src/${{ matrix.row.commands['cpp:build'].cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.row.commands['cpp:build'].command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t ci:system,cpp:build -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
       - if: env.TRUSTED == 'true'
         uses: ./.github/actions/vcpkg-cache-sync
       - if: env.TRUSTED == 'true' && hashFiles(format('{0}/vcpkg/cache/**', env.WORKDIR)) != ''
@@ -128,16 +124,18 @@ jobs:
           workdir: ${{ env.WORKDIR }}
           bucket: ${{ secrets.MODEL_S3_BUCKET }}
           target: cpp:tests
+      # cpp:build ran above; excluding task dependencies keeps Nx from building it again.
       - name: cpp:tests
         shell: bash
-        working-directory: src/${{ matrix.row.cwd }}
+        working-directory: src
         env:
-          COMMAND: ${{ matrix.row.command }}
-        run: bash -c "$COMMAND"
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t cpp:tests -p "$PROJECT" -c "$CONFIG" --exclude-task-dependencies --outputStyle=stream
       - if: always()
         uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: cpp-test-results-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
+          name: cpp-test-results-${{ matrix.row.slug }}-${{ matrix.row.config }}
           path: ${{ env.WORKDIR }}/build/**/cpp-test-results.xml
           retention-days: "30"
           if-no-files-found: warn

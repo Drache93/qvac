@@ -43,6 +43,7 @@
     },
     "build": {
       "executor": "nx:run-commands",
+      "dependsOn": [],
       "options": {
         "cwd": "packages/fabric",
         "parallel": false,
