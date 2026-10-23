@@ -6,7 +6,7 @@ outputs:
     description: Baseline checks for a ready PR or a trusted event
     value: ${{ steps.route.outputs.run_verified_checks }}
   run_prebuilds:
-    description: Build prebuilds (prebuilds, desktop or mobile label)
+    description: Build prebuilds (prebuilds, cpp, desktop or mobile label)
     value: ${{ steps.route.outputs.run_prebuilds }}
   run_cpp_tests:
     description: Run C++ tests (run-cpp-addon-tests label)

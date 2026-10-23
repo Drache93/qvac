@@ -67,21 +67,21 @@ jobs:
         row: ${{ fromJSON(needs.select.outputs.matrices)['verify:generated'] }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
       # As pr-checks runs it: Node 22, which pnpm 11 needs, a workspace install, and the target through Nx.
-      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-node@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           node-version: "22"
-      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           package-json-file: src/package.json
       - shell: bash
@@ -127,19 +127,19 @@ jobs:
       WORKDIR: src/${{ matrix.row.dir }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
       # The legs straight into place; this group has no merged bundle to wait for.
       - if: contains(matrix.row.targets, 'build')
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/download-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: prebuild-${{ matrix.row.slug }}-*
           path: ${{ runner.temp }}/prebuilds
@@ -150,7 +150,7 @@ jobs:
           staging: ${{ runner.temp }}/prebuilds
           workdir: ${{ env.WORKDIR }}
           extra-dirs: ${{ join(matrix.row.meta.prebuildExtraDirs, ' ') }}
-      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-node@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - uses: ./.github/actions/gpr-publish
         with:
           workdir: ${{ env.WORKDIR }}

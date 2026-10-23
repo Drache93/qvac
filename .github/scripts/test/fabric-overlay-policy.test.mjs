@@ -261,7 +261,10 @@ test('every fabric-consumer package has an on-pr workflow that detects the stack
   const nxBuilds = /nx run-many -t [a-z:,]*\bbuild\b/.test(read('.github/workflows/_build.yml'))
   const buildsFabric = (pkg) =>
     (JSON.parse(read(`packages/${pkg}/project.json`)).targets?.build?.dependsOn ?? []).some(
-      (d) => d === '^build' || (d.target === 'build' && (d.projects ?? []).includes('@qvac/fabric'))
+      (d) =>
+        d === '^build' ||
+        (['build', 'link:platform'].includes(d.target) &&
+          (d.projects ?? []).includes('@qvac/fabric'))
     )
   const missing = CONSUMER_PACKAGES.filter(
     (pkg) =>

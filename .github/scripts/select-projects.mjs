@@ -97,28 +97,39 @@ export function rows(project, target, labels) {
     project: project.name,
     dir: project.root,
     target,
+    // The target in artifact names, which reject colons.
+    targetKey: target.replaceAll(':', '-'),
     timeout: meta.timeoutMinutes ?? 0,
     meta,
     // The workspace toolchain pins live on nx.json's build target defaults.
     toolchain: project.targets.build?.metadata?.toolchain ?? {},
+    // Projects the build depends on by name; a job restoring build outputs re-links their link:platform.
+    buildDeps: [
+      ...new Set(
+        (project.targets.build?.dependsOn ?? []).flatMap((d) =>
+          typeof d === 'object' ? (d.projects ?? []) : []
+        )
+      )
+    ].join(','),
     config: '',
     platform: '',
     arch: '',
     tags: '',
     setup: [],
+    hostSetup: [],
     runner: ''
   }
   if (!project.targets[target]?.configurations) return [base]
-  // Every native build compiles fabric, so a host's toolkits come from nx.json; a leg may ask for more.
-  const hostSetup = base.toolchain.hostSetup ?? {}
   return legs(project, target).map((leg) => {
-    const setup = [...new Set([...(hostSetup[`${leg.platform}-${leg.arch}`] ?? []), ...leg.setup])]
     const runner = labels[leg.runnerKey]
     if (!runner)
       throw new Error(
         `${project.name} ${target} configuration ${leg.config}: unknown runner key ${leg.runnerKey}`
       )
-    return { ...base, ...leg, setup, runner }
+    // The toolkits nx.json names for compiling native dependencies on this host; a job that builds them in place
+    // sets them up, one that restores the build's outputs does not.
+    const hostSetup = base.toolchain.hostSetup?.[`${leg.platform}-${leg.arch}`] ?? []
+    return { ...base, ...leg, hostSetup, runner }
   })
 }
 
@@ -198,6 +209,15 @@ export function nativeProvider(graph, name, gate) {
     provider: node.data.metadata?.js?.packageName ?? dep.target,
     providerArtifact: `${node.data.root.split('/').pop()}-prebuilds`
   }
+}
+
+// Keeps only the build legs the given targets restore outputs from: a package's <platform>-<arch> build.
+export function buildFor(matrices, targets = []) {
+  if (!targets.length || !matrices.build) return matrices.build
+  const wanted = new Set(
+    targets.flatMap((t) => (matrices[t] ?? []).map((r) => `${r.project} ${r.platform}-${r.arch}`))
+  )
+  return matrices.build.filter((r) => wanted.has(`${r.project} ${r.config}`))
 }
 
 // "desktop=test:integration+test:backend" adds one matrix holding both targets' rows, for targets that share a job.
@@ -319,6 +339,11 @@ function main(env) {
     gate: gateKeys(readFileSync('.github/workflows/pr-gate-merge.yml', 'utf8'))
   })
   Object.assign(result.matrices, combine(result.matrices, env.COMBINE))
+  if (result.matrices.build)
+    result.matrices.build = buildFor(
+      result.matrices,
+      (env.BUILD_FOR || '').split(/[\s,]+/).filter(Boolean)
+    )
   for (const [t, r] of Object.entries(result.matrices))
     console.log(
       `${t}: ${r.map((x) => `${x.project}${x.config ? `@${x.config}` : ''}`).join(' ') || 'none'}`

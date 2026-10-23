@@ -32,7 +32,7 @@ jobs:
       NX_NO_CLOUD: "true"
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
@@ -40,36 +40,36 @@ jobs:
             .github/config
           persist-credentials: false
       - name: Checkout source
-        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
       - if: runner.environment == 'github-hosted'
-        uses: tetherto/qvac-actions/runner-free-disk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/runner-free-disk@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           keep-android: ${{ matrix.row.platform == 'android' }}
       # Toolchain versions are the workspace's, from nx.json; a package's own system packages come from its ci:system target.
       - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
-        uses: tetherto/qvac-actions/runner-apt-install@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/runner-apt-install@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           packages: ${{ matrix.row.meta.toolchain.android.aptPackages }}
       - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
-        uses: tetherto/qvac-actions/setup-android-ndk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/setup-android-ndk@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ndk-version: ${{ matrix.row.meta.toolchain.android.ndk }}
           api-level: ${{ matrix.row.meta.toolchain.android.apiLevel }}
       - if: runner.environment == 'github-hosted'
-        uses: tetherto/qvac-actions/setup-clang@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/setup-clang@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           version: ${{ matrix.row.meta.toolchain.llvm.linux }}
           windows-version: ${{ matrix.row.meta.toolchain.llvm.windows }}
-      - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/configure-aws-credentials@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
-      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-aws-cli@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - uses: ./.github/actions/vcpkg-bootstrap
       - uses: ./.github/actions/vcpkg-cache-setup
         with:
@@ -80,8 +80,8 @@ jobs:
       - uses: ./.github/actions/setup-windows-host
         with:
           arch: ${{ matrix.row.arch }}
-      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-node@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           package-json-file: src/package.json
       - uses: ./.github/actions/setup-apple-clang
@@ -93,18 +93,18 @@ jobs:
       - if: steps.vulkan.outputs.upload-archive != ''
         shell: bash
         run: aws s3 cp "${{ steps.vulkan.outputs.upload-archive }}" "s3://${{ secrets.MODEL_S3_BUCKET }}/${{ steps.vulkan.outputs.upload-key }}"
-      # The package and its workspace dependencies, so Nx builds a dependency the change touched from its sources.
-      # A host's extra toolkits: nx.json's hostSetup for the leg's platform, plus any the leg asks for.
-      - if: contains(matrix.row.setup, 'cuda')
+      # The build compiles its native dependencies here, so it takes the host's toolkits plus any the leg asks for.
+      - if: contains(matrix.row.hostSetup, 'cuda') || contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:
           cuda-version: ${{ matrix.row.toolchain.cuda }}
-      - if: contains(matrix.row.setup, 'rocm')
+      - if: contains(matrix.row.hostSetup, 'rocm') || contains(matrix.row.setup, 'rocm')
         uses: ./.github/actions/setup-rocm
         with:
           rocm-version: ${{ matrix.row.toolchain.rocm.version }}
           gfx: ${{ matrix.row.toolchain.rocm.gfx }}
           sha256: ${{ matrix.row.toolchain.rocm.sha256 }}
+      # The package and its workspace dependencies, so Nx builds a dependency the change touched from its sources.
       - name: Install
         shell: bash
         working-directory: src
@@ -134,7 +134,17 @@ jobs:
         uses: ./.github/actions/prebuilds-check-windows-runtime
         with:
           workdir: ${{ env.WORKDIR }}
-      - uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.config }}
           path: ${{ env.WORKDIR }}/prebuilds
+      # Every package's prebuilds from this job, its native dependencies' too, for the desktop and C++ test jobs to
+      # restore. package.json pins the artifact root at src/ even when only one package built.
+      - if: contains(fromJSON('["linux","darwin","win32"]'), matrix.row.platform)
+        uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          name: outputs-${{ matrix.row.slug }}-${{ matrix.row.config }}
+          path: |
+            src/package.json
+            src/packages/*/prebuilds
+          retention-days: "3"

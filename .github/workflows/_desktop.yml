@@ -1,7 +1,7 @@
 name: Desktop tests
 
 # Each package's desktop targets (test:integration, test:backend) through Nx, one job per leg on the runner its
-# configuration names. Nx builds the package and its native dependencies on that machine before the tests.
+# configuration names, against the build job's outputs for that platform.
 on:
   workflow_call:
     inputs:
@@ -34,7 +34,7 @@ jobs:
       NX_NO_CLOUD: "true"
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
@@ -42,42 +42,26 @@ jobs:
             .github/config
           persist-credentials: false
       - name: Checkout source
-        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: src
           persist-credentials: "false"
-      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-node@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           package-json-file: src/package.json
-      - if: runner.environment == 'github-hosted'
-        uses: tetherto/qvac-actions/setup-clang@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          version: ${{ matrix.row.toolchain.llvm.linux }}
-          windows-version: ${{ matrix.row.toolchain.llvm.windows }}
-      - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/configure-aws-credentials@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
-      - uses: tetherto/qvac-actions/setup-aws-cli@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-      - uses: ./.github/actions/vcpkg-bootstrap
-      - uses: ./.github/actions/vcpkg-cache-setup
-        with:
-          mode: s3
-          cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
-          platform: ${{ matrix.row.platform }}
-          arch: ${{ matrix.row.arch }}
-      - uses: ./.github/actions/setup-windows-host
-        with:
-          arch: ${{ matrix.row.arch }}
-      - uses: ./.github/actions/setup-apple-clang
+      - uses: tetherto/qvac-actions/setup-aws-cli@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - uses: ./.github/actions/setup-vulkan
         with:
           arch: ${{ matrix.row.arch }}
           cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
-      # A host's extra toolkits: nx.json's hostSetup for the leg's platform, plus any the leg asks for.
+      # The build's outputs come prebuilt, so only the toolkits the leg itself asks for.
       - if: contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:
@@ -94,7 +78,7 @@ jobs:
           workdir: ${{ env.WORKDIR }}
           target: ${{ matrix.row.target }}
       - if: runner.environment != 'github-hosted'
-        uses: tetherto/qvac-actions/cache-restore@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/cache-restore@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           key: ${{ steps.models.outputs.key }}
           restore-keys: ${{ steps.models.outputs.restore-prefix }}
@@ -111,6 +95,26 @@ jobs:
         env:
           NPM: ${{ matrix.row.npm }}
         run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
+      # The build job's outputs for this platform: the package's prebuilds and its native dependencies'.
+      - uses: tetherto/qvac-actions/download-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          name: outputs-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}
+          path: src
+      - name: ci:system
+        shell: bash
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t ci:system -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
+      # Puts the dependencies' restored prebuilds where the package resolves them, without rebuilding.
+      - if: matrix.row.buildDeps != ''
+        name: link:platform
+        shell: bash
+        working-directory: src
+        env:
+          BUILD_DEPS: ${{ matrix.row.buildDeps }}
+        run: pnpm exec nx run-many -t link:platform -p "$BUILD_DEPS" --exclude-task-dependencies --outputStyle=stream
       - name: ${{ matrix.row.target }}
         shell: bash
         working-directory: src
@@ -118,7 +122,7 @@ jobs:
           PROJECT: ${{ matrix.row.project }}
           TARGET: ${{ matrix.row.target }}
           CONFIG: ${{ matrix.row.config }}
-        run: pnpm exec nx run-many -t "ci:system,$TARGET" -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
+        run: pnpm exec nx run-many -t "$TARGET" -p "$PROJECT" -c "$CONFIG" --exclude-task-dependencies --outputStyle=stream
       # Diagnostic: the addon's DLL imports, for when LoadLibrary misses one.
       - if: failure() && runner.os == 'Windows'
         shell: powershell
@@ -128,9 +132,9 @@ jobs:
           $dumpbin = Get-ChildItem -Path 'C:\Program Files\Microsoft Visual Studio', 'C:\Program Files (x86)\Microsoft Visual Studio' -Filter dumpbin.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($addon -and $dumpbin) { & $dumpbin.FullName /dependents $addon.FullName }
       - if: always() && !cancelled()
-        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.target }}-${{ matrix.row.config }}
+          name: ${{ matrix.row.slug }}-perf-${{ matrix.row.targetKey }}-${{ matrix.row.config }}
           path: ${{ env.WORKDIR }}/test/results/performance-report*.json
           if-no-files-found: ignore
           retention-days: "14"

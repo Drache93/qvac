@@ -51,7 +51,7 @@ jobs:
       run_desktop: ${{ steps.route.outputs.run_desktop }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
@@ -71,7 +71,7 @@ jobs:
       allowed: ${{ steps.trust.outputs.allowed }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
@@ -109,19 +109,19 @@ jobs:
       BUILT: ${{ contains(matrix.project.targets, 'build') }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
           persist-credentials: false
       - if: env.BUILT == 'true'
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/download-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: prebuild-${{ matrix.project.slug }}-*
           path: prebuilds
           merge-multiple: "true"
       - if: env.BUILT == 'true'
-        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/upload-artifact@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-${{ matrix.project.slug }}
           path: prebuilds
@@ -138,8 +138,9 @@ jobs:
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:lint']) }}
 
+  # C++ and desktop tests run against the build's outputs.
   cpp-tests:
-    needs: [select, route]
+    needs: [select, route, build]
     if: needs.route.outputs.run_cpp_tests == 'true'
     permissions:
       contents: read
@@ -152,7 +153,7 @@ jobs:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
 
   desktop:
-    needs: [select, route, trust]
+    needs: [select, route, trust, build]
     if: needs.trust.outputs.allowed == 'true' && needs.route.outputs.run_desktop == 'true'
     permissions:
       contents: read
@@ -186,7 +187,7 @@ jobs:
       CI_ROUTER_RESULT: ${{ needs.route.result }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/scripts/prebuild-status
@@ -221,7 +222,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/scripts

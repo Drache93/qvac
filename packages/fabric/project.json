@@ -22,6 +22,7 @@
       "options": {
         "cwd": "packages/fabric",
         "parallel": false,
+        "forwardAllArgs": false,
         "commands": [
           "echo no system packages"
         ]
@@ -66,10 +67,6 @@
           },
           {
             "command": "pnpm exec bare-make install",
-            "forwardAllArgs": false
-          },
-          {
-            "command": "pnpm run link:platform",
             "forwardAllArgs": false
           }
         ],
@@ -120,6 +117,16 @@
       "outputs": [
         "{projectRoot}/prebuilds"
       ]
+    },
+    "link:platform": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "cwd": "packages/fabric",
+        "command": "pnpm run link:platform"
+      }
     },
     "test:integration": {
       "executor": "nx:run-commands",

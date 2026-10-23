@@ -44,6 +44,7 @@
       "options": {
         "cwd": "packages/vla-ggml",
         "parallel": false,
+        "forwardAllArgs": false,
         "commands": ["echo no system packages"]
       },
       "configurations": {
@@ -74,7 +75,7 @@
       "dependsOn": [
         {
           "projects": ["@qvac/fabric"],
-          "target": "build"
+          "target": "link:platform"
         }
       ],
       "options": {
@@ -163,7 +164,7 @@
       "dependsOn": [
         {
           "projects": ["@qvac/fabric"],
-          "target": "build"
+          "target": "link:platform"
         }
       ],
       "options": {
@@ -196,7 +197,7 @@
       "dependsOn": [
         {
           "projects": ["@qvac/fabric"],
-          "target": "build"
+          "target": "link:platform"
         }
       ],
       "options": {

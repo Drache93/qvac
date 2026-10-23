@@ -56,8 +56,9 @@ jobs:
       contents: read
     uses: ./.github/workflows/_select-projects.yml
     with:
-      targets: cache:models,cpp:build,cpp:tests
+      targets: cache:models,build,cpp:tests
       packages: ${{ inputs.packages }}
+      build-for: cpp:tests
 
   # One entry per package and target that restores models; a hit is still downloaded, which resets the prune clock.
   models:
@@ -80,29 +81,29 @@ jobs:
       WORKDIR: src/${{ matrix.row.dir }}
     steps:
       - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: .github/actions
           persist-credentials: false
       - name: Checkout source
-        uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           path: src
           persist-credentials: "false"
-      - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-node@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
       - id: models
         uses: ./.github/actions/models-cache-key
         with:
           workdir: ${{ env.WORKDIR }}
           target: ${{ matrix.target }}
       - if: steps.models.outputs.paths != ''
-        uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/configure-aws-credentials@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-central-1
       - if: steps.models.outputs.paths != ''
-        uses: tetherto/qvac-actions/cache@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/cache@2c18da5df771df11c398a2fb2010f60ce79fa098  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           key: ${{ steps.models.outputs.key }}
           path: ${{ steps.models.outputs.paths }}
@@ -114,9 +115,22 @@ jobs:
           bucket: ${{ secrets.MODEL_S3_BUCKET }}
           target: ${{ matrix.target }}
 
+  # The builds cpp:tests restores, on its platforms only.
+  build:
+    needs: select
+    if: toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) != '[]'
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/_build.yml
+    secrets: inherit
+    with:
+      rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
+
   # cpp:build writes the vcpkg caches on a trusted run; cpp:tests runs too, as the old warmer's dispatch did.
   vcpkg:
-    needs: select
+    needs: [select, build]
     if: toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) != '[]'
     permissions:
       contents: read

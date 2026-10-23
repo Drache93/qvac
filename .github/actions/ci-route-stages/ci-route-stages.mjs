@@ -19,10 +19,12 @@ export function route({ event, labels, headRepo, isDraft }) {
   const authorized = Boolean(headRepo) && !isDraft
   const desktop = authorized && has('run-desktop-addon-tests')
   const mobile = authorized && has('run-mobile-addon-tests')
+  // C++ and desktop tests restore the build's outputs, so they build too.
+  const cpp = authorized && has('run-cpp-addon-tests')
   return {
     run_verified_checks: authorized,
-    run_prebuilds: authorized && (has('prebuilds') || desktop || mobile),
-    run_cpp_tests: authorized && has('run-cpp-addon-tests'),
+    run_prebuilds: authorized && (has('prebuilds') || cpp || desktop || mobile),
+    run_cpp_tests: cpp,
     run_desktop: desktop,
     run_mobile: mobile
   }
