@@ -19,7 +19,6 @@ import {
   LOOKUP_FAILED,
   pollCppTests,
 } from '../prebuild-status/lib.mjs'
-import { awaitProducer } from '../prebuild-status/await-producer.mjs'
 
 const iso = (s) => new Date(s).toISOString()
 
@@ -456,33 +455,4 @@ test('pollPrebuilds returns failure immediately when a prebuild status is failed
     log: () => {},
   })
   assert.equal(code, 1)
-})
-
-test('awaitProducer returns the producing run id once its fresh status succeeds', async () => {
-  const clock = fakeClock()
-  let calls = 0
-  const result = await awaitProducer({
-    pkg: 'tts-ggml',
-    prUpdatedEpoch: THRESHOLD,
-    fetchStatuses: () =>
-      ++calls < 2 ? [] : [status({ updated_at: iso('2026-08-10T12:01:00Z'), target_url: 'https://x/actions/runs/77' })],
-    lookupRun: () => FRESH_RUN,
-    now: clock.now,
-    sleep: clock.sleep,
-    pollIntervalMs: 30_000,
-    timeoutMs: 180 * 60 * 1000,
-    log: () => {},
-  })
-  assert.deepEqual(result, { code: 0, runId: '77' })
-})
-
-test('awaitProducer fails on a failed status and on the timeout', async () => {
-  const opts = (fetchStatuses) => {
-    const clock = fakeClock()
-    return { pkg: 'tts-ggml', prUpdatedEpoch: THRESHOLD, fetchStatuses, lookupRun: () => FRESH_RUN,
-      now: clock.now, sleep: clock.sleep, pollIntervalMs: 30_000, timeoutMs: 60_000, log: () => {} }
-  }
-  const failed = [status({ updated_at: iso('2026-08-10T12:01:00Z'), target_url: 'https://x/actions/runs/1', state: 'failure' })]
-  assert.equal((await awaitProducer(opts(() => failed))).code, 1)
-  assert.equal((await awaitProducer(opts(() => []))).code, 1)
 })

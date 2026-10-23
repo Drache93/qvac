@@ -30,28 +30,29 @@ export const RUNNER_KEYS = {
   win_2025_x64_gpu: ['win32', 'x64']
 }
 
-// reusable-prebuilds.yml's default legs, which every native package builds.
-export const BUILD_LEGS = [
-  { runnerKey: 'linux_ubuntu2204_x64', platform: 'linux', arch: 'x64' },
-  { runnerKey: 'ubuntu_2204_arm', platform: 'linux', arch: 'arm64' },
-  { runnerKey: 'ubuntu_2404', platform: 'android', arch: 'arm64' },
-  { runnerKey: 'macos_15', platform: 'ios', arch: 'arm64' },
-  {
-    runnerKey: 'macos_15',
-    platform: 'ios',
-    arch: 'arm64',
-    tags: '-simulator',
-    flags: '--simulator'
-  },
-  { runnerKey: 'macos_15', platform: 'ios', arch: 'x64', tags: '-simulator', flags: '--simulator' },
-  { runnerKey: 'macos_15', platform: 'darwin', arch: 'arm64' },
-  { runnerKey: 'macos_15_intel', platform: 'darwin', arch: 'x64' },
-  { runnerKey: 'win_2025_x64', platform: 'win32', arch: 'x64' }
-]
+// A leg is one of a target's configurations: <platform>-<arch>[-simulator], holding only args or commands and a
+// ci object with its runner. Anything else breaks the package standard (docs/ci/workflow-standard.md).
+const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-simulator)?$/
+const LEG_KEYS = ['args', 'commands', 'ci']
+const CI_KEYS = ['runner']
 
-// A dependency needs its PR build only when the change touched what its binary is built from.
-export const NATIVE_INPUT =
-  /(\.(cpp|hpp|c|h)|CMakeLists\.txt|\/cmake\/.*|\/vcpkg(-configuration)?\.json|\/binding\.js|\/exports\.txt|\/symbols[^/]*\.map)$/
+export function legs(project, target) {
+  return Object.entries(project.targets[target].configurations ?? {}).map(([config, cfg]) => {
+    const where = `${project.name} ${target} configuration ${config}`
+    const m = config.match(LEG_NAME)
+    if (!m) throw new Error(`${where}: the name must be <platform>-<arch>[-simulator]`)
+    const extra = Object.keys(cfg).filter((k) => !LEG_KEYS.includes(k))
+    if (extra.length)
+      throw new Error(
+        `${where}: only ${LEG_KEYS.join(', ')} are allowed, found ${extra.join(', ')}`
+      )
+    const ciExtra = Object.keys(cfg.ci ?? {}).filter((k) => !CI_KEYS.includes(k))
+    if (ciExtra.length)
+      throw new Error(`${where}: ci holds only ${CI_KEYS.join(', ')}, found ${ciExtra.join(', ')}`)
+    if (!cfg.ci?.runner) throw new Error(`${where}: ci.runner names the runner key it runs on`)
+    return { config, runnerKey: cfg.ci.runner, platform: m[1], arch: m[2], tags: m[3] ?? '' }
+  })
+}
 
 export function parseRunnerLabels(yaml) {
   return Object.fromEntries(
@@ -94,14 +95,15 @@ export function rows(project, target, labels) {
   const runners = meta.runners ?? project.targets[project.rowsFrom?.[target]]?.metadata?.runners
   // A target with no runners is one job per package, on whatever runner the group picks.
   if (target !== 'build' && !runners)
-    return [{ ...base, platform: '', arch: '', tags: '', flags: '', runner: '' }]
-  const keys = target === 'build' ? BUILD_LEGS : runners.map((runnerKey) => ({ runnerKey }))
+    return [{ ...base, platform: '', arch: '', tags: '', runner: '' }]
+  const keys =
+    target === 'build' ? legs(project, 'build') : runners.map((runnerKey) => ({ runnerKey }))
   return keys.map((leg) => {
     const [platform, arch] = RUNNER_KEYS[leg.runnerKey] ?? []
     const runner = labels[leg.runnerKey]
     if (!runner || !platform)
       throw new Error(`${project.name} ${target}: unknown runner key ${leg.runnerKey}`)
-    return { ...base, platform, arch, tags: '', flags: '', ...leg, runner }
+    return { ...base, platform, arch, tags: '', ...leg, runner }
   })
 }
 
@@ -115,8 +117,6 @@ export function select({
   targets,
   labels,
   gate,
-  changed,
-  pr,
   owners = null,
   ownerTargets = []
 }) {
@@ -133,7 +133,6 @@ export function select({
     }
     const dir = n.data.root.split('/').pop()
     const npm = n.data.metadata?.js?.packageName ?? n.name
-    const waits = pr ? dependencyWaits(graph, n.name, changed, gate) : []
     const own = targets.filter(
       (t) =>
         n.data.targets[t] &&
@@ -156,7 +155,6 @@ export function select({
       key: gate[dir] ?? '',
       provider,
       providerArtifact,
-      waits,
       targets: own,
       commands
     }
@@ -195,39 +193,6 @@ export function nativeProvider(graph, name, gate) {
     provider: node.data.metadata?.js?.packageName ?? dep.target,
     providerArtifact: `${node.data.root.split('/').pop()}-prebuilds`
   }
-}
-
-// An untagged native dependency is not built in this run, so its own producer's output is awaited.
-export function dependencyWaits(graph, name, changed, gate) {
-  const seen = new Set()
-  const stack = [name]
-  const waits = []
-  while (stack.length) {
-    for (const d of graph.dependencies[stack.pop()] ?? []) {
-      if (seen.has(d.target)) continue
-      seen.add(d.target)
-      stack.push(d.target)
-      const node = graph.nodes[d.target]
-      if (!node || node.data.tags?.includes(TAG)) continue
-      const dir = node.data.root.split('/').pop()
-      const key = gate[dir]
-      if (!PREBUILD_KEYS.includes(key)) continue
-      if (
-        !changed.some(
-          (f) =>
-            f.startsWith(`${node.data.root}/`) && NATIVE_INPUT.test(f.slice(node.data.root.length))
-        )
-      )
-        continue
-      waits.push({
-        key,
-        project: d.target,
-        npm: node.data.metadata?.js?.packageName ?? d.target,
-        artifact: `${dir}-prebuilds`
-      })
-    }
-  }
-  return waits
 }
 
 // "desktop=test:integration+test:backend" adds one matrix holding both targets' rows, for targets that share a job.
@@ -359,8 +324,6 @@ function main(env) {
     graph,
     affected,
     targets,
-    changed: files ?? [],
-    pr: Boolean(event.pull_request),
     labels,
     owners,
     ownerTargets: (env.OWNER_TARGETS || '').split(/[\s,]+/).filter(Boolean),

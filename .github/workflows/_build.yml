@@ -1,26 +1,23 @@
 name: Build native prebuilds
 
-# One native build leg per row, uploaded as prebuild-<pkg>-<platform>-<arch><tags>. Rows come from _select-projects.
+# One job per package and build configuration, on the runner the build target's metadata names. Nx runs the package's
+# ci:system and build targets with that configuration, building its native dependencies first.
 on:
   workflow_call:
     inputs:
       rows:
-        description: JSON build rows
+        description: JSON build rows from _select-projects, one per package and build configuration
         type: string
         required: true
-      deps:
-        description: JSON map of awaited dependency key to its producing run id
-        type: string
-        default: "{}"
 
 permissions: {}
 
 jobs:
   build:
-    name: ${{ matrix.row.slug }} ${{ matrix.row.platform }}-${{ matrix.row.arch }}${{ matrix.row.tags }}
+    name: ${{ matrix.row.slug }} ${{ matrix.row.config }}
     runs-on: ${{ matrix.row.runner }}
     environment: release
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
       actions: read
@@ -31,6 +28,8 @@ jobs:
         row: ${{ fromJSON(inputs.rows) }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -38,9 +37,7 @@ jobs:
           ref: feat/package-ci-contract-pilot-vla # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
             .github/actions
-            .github/scripts
             .github/config
-            scripts/ci
           persist-credentials: false
       - name: Checkout source
         uses: tetherto/qvac-actions/checkout@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
@@ -53,23 +50,21 @@ jobs:
         uses: tetherto/qvac-actions/runner-free-disk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           keep-android: ${{ matrix.row.platform == 'android' }}
-      - if: runner.environment == 'github-hosted'
+      # Toolchain versions are the workspace's, from nx.json; a package's own system packages come from its ci:system target.
+      - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
         uses: tetherto/qvac-actions/runner-apt-install@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          packages: >-
-            ${{ matrix.row.platform == 'linux' && 'libxi-dev libxtst-dev libxrandr-dev' || '' }}
-            ${{ matrix.row.platform == 'android' && 'gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross lld' || '' }}
-            ${{ matrix.row.meta.linuxExtraPackages }}
+          packages: ${{ matrix.row.meta.toolchain.android.aptPackages }}
       - if: runner.environment == 'github-hosted' && matrix.row.platform == 'android'
         uses: tetherto/qvac-actions/setup-android-ndk@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          ndk-version: 29.0.14206865
-          api-level: "34"
+          ndk-version: ${{ matrix.row.meta.toolchain.android.ndk }}
+          api-level: ${{ matrix.row.meta.toolchain.android.apiLevel }}
       - if: runner.environment == 'github-hosted'
         uses: tetherto/qvac-actions/setup-clang@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          version: "22"
-          windows-version: 22.1.0
+          version: ${{ matrix.row.meta.toolchain.llvm.linux }}
+          windows-version: ${{ matrix.row.meta.toolchain.llvm.windows }}
       - uses: tetherto/qvac-actions/configure-aws-credentials@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
@@ -86,6 +81,9 @@ jobs:
         with:
           arch: ${{ matrix.row.arch }}
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          package-json-file: src/package.json
       - uses: ./.github/actions/setup-apple-clang
       - id: vulkan
         uses: ./.github/actions/setup-vulkan
@@ -95,36 +93,20 @@ jobs:
       - if: steps.vulkan.outputs.upload-archive != ''
         shell: bash
         run: aws s3 cp "${{ steps.vulkan.outputs.upload-archive }}" "s3://${{ secrets.MODEL_S3_BUCKET }}/${{ steps.vulkan.outputs.upload-key }}"
-      # The global bare-make pin selects system clang; the package-local one is current.
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: |
-          npm install -g --force bare-runtime bare-make@1.8.0
-          npm install
-          npm install --no-save --ignore-scripts bare-make
-          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: ${{ matrix.row.waits[0].artifact }}
-          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
-          path: ${{ runner.temp }}/dep-prebuilds
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
+      # The package and its workspace dependencies, so Nx builds a dependency the change touched from its sources.
+      - name: Install
         shell: bash
-        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}" --tags "${{ matrix.row.tags }}"
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
+        working-directory: src
         env:
-          PLATFORM: ${{ matrix.row.platform }}
-          ARCH: ${{ matrix.row.arch }}
-          FLAGS: ${{ matrix.row.flags }}
-        run: |
-          args=(-D BUILD_TESTING=OFF)
-          if [ "$PLATFORM" = android ]; then args+=(-D ANDROID_STL=c++_shared); fi
-          if [ -n "$FLAGS" ]; then args+=("$FLAGS"); fi
-          bare-make generate --platform "$PLATFORM" --arch "$ARCH" "${args[@]}"
-          bare-make build
-          bare-make install
+          NPM: ${{ matrix.row.npm }}
+        run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
+      - name: Build
+        shell: bash
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t ci:system,build -p "$PROJECT" -c "$CONFIG" --parallel=1 --outputStyle=stream
       - if: failure()
         shell: bash
         run: for f in "$VCPKG_ROOT"/buildtrees/*/{config,install,build}-*.log; do [ -f "$f" ] && { echo "== $f"; tail -200 "$f"; }; done; true
@@ -143,5 +125,5 @@ jobs:
           workdir: ${{ env.WORKDIR }}
       - uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
-          name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.platform }}-${{ matrix.row.arch }}${{ matrix.row.tags }}
+          name: prebuild-${{ matrix.row.slug }}-${{ matrix.row.config }}
           path: ${{ env.WORKDIR }}/prebuilds

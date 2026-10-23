@@ -133,7 +133,6 @@ const PENDING = [
     ['.github/workflows/reusable-prebuilds.yml', 2],
     ['.github/actions/cpp-lint/action.yaml', 1],
     // The CI contract's job templates, carrying over vla's old cpp-tests and integration sites unchanged.
-    ['.github/workflows/_build.yml', 2],
     ['.github/workflows/_cpp-lint.yml', 2],
     ['.github/workflows/_cpp-tests.yml', 1],
     ['.github/workflows/_desktop.yml', 1],

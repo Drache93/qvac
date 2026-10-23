@@ -83,99 +83,9 @@ jobs:
         with:
           github-token: ${{ github.token }}
 
-  # A package whose native sources did not change since an earlier run of this PR reuses that run's prebuilds.
-  reuse:
+  build:
     needs: [select, route, trust]
     if: needs.trust.outputs.allowed == 'true' && needs.route.outputs.run_prebuilds == 'true'
-    name: reuse ${{ matrix.project.slug }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJSON(needs.select.outputs.projects) }}
-    steps:
-      - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
-        with:
-          ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
-          sparse-checkout: .github/actions
-          persist-credentials: false
-      - id: diff
-        if: contains(matrix.project.targets, 'build')
-        uses: ./.github/actions/prebuilds-native-changes
-        with:
-          workdir: ${{ matrix.project.dir }}
-      - id: find
-        if: steps.diff.outputs.native_changed == 'false' && toJSON(matrix.project.waits) == '[]' && github.event_name == 'pull_request'
-        uses: ./.github/actions/prebuilds-find-reusable
-        with:
-          github-token: ${{ github.token }}
-          workflow-file: pr-build-test.yml
-          marker: prebuilds-cache-pr-${{ github.event.pull_request.number }}-${{ matrix.project.slug }}-${{ steps.diff.outputs.native_hash }}
-          artifact-name: prebuilds-${{ matrix.project.slug }}
-      - shell: bash
-        env:
-          DIR: ${{ matrix.project.dir }}
-          HIT: ${{ steps.find.outputs.hit == 'true' }}
-          RUN_ID: ${{ steps.find.outputs.run-id }}
-          HASH: ${{ steps.diff.outputs.native_hash }}
-        run: |
-          jq -n --arg dir "$DIR" --argjson hit "$HIT" --arg runId "$RUN_ID" --arg hash "$HASH" '{dir: $dir, hit: $hit, runId: $runId, hash: $hash}' > "$RUNNER_TEMP/plan.json"
-      - uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: plan-${{ matrix.project.slug }}
-          path: ${{ runner.temp }}/plan.json
-
-  # Build rows minus reused packages, where each package's prebuilds come from, and awaited dependency runs.
-  plan:
-    needs: [select, route, trust, reuse]
-    if: always() && !cancelled() && needs.trust.outputs.allowed == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 190
-    permissions:
-      contents: read
-      actions: read
-      statuses: read
-    outputs:
-      build: ${{ steps.plan.outputs.build }}
-      sources: ${{ steps.plan.outputs.sources }}
-      deps: ${{ steps.plan.outputs.deps }}
-      reused: ${{ steps.plan.outputs.reused }}
-      hashes: ${{ steps.plan.outputs.hashes }}
-    steps:
-      - name: Checkout actions
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
-        with:
-          ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
-          sparse-checkout: |
-            .github/actions
-            .github/scripts
-          persist-credentials: false
-      - if: needs.reuse.result == 'success'
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          pattern: plan-*
-          path: ${{ runner.temp }}/plans
-      - id: plan
-        shell: bash
-        env:
-          PROJECTS: ${{ needs.select.outputs.projects }}
-          BUILD: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
-          PLANS_DIR: ${{ runner.temp }}/plans
-          AWAIT: ${{ github.event_name == 'pull_request' && needs.route.outputs.run_prebuilds == 'true' }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_UPDATED_AT: ${{ github.event.pull_request.updated_at }}
-        run: node .github/scripts/plan-pr-build.mjs
-
-  build:
-    needs: [route, plan]
-    if: needs.route.outputs.run_prebuilds == 'true' && needs.plan.outputs.build != '[]'
     permissions:
       contents: read
       actions: read
@@ -183,12 +93,11 @@ jobs:
     uses: ./.github/workflows/_build.yml
     secrets: inherit
     with:
-      rows: ${{ needs.plan.outputs.build }}
-      deps: ${{ needs.plan.outputs.deps }}
+      rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
 
-  # Folds a package's legs into prebuilds-<slug>, and marks the run so a later push of this PR can reuse it.
+  # Folds a package's legs into prebuilds-<slug>.
   merge:
-    needs: [select, plan, build]
+    needs: [select, build]
     name: merge ${{ matrix.project.slug }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -199,8 +108,7 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.select.outputs.projects) }}
     env:
-      BUILT: ${{ contains(matrix.project.targets, 'build') && !fromJSON(needs.plan.outputs.reused)[matrix.project.dir] }}
-      HASH: ${{ fromJSON(needs.plan.outputs.hashes)[matrix.project.dir] }}
+      BUILT: ${{ contains(matrix.project.targets, 'build') }}
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -219,17 +127,9 @@ jobs:
         with:
           name: prebuilds-${{ matrix.project.slug }}
           path: prebuilds
-      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request'
-        shell: bash
-        run: echo "$HASH" > "$RUNNER_TEMP/marker"
-      - if: env.BUILT == 'true' && env.HASH != '' && github.event_name == 'pull_request'
-        uses: tetherto/qvac-actions/upload-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: prebuilds-cache-pr-${{ github.event.pull_request.number }}-${{ matrix.project.slug }}-${{ env.HASH }}
-          path: ${{ runner.temp }}/marker
 
   cpp-lint:
-    needs: [select, route, plan]
+    needs: [select, route]
     if: needs.route.outputs.run_verified_checks == 'true'
     permissions:
       contents: read
@@ -239,10 +139,9 @@ jobs:
     secrets: inherit
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:lint']) }}
-      deps: ${{ needs.plan.outputs.deps }}
 
   cpp-tests:
-    needs: [select, route, plan]
+    needs: [select, route]
     if: needs.route.outputs.run_cpp_tests == 'true'
     permissions:
       contents: read
@@ -253,11 +152,10 @@ jobs:
     secrets: inherit
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices)['cpp:tests']) }}
-      deps: ${{ needs.plan.outputs.deps }}
 
   desktop:
-    needs: [select, route, plan, build, merge]
-    if: always() && !cancelled() && needs.route.outputs.run_desktop == 'true' && needs.plan.result == 'success' && (needs.merge.result == 'success' || needs.plan.outputs.build == '[]')
+    needs: [select, route, build, merge]
+    if: always() && !cancelled() && needs.route.outputs.run_desktop == 'true' && needs.merge.result == 'success'
     permissions:
       contents: read
       actions: read
@@ -267,13 +165,11 @@ jobs:
     secrets: inherit
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).desktop) }}
-      sources: ${{ needs.plan.outputs.sources }}
-      deps: ${{ needs.plan.outputs.deps }}
 
   # The gate's qvac/prebuild-<key> and qvac/cpp-tests-<key>; a skip passes only when routing chose not to run.
   status:
-    needs: [select, route, plan, build, merge, cpp-tests]
-    if: always() && !cancelled() && github.event_name == 'pull_request' && needs.select.outputs.any == 'true'
+    needs: [select, route, build, merge, cpp-tests]
+    if: always() && !cancelled() && startsWith(github.event_name, 'pull_request') && needs.select.outputs.any == 'true'
     name: status ${{ matrix.project.slug }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -301,7 +197,7 @@ jobs:
         shell: bash
         env:
           PREBUILD_RESULT: ${{ needs.build.result == 'success' && needs.merge.result || needs.build.result }}
-          REUSE_HIT: ${{ needs.plan.outputs.reused && fromJSON(needs.plan.outputs.reused)[matrix.project.dir] }}
+          REUSE_HIT: ""
           RUN_PREBUILDS: ${{ needs.route.outputs.run_prebuilds }}
           CONTEXT: qvac/prebuild-${{ matrix.project.key }}
         run: node .github/scripts/prebuild-status/publish.mjs
@@ -318,7 +214,7 @@ jobs:
   # Not named qvac-merge-guard: that is the required check's job, and a second one would share its context.
   # Reads this run's jobs, so the table shows each package, stage and failed leg, not only the reusable callers.
   summary:
-    needs: [select, fork-approval, route, trust, reuse, plan, build, merge, cpp-lint, cpp-tests, desktop, status]
+    needs: [select, fork-approval, route, trust, build, merge, cpp-lint, cpp-tests, desktop, status]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

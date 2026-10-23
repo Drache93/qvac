@@ -14,11 +14,56 @@
         }
       }
     },
+    "ci:system": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^ci:system"
+      ],
+      "options": {
+        "cwd": "packages/fabric",
+        "parallel": false,
+        "commands": [
+          "echo no system packages"
+        ]
+      },
+      "configurations": {
+        "linux-x64": {
+          "commands": [
+            "sudo apt-get update",
+            "sudo apt-get install -y libibverbs-dev"
+          ]
+        },
+        "linux-arm64": {
+          "commands": [
+            "sudo apt-get update",
+            "sudo apt-get install -y libibverbs-dev"
+          ]
+        }
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm run build",
         "cwd": "packages/fabric",
+        "parallel": false,
+        "commands": [
+          {
+            "command": "pnpm exec bare-make generate -D BUILD_TESTING=OFF",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "pnpm exec bare-make build",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "pnpm exec bare-make install",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "pnpm run link:platform",
+            "forwardAllArgs": false
+          }
+        ],
         "ci": {
           "artifactNamePrefix": "fabric-",
           "includeVulkanSdk": true,
@@ -28,6 +73,35 @@
           "includeCudaArm64": true,
           "includeCudaArm64Jetson": true,
           "linuxExtraPackages": "libibverbs-dev"
+        }
+      },
+      "configurations": {
+        "linux-x64": {
+          "args": "--platform=linux --arch=x64"
+        },
+        "linux-arm64": {
+          "args": "--platform=linux --arch=arm64"
+        },
+        "android-arm64": {
+          "args": "--platform=android --arch=arm64 -D ANDROID_STL=c++_shared"
+        },
+        "ios-arm64": {
+          "args": "--platform=ios --arch=arm64"
+        },
+        "ios-arm64-simulator": {
+          "args": "--platform=ios --arch=arm64 --simulator"
+        },
+        "ios-x64-simulator": {
+          "args": "--platform=ios --arch=x64 --simulator"
+        },
+        "darwin-arm64": {
+          "args": "--platform=darwin --arch=arm64"
+        },
+        "darwin-x64": {
+          "args": "--platform=darwin --arch=x64"
+        },
+        "win32-x64": {
+          "args": "--platform=win32 --arch=x64"
         }
       },
       "inputs": [
@@ -61,7 +135,10 @@
           "nameTransform": "none",
           "repoName": "fabric",
           "testGateMode": "none",
-          "prebuildExtraDirs": ["include", "share"],
+          "prebuildExtraDirs": [
+            "include",
+            "share"
+          ],
           "slicePlatformPackages": true
         }
       }

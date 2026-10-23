@@ -5,37 +5,151 @@
   "targets": {
     "lint": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run lint", "cwd": "packages/vla-ggml" }
+      "options": {
+        "command": "pnpm run lint",
+        "cwd": "packages/vla-ggml"
+      }
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run test:dts", "cwd": "packages/vla-ggml" }
+      "options": {
+        "command": "pnpm run test:dts",
+        "cwd": "packages/vla-ggml"
+      }
     },
     "test:unit": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run test:unit", "cwd": "packages/vla-ggml" }
+      "options": {
+        "command": "pnpm run test:unit",
+        "cwd": "packages/vla-ggml"
+      }
     },
     "verify:generated": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run check:generated", "cwd": "packages/vla-ggml" }
+      "options": {
+        "command": "pnpm run check:generated",
+        "cwd": "packages/vla-ggml"
+      }
     },
     "ci:setup": {
       "executor": "nx:run-commands",
-      "options": { "command": "node ci/configure-registries.mjs", "cwd": "packages/vla-ggml" }
+      "options": {
+        "command": "node ci/configure-registries.mjs",
+        "cwd": "packages/vla-ggml"
+      }
+    },
+    "ci:system": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^ci:system"],
+      "options": {
+        "cwd": "packages/vla-ggml",
+        "parallel": false,
+        "commands": ["echo no system packages"]
+      },
+      "configurations": {
+        "linux-x64": {
+          "commands": [
+            "sudo apt-get update",
+            "sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev"
+          ]
+        },
+        "linux-arm64": {
+          "commands": [
+            "sudo apt-get update",
+            "sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev"
+          ]
+        }
+      }
     },
     "build": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run build", "cwd": "packages/vla-ggml" },
+      "options": {
+        "cwd": "packages/vla-ggml",
+        "parallel": false,
+        "commands": [
+          {
+            "command": "pnpm run build:ts",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "pnpm exec bare-make generate -D BUILD_TESTING=OFF",
+            "forwardAllArgs": true
+          },
+          {
+            "command": "pnpm exec bare-make build",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "pnpm exec bare-make install",
+            "forwardAllArgs": false
+          }
+        ]
+      },
+      "configurations": {
+        "linux-x64": {
+          "args": "--platform=linux --arch=x64",
+          "ci": {
+            "runner": "linux_ubuntu2204_x64"
+          }
+        },
+        "linux-arm64": {
+          "args": "--platform=linux --arch=arm64",
+          "ci": {
+            "runner": "ubuntu_2204_arm"
+          }
+        },
+        "android-arm64": {
+          "args": "--platform=android --arch=arm64 -D ANDROID_STL=c++_shared",
+          "ci": {
+            "runner": "ubuntu_2404"
+          }
+        },
+        "ios-arm64": {
+          "args": "--platform=ios --arch=arm64",
+          "ci": {
+            "runner": "macos_15"
+          }
+        },
+        "ios-arm64-simulator": {
+          "args": "--platform=ios --arch=arm64 --simulator",
+          "ci": {
+            "runner": "macos_15"
+          }
+        },
+        "ios-x64-simulator": {
+          "args": "--platform=ios --arch=x64 --simulator",
+          "ci": {
+            "runner": "macos_15"
+          }
+        },
+        "darwin-arm64": {
+          "args": "--platform=darwin --arch=arm64",
+          "ci": {
+            "runner": "macos_15"
+          }
+        },
+        "darwin-x64": {
+          "args": "--platform=darwin --arch=x64",
+          "ci": {
+            "runner": "macos_15_intel"
+          }
+        },
+        "win32-x64": {
+          "args": "--platform=win32 --arch=x64",
+          "ci": {
+            "runner": "win_2025_x64"
+          }
+        }
+      },
       "inputs": ["default", "!{projectRoot}/prebuilds/**"],
-      "outputs": ["{projectRoot}/prebuilds"],
-      "metadata": {
-        "artifactNamePrefix": "vla-",
-        "linuxExtraPackages": "libxi-dev libxtst-dev libxrandr-dev"
-      }
+      "outputs": ["{projectRoot}/prebuilds"]
     },
     "cpp:lint": {
       "executor": "nx:run-commands",
-      "options": { "command": "pnpm run lint:cpp", "cwd": "packages/vla-ggml" },
+      "options": {
+        "command": "pnpm run lint:cpp",
+        "cwd": "packages/vla-ggml"
+      },
       "metadata": {
         "runners": ["linux_ubuntu2204_x64"],
         "timeoutMinutes": 120,
@@ -44,7 +158,10 @@
     },
     "cpp:build": {
       "executor": "nx:run-commands",
-      "options": { "command": "npm run test:cpp:build", "cwd": "packages/vla-ggml" },
+      "options": {
+        "command": "npm run test:cpp:build",
+        "cwd": "packages/vla-ggml"
+      },
       "metadata": {
         "runners": ["linux_ubuntu2404_x64", "macos_arm64_gpu", "macos_15_intel", "win_2025_x64"],
         "mode": "standard",
@@ -53,12 +170,20 @@
     },
     "cpp:tests": {
       "executor": "nx:run-commands",
-      "options": { "command": "node ci/run-cpp-tests.mjs", "cwd": "packages/vla-ggml" },
-      "metadata": { "timeoutMinutes": 60 }
+      "options": {
+        "command": "node ci/run-cpp-tests.mjs",
+        "cwd": "packages/vla-ggml"
+      },
+      "metadata": {
+        "timeoutMinutes": 60
+      }
     },
     "test:integration": {
       "executor": "nx:run-commands",
-      "options": { "command": "node ci/run-integration.mjs", "cwd": "packages/vla-ggml" },
+      "options": {
+        "command": "node ci/run-integration.mjs",
+        "cwd": "packages/vla-ggml"
+      },
       "metadata": {
         "runners": [
           "linux_ubuntu2204_x64",
@@ -75,18 +200,31 @@
     },
     "test:backend": {
       "executor": "nx:run-commands",
-      "options": { "command": "node ci/run-backend.mjs", "cwd": "packages/vla-ggml" },
-      "metadata": { "runners": ["linux_ubuntu2404_x64_gpu"] }
+      "options": {
+        "command": "node ci/run-backend.mjs",
+        "cwd": "packages/vla-ggml"
+      },
+      "metadata": {
+        "runners": ["linux_ubuntu2404_x64_gpu"]
+      }
     },
     "test:mobile": {
       "executor": "nx:run-commands",
-      "options": { "command": "node ci/prepare-mobile.mjs", "cwd": "packages/vla-ggml" },
+      "options": {
+        "command": "node ci/prepare-mobile.mjs",
+        "cwd": "packages/vla-ggml"
+      },
       "metadata": {
         "devicefarmSecrets": "LLAMACPP_EMBED",
         "enablesPerf": true,
         "mochaTimeoutMs": 4200000,
-        "perTestTimeoutMinutes": { "Android": 60 },
-        "perfReport": { "title": "VLA Mobile Performance Report", "merge": true }
+        "perTestTimeoutMinutes": {
+          "Android": 60
+        },
+        "perfReport": {
+          "title": "VLA Mobile Performance Report",
+          "merge": true
+        }
       }
     },
     "cache:models": {

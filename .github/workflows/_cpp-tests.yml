@@ -9,10 +9,6 @@ on:
         description: JSON cpp:tests rows, on cpp:build's runners
         type: string
         default: "[]"
-      deps:
-        description: JSON map of awaited dependency key to its producing run id
-        type: string
-        default: "{}"
       trusted:
         description: Write the vcpkg and model caches; honoured only off pull requests, on the default branch
         type: boolean
@@ -69,15 +65,6 @@ jobs:
       - shell: bash
         working-directory: ${{ env.WORKDIR }}
         run: npm install
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: ${{ matrix.row.waits[0].artifact }}
-          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
-          path: ${{ runner.temp }}/dep-prebuilds
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        shell: bash
-        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}"
       - shell: bash
         run: npm install -g --force bare bare-make@1.8.0
       - if: runner.os == 'Linux'

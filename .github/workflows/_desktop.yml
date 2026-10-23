@@ -8,14 +8,6 @@ on:
         description: JSON rows of every desktop target
         type: string
         required: true
-      sources:
-        description: JSON map of package directory to the run holding its prebuilds-<slug> bundle
-        type: string
-        required: true
-      deps:
-        description: JSON map of awaited dependency key to its producing run id
-        type: string
-        default: "{}"
 
 permissions: {}
 
@@ -37,7 +29,6 @@ jobs:
         row: ${{ fromJSON(inputs.rows) }}
     env:
       WORKDIR: src/${{ matrix.row.dir }}
-      SOURCE: ${{ fromJSON(inputs.sources)[matrix.row.dir] }}
     steps:
       - name: Checkout actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -70,22 +61,12 @@ jobs:
       - shell: bash
         working-directory: ${{ env.WORKDIR }}
         run: npm install
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          name: ${{ matrix.row.waits[0].artifact }}
-          run-id: ${{ fromJSON(inputs.deps)[matrix.row.waits[0].key] }}
-          path: ${{ runner.temp }}/dep-prebuilds
-      - if: matrix.row.waits[0] && fromJSON(inputs.deps)[matrix.row.waits[0].key]
-        shell: bash
-        run: node .github/scripts/overlay-prebuilds.mjs --workdir "$WORKDIR" --package "${{ matrix.row.waits[0].npm }}" --src "$RUNNER_TEMP/dep-prebuilds" --platform "${{ matrix.row.platform }}" --arch "${{ matrix.row.arch }}"
       - shell: bash
         run: npm install -g --force bare bare-make@1.8.0 bare-runtime bare-https brittle
-      # The bundle comes from this run, or from the earlier run whose prebuilds are reused.
+      # The bundle this run's merge job folded from its build legs.
       - uses: tetherto/qvac-actions/download-artifact@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-${{ matrix.row.slug }}
-          run-id: ${{ env.SOURCE != github.run_id && env.SOURCE || '' }}
           path: ${{ runner.temp }}/prebuilds-staging
       - uses: ./.github/actions/prebuilds-place
         with:
