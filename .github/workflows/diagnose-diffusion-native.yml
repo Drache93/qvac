@@ -172,16 +172,18 @@ jobs:
           set -euo pipefail
           export PATH="/usr/local/cuda/bin:$PATH"
           repeats=1
+          contention_retries=0
           if [ "$PROBE" = baseline ]; then repeats=2; fi
-          if [ "$PROBE" = repeat ]; then repeats=10; fi
-          if [ "$PROBE" = trace-repeat ]; then repeats=10; fi
+          if [ "$PROBE" = repeat ]; then repeats=10; contention_retries=3; fi
+          if [ "$PROBE" = trace-repeat ]; then repeats=10; contention_retries=3; fi
           python3 .github/scripts/abot-native/run.py \
             --cli "$GITHUB_WORKSPACE/diagnostic-build/bin/sd-abot-session" \
             --inputs native-results/inputs.json --cuda-module "$CUDA_MODULE" \
             --cpu-module "$GITHUB_WORKSPACE/diagnostic-build/bin/libqvac-diffusion-ggml-cpu.so" \
             --guards "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp/test/integration/abot-guards.js" \
             --output "$GITHUB_WORKSPACE/native-results/capture" \
-            --probe "$PROBE" --node-filter "$NODE_FILTER" --repeats "$repeats" --gpu-guard
+            --probe "$PROBE" --node-filter "$NODE_FILTER" --repeats "$repeats" --gpu-guard \
+            --gpu-contention-retries "$contention_retries"
       - name: Build isolated MMQ padding experiment
         if: env.PROBE == 'mmq-isolate'
         shell: bash

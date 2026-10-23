@@ -37,19 +37,20 @@ def wait_for_probe(child, log_path, stop_on_uninitialized=False, timeout=2400, g
             violation = gpu_guard.violation(child.pid)
             if violation:
                 # A foreign client is evidence, never a process we may kill.
-                if child.poll() is None:
+                previous_status = child.poll()
+                if previous_status is None:
                     try:
                         os.killpg(child.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
                 child.wait()
-                return 75, {'gpuGuard': violation}
+                return previous_status or 75, {'gpuGuard': violation, 'interruptedRunningChild': previous_status is None}
         try:
             status = child.wait(timeout=min(2, max(0.01, deadline - time.monotonic())))
             if gpu_guard:
                 violation = gpu_guard.violation(child.pid)
                 if violation:
-                    return 75, {'gpuGuard': violation}
+                    return status or 75, {'gpuGuard': violation, 'interruptedRunningChild': False}
             return status, None
         except subprocess.TimeoutExpired:
             evidence = first_uninitialized_read(log_path.read_text(errors='replace')) if stop_on_uninitialized else None
@@ -69,6 +70,60 @@ def digest(path):
     return h.hexdigest()
 
 
+def retryable_contention(status, evidence):
+    report = (evidence or {}).get('gpuGuard', {})
+    # Never retry a numerical/native error, unavailable telemetry, admission
+    # failure, or a child that had already exited before contention was sampled.
+    return (status == 75 and (evidence or {}).get('interruptedRunningChild') is True
+            and bool(report.get('foreignProcesses')) and not report.get('error'))
+
+
+def capture_native(cmd, env, capture, guard, stop_on_uninitialized=False, retry_budget=0):
+    """Keep completed repetitions; archive and restart only interrupted processes."""
+    retries = 0
+    start = time.monotonic()
+    while True:
+        capture.mkdir()
+        evidence = None
+        launched = False
+        if guard:
+            try:
+                guard.wait_idle()
+                env = dict(env, CUDA_VISIBLE_DEVICES=guard.uuid)
+            except RuntimeError as error:
+                evidence = {'gpuAdmissionError': str(error)}
+        if evidence:
+            status = 75
+        else:
+            with (capture / 'native.log').open('w') as log:
+                with subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True) as child:
+                    launched = True
+                    # Capture mappings of the actual executable, not a dlopen probe.
+                    time.sleep(2)
+                    maps = Path(f'/proc/{child.pid}/maps')
+                    try:
+                        (capture / 'process-maps.txt').write_text(maps.read_text())
+                    except OSError as error:
+                        # Optional evidence may be restricted or the child may
+                        # already have exited. Still monitor/reap our process.
+                        (capture / 'process-maps-error.txt').write_text(str(error) + '\n')
+                    status, evidence = wait_for_probe(child, capture / 'native.log', stop_on_uninitialized, gpu_guard=guard)
+        retry = retries < retry_budget and retryable_contention(status, evidence)
+        destination = capture.with_name(f'{capture.name}-interrupted-{retries + 1}') if retry else capture
+        if retry:
+            capture.rename(destination)
+        attempt = {'repeat': capture.name, 'attempt': retries + 1, 'exitCode': status,
+                   'launched': launched, 'capture': destination.name, 'retry': retry, 'evidence': evidence}
+        (destination / 'attempt.json').write_text(json.dumps(attempt, indent=2) + '\n')
+        with (capture.parent / 'attempts.jsonl').open('a') as ledger:
+            ledger.write(json.dumps(attempt) + '\n')
+        if not retry:
+            return status, evidence, round(time.monotonic() - start, 3), retries
+        retries += 1
+        print(f'GPU contention interrupted {capture.name}; retained {destination.name}. '
+              f'Waiting for idle GPU before restarting this repetition ({retries}/{retry_budget} retries used).', flush=True)
+
+
 def sample_gpu(stop, output):
     with output.open('w') as f:
         while not stop.is_set():
@@ -85,6 +140,7 @@ def execute(args):
     args.output.mkdir(parents=True, exist_ok=True)
     inputs = json.loads(args.inputs.read_text())
     metadata = {'probe': args.probe, 'gpuGuardEnabled': args.gpu_guard,
+                'requestedRepetitions': args.repeats, 'contentionRetryBudget': args.gpu_contention_retries,
                 'cli': {'path': str(args.cli), 'sha256': digest(args.cli)},
                 'cpuModuleSha256': digest(args.cpu_module), 'cudaModuleSha256': digest(args.cuda_module),
                 'inputs': {key: {'path': value, 'sha256': digest(value)} for key, value in inputs.items()},
@@ -121,6 +177,7 @@ def execute(args):
             raise RuntimeError('Requested Nsight Systems is unavailable on this runner')
         prefix = [tool, 'profile', '--trace=cuda,nvtx', '--sample=none', '--output', str(args.output / 'cuda-trace')]
     results = []
+    remaining_retries = args.gpu_contention_retries
     guard = GpuGuard(args.output / 'gpu-processes.jsonl', os.environ.get('CUDA_VISIBLE_DEVICES', '0')) if args.gpu_guard else None
     stop = threading.Event()
     sampler = threading.Thread(target=sample_gpu, args=(stop, args.output / 'gpu-activity.csv'), daemon=True)
@@ -128,35 +185,24 @@ def execute(args):
     try:
         for repeat in range(args.repeats):
             capture = args.output / f'repeat-{repeat + 1}'
-            capture.mkdir()
-            if guard:
-                try:
-                    guard.wait_idle()
-                except RuntimeError as error:
-                    results.append({'repeat': repeat + 1, 'exitCode': 75, 'launched': False, 'gpuGuardError': str(error)})
-                    (args.output / 'results.json').write_text(json.dumps(results, indent=2, allow_nan=False) + '\n')
-                    raise
-                env['CUDA_VISIBLE_DEVICES'] = guard.uuid
             blocks = 1 if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat', 'trace-repeat') else 4
             actions = 'idle:1' if blocks == 1 else 'idle:1,W:1,WL:1,S:1'
             cmd = [*prefix, str(args.cli), '--mode', 'diagnostic-parity', '--backend', 'cuda0',
                    '--dit', inputs['model'], '--taehv', inputs['taehv'], '--scene', inputs['scene'],
                    '--seed', '42', '--threads', '8', '--actions', actions, '--outdir', str(capture)]
-            start = time.monotonic()
-            with (capture / 'native.log').open('w') as log:
-                with subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True) as child:
-                    # Capture mappings of the actual executable (not a Python dlopen probe).
-                    time.sleep(2)
-                    maps = Path(f'/proc/{child.pid}/maps')
-                    if maps.exists():
-                        (capture / 'process-maps.txt').write_text(maps.read_text())
-                    status, evidence = wait_for_probe(child, capture / 'native.log', args.probe == 'mmq-initcheck', gpu_guard=guard)
-            row = {'repeat': repeat + 1, 'exitCode': status, 'seconds': round(time.monotonic() - start, 3)}
+            status, evidence, seconds, retries = capture_native(
+                cmd, env, capture, guard, args.probe == 'mmq-initcheck', remaining_retries)
+            remaining_retries -= retries
+            row = {'repeat': repeat + 1, 'exitCode': status, 'seconds': seconds,
+                   'contentionRetries': retries, 'remainingContentionRetries': remaining_retries}
+            if evidence and 'gpuAdmissionError' in evidence:
+                row.update(launched=False, gpuGuardError=evidence['gpuAdmissionError'])
+                evidence = None
             if evidence and 'gpuGuard' in evidence:
                 row['gpuGuardFailure'] = evidence['gpuGuard']
                 evidence = None
             if args.probe == 'mmq-initcheck':
-                evidence = evidence or first_uninitialized_read((capture / 'native.log').read_text(errors='replace'))
+                evidence = evidence or (first_uninitialized_read((capture / 'native.log').read_text(errors='replace')) if (capture / 'native.log').exists() else None)
                 row['firstUninitializedRead'] = evidence
                 (capture / 'first-uninitialized-read.json').write_text(json.dumps(evidence, indent=2) + '\n')
                 if evidence and status == 0:
@@ -215,6 +261,9 @@ def execute(args):
         if args.probe in ('repeat', 'trace-repeat'):
             for raw in (args.output / 'repeat-1').rglob('*.f32'):
                 raw.unlink()
+        print(json.dumps({'completedRepetitions': len(results),
+                          'interruptedAttempts': args.gpu_contention_retries - remaining_retries,
+                          'exclusiveGpuReservation': False}), flush=True)
     finally:
         stop.set()
         sampler.join(timeout=12)
@@ -228,8 +277,11 @@ if __name__ == '__main__':
     parser.add_argument('--node-filter', default='')
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--gpu-guard', action='store_true', help='Wait for an idle GPU and fail on observed competing compute clients; not an exclusive reservation')
+    parser.add_argument('--gpu-contention-retries', type=int, default=0, help='Extra attempts across the entire batch, only for live processes interrupted by observed contention')
     args = parser.parse_args()
     limit = 10 if args.probe in ('repeat', 'trace-repeat') else 3
     if not 1 <= args.repeats <= limit:
         parser.error(f'Repeats must be between 1 and {limit}')
+    if not 0 <= args.gpu_contention_retries <= 3 or (args.gpu_contention_retries and not args.gpu_guard):
+        parser.error('Contention retries must be 0–3 and require --gpu-guard')
     execute(args)

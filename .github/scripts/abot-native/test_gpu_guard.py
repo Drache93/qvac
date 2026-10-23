@@ -9,10 +9,77 @@ import unittest
 from unittest.mock import patch
 
 from gpu_guard import GpuGuard, classify_processes
-from run import wait_for_probe
+from run import wait_for_probe, capture_native, retryable_contention
 
 
 class GpuGuardTest(unittest.TestCase):
+    def test_retry_policy_never_retries_real_failures_or_missing_telemetry(self):
+        evidence = {'gpuGuard': {'foreignProcesses': [{'pid': 42}]}, 'interruptedRunningChild': True}
+        self.assertTrue(retryable_contention(75, evidence))
+        for status in (0, 1, 86, 124):
+            self.assertFalse(retryable_contention(status, evidence))
+        self.assertFalse(retryable_contention(75, None))
+        self.assertFalse(retryable_contention(75, dict(evidence, interruptedRunningChild=False)))
+        self.assertFalse(retryable_contention(75, dict(evidence, gpuGuard={'error': 'unavailable'})))
+
+    def test_existing_native_failure_is_not_reclassified_as_contention(self):
+        with subprocess.Popen([sys.executable, '-c', 'raise SystemExit(7)'], start_new_session=True) as child:
+            child.wait()
+            with patch.object(GpuGuard, 'violation', return_value={'foreignProcesses': [{'pid': 42}]}):
+                status, evidence = wait_for_probe(child, Path('/unused'), gpu_guard=GpuGuard(Path('/unused')))
+        self.assertEqual(status, 7)
+        self.assertFalse(retryable_contention(status, evidence))
+
+    def test_contention_retry_preserves_interrupted_capture_and_fresh_success(self):
+        class Guard:
+            uuid = 'GPU-test'
+            attempts = 0
+            def wait_idle(self):
+                self.attempts += 1
+            def violation(self, pid):
+                return {'foreignProcesses': [{'pid': 42}]} if self.attempts == 1 else None
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            counter = root / 'starts'
+            code = ('from pathlib import Path; import time; '
+                    f'p=Path({str(counter)!r}); n=int(p.read_text())+1 if p.exists() else 1; '
+                    'p.write_text(str(n)); print(n,flush=True); time.sleep(30 if n==1 else 0)')
+            status, evidence, seconds, retries = capture_native(
+                [sys.executable, '-c', code], dict(os.environ), root / 'repeat-1', Guard(), retry_budget=3)
+            self.assertEqual((status, evidence, retries), (0, None, 1))
+            self.assertEqual(counter.read_text(), '2')
+            self.assertEqual((root / 'repeat-1-interrupted-1/native.log').read_text().strip(), '1')
+            self.assertEqual((root / 'repeat-1/native.log').read_text().strip(), '2')
+            ledger = [json.loads(line) for line in (root / 'attempts.jsonl').read_text().splitlines()]
+            self.assertEqual([row['exitCode'] for row in ledger], [75, 0])
+            self.assertEqual([row['retry'] for row in ledger], [True, False])
+
+    def test_contention_retries_exhaust_and_keep_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            guard = GpuGuard(root / 'unused')
+            with patch.object(guard, 'wait_idle'), patch.object(guard, 'uuid', 'GPU-test'), patch.object(
+                    guard, 'violation', return_value={'foreignProcesses': [{'pid': 42}]}):
+                status, evidence, seconds, retries = capture_native(
+                    [sys.executable, '-c', 'import time; time.sleep(30)'], dict(os.environ),
+                    root / 'repeat-1', guard, retry_budget=1)
+            self.assertEqual((status, retries), (75, 1))
+            ledger = [json.loads(line) for line in (root / 'attempts.jsonl').read_text().splitlines()]
+            self.assertEqual(len(ledger), 2)
+            self.assertFalse(ledger[-1]['retry'])
+
+    def test_admission_failure_launches_nothing_and_does_not_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            guard = GpuGuard(root / 'unused')
+            with patch.object(guard, 'wait_idle', side_effect=RuntimeError('busy')), patch('run.subprocess.Popen') as launch:
+                status, evidence, seconds, retries = capture_native(
+                    ['unused'], {}, root / 'repeat-1', guard, retry_budget=3)
+            launch.assert_not_called()
+            self.assertEqual((status, retries), (75, 0))
+            self.assertEqual(evidence, {'gpuAdmissionError': 'busy'})
+            self.assertFalse(json.loads((root / 'repeat-1/attempt.json').read_text())['launched'])
+
     def test_only_our_process_group_is_owned(self):
         rows = [['GPU-test', str(os.getpid()), 'python', '100'],
                 ['GPU-test', '2147483647', 'unknown', '500'],
