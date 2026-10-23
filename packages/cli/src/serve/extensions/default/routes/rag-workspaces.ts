@@ -134,6 +134,11 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
       const { alias, sdkModelId } = req.qvacModel!
 
       return await serialize(workspace, async () => {
+        // The workspace may have been deleted through /v1/vector_stores, which
+        // does not know this map; a record for a missing workspace is stale.
+        if (!(await listWorkspaces(ctx)).some((w) => w.name === workspace)) {
+          embeddingByWorkspace.delete(workspace)
+        }
         const recorded = embeddingByWorkspace.get(workspace)
         if (recorded !== undefined && recorded !== alias) {
           throw new HttpError(

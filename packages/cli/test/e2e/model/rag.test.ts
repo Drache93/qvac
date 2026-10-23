@@ -88,6 +88,29 @@ describe('qvac rag: real embedding model', () => {
     assertStatusAndError(await post(`${base}/reindex`, {}), 404, 'workspace_not_found')
   })
 
+  it('forgets the embedding alias of a workspace deleted through /v1/vector_stores', async () => {
+    const stale = `${WORKSPACE}-stale`
+    const first = await post(`/qvac/v1/rag/workspaces/${stale}/ingest`, {
+      model: EMBED,
+      documents: 'Some text.'
+    })
+    assert.equal(first.statusCode, 200, first.payload)
+
+    const deleted = await server().inject({ method: 'DELETE', url: `/v1/vector_stores/${stale}` })
+    assert.equal(deleted.statusCode, 200, deleted.payload)
+
+    try {
+      const again = await post(`/qvac/v1/rag/workspaces/${stale}/ingest`, {
+        model: OTHER_EMBED,
+        documents: 'Other text.'
+      })
+      assert.equal(again.statusCode, 200, again.payload)
+      assert.equal((again.json() as { model: string }).model, OTHER_EMBED)
+    } finally {
+      await server().inject({ method: 'DELETE', url: `/qvac/v1/rag/workspaces/${stale}` })
+    }
+  })
+
   it('finds the document an embedded query is about', async () => {
     const embedded = await post('/v1/embeddings', { model: EMBED, input: DOCUMENTS })
     assert.equal(embedded.statusCode, 200, embedded.payload)
