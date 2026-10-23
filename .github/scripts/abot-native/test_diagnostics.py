@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from run import first_uninitialized_read, wait_for_probe
+from run_mmq_isolate import classify_read
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('compare', HERE / 'compare.py')
@@ -20,6 +21,16 @@ spec.loader.exec_module(compare)
 
 
 class DiagnosticsTest(unittest.TestCase):
+    def test_scratch_read_classification_distinguishes_payload_padding_and_out_of_bounds(self):
+        allocation = {'base': '0x1000', 'tail': '0x1800', 'payloadBytes': 2048, 'allocatedBytes': 2304}
+        prefix = 'MMQ_SCRATCH ' + json.dumps(allocation) + '\n'
+        for address, expected in (('0x17fc', False), ('0x1800', True), ('0x18fc', True), ('0x1900', False)):
+            row = classify_read(prefix + '=========     Address ' + address)
+            self.assertEqual(row['insidePadding'], expected)
+            self.assertEqual(row['offsetFromTail'], int(address, 16) - 0x1800)
+        self.assertIsNone(classify_read(prefix))
+        self.assertIsNone(classify_read('=========     Address 0x1800'))
+
     def test_mmq_report_records_operation_and_stops_only_diagnostic_process(self):
         operation = {'phase': 'before', 'lane': 'resident-no-kv', 'tensors': [{'name': 'test.weight', 'ne': [128, 256, 1, 1]}]}
         report = ('ABOT_MMQ ' + json.dumps(operation) + '\n'

@@ -16,6 +16,7 @@ on:
             memcheck,
             initcheck,
             mmq-initcheck,
+            mmq-isolate,
             nsys,
             node,
             repeat
@@ -122,6 +123,7 @@ jobs:
           python3 -m unittest discover -s .github/scripts/abot-native -p 'test_*.py'
           node --test .github/scripts/abot-native/probe-command.test.mjs
       - name: Install isolated package tools
+        if: env.PROBE != 'mmq-isolate'
         working-directory: diagnostic-source/packages/diffusion-cpp
         shell: bash
         run: |
@@ -130,6 +132,7 @@ jobs:
           npm install --prefix "$GITHUB_WORKSPACE/diagnostic-runtime" --ignore-scripts bare-runtime@1.35.0
           npm run link:platform
       - name: Run original addon parity and provision the shared scene
+        if: env.PROBE != 'mmq-isolate'
         id: original
         continue-on-error: true
         shell: bash
@@ -139,6 +142,7 @@ jobs:
             "$GITHUB_WORKSPACE/diagnostic-runtime/node_modules/bare-runtime/bin/bare" \
             native-results
       - name: Build the opt-in native diagnostic executable
+        if: env.PROBE != 'mmq-isolate'
         shell: bash
         run: |
           set -euo pipefail
@@ -157,6 +161,7 @@ jobs:
           cp diagnostic-build/CMakeCache.txt native-results/
           cp diagnostic-build/compile_commands.json native-results/
       - name: Capture intermediate tensors and disk memory events
+        if: env.PROBE != 'mmq-isolate'
         shell: bash
         run: |
           set -euo pipefail
@@ -171,6 +176,41 @@ jobs:
             --guards "$GITHUB_WORKSPACE/diagnostic-source/packages/diffusion-cpp/test/integration/abot-guards.js" \
             --output "$GITHUB_WORKSPACE/native-results/capture" \
             --probe "$PROBE" --node-filter "$NODE_FILTER" --repeats "$repeats"
+      - name: Build isolated MMQ padding experiment
+        if: env.PROBE == 'mmq-isolate'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/usr/local/cuda/bin:$PATH"
+          nvcc --version | tee native-results/nvcc.txt
+          nvidia-smi --query-gpu=name,compute_cap --format=csv > native-results/build-gpu.csv
+          test "$(nvidia-smi -i 0 --query-gpu=compute_cap --format=csv,noheader)" = 8.9
+          python3 .github/scripts/abot-native/instrument_mmq.py diagnostic-engine/ggml
+          git -C diagnostic-engine/ggml diff > native-results/mmq-instrumentation.patch
+          python3 -m pip install --target "$RUNNER_TEMP/abot-cmake" cmake==3.31.6
+          export PYTHONPATH="$RUNNER_TEMP/abot-cmake${PYTHONPATH:+:$PYTHONPATH}"
+          cmake="$RUNNER_TEMP/abot-cmake/bin/cmake"
+          "$cmake" -S .github/scripts/abot-native/mmq-isolate -B mmq-build \
+            -DGGML_SOURCE="$GITHUB_WORKSPACE/diagnostic-engine/ggml" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CUDA_ARCHITECTURES=89-real \
+            -DCMAKE_CUDA_FLAGS=-lineinfo -DGGML_MAX_NAME=128 \
+            -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF \
+            -DGGML_CUDA=ON -DGGML_CUDA_GRAPHS=ON -DGGML_CUDA_FA=OFF \
+            -DGGML_CPU=OFF -DGGML_BLAS=OFF -DGGML_VULKAN=OFF \
+            -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF
+          "$cmake" --build mmq-build --target mmq-isolate ggml-cuda --parallel 2
+          cp mmq-build/CMakeCache.txt native-results/mmq-CMakeCache.txt
+      - name: Compare original and rebuilt MMQ with controlled padding
+        if: env.PROBE == 'mmq-isolate'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/usr/local/cuda/bin:$PATH"
+          python3 .github/scripts/abot-native/run_mmq_isolate.py \
+            --cli "$GITHUB_WORKSPACE/mmq-build/bin/mmq-isolate" \
+            --original "$CUDA_MODULE" \
+            --rebuilt "$GITHUB_WORKSPACE/mmq-build/bin/libqvac-diffusion-ggml-cuda.so" \
+            --output "$GITHUB_WORKSPACE/native-results/mmq-isolate"
       - name: Capture final environment
         if: always()
         continue-on-error: true
