@@ -77,6 +77,17 @@ jobs:
           key: cpp-tests-v6-${{ matrix.row.key || matrix.row.slug }}-${{ matrix.row.platform == 'win32' && 'windows' || matrix.row.platform }}-${{ matrix.row.arch }}-${{ hashFiles(format('{0}/vcpkg.json', env.WORKDIR), format('{0}/vcpkg-configuration.json', env.WORKDIR), 'src/vcpkg-overlays/triplets/**', 'src/vcpkg-overlays/toolchains/**') }}-${{ env.TOOLCHAIN_FINGERPRINT }}
           path: ${{ env.WORKDIR }}/vcpkg/cache
       - uses: ./.github/actions/setup-apple-clang
+      # A host's extra toolkits: nx.json's hostSetup for the leg's platform, plus any the leg asks for.
+      - if: contains(matrix.row.setup, 'cuda')
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: ${{ matrix.row.toolchain.cuda }}
+      - if: contains(matrix.row.setup, 'rocm')
+        uses: ./.github/actions/setup-rocm
+        with:
+          rocm-version: ${{ matrix.row.toolchain.rocm.version }}
+          gfx: ${{ matrix.row.toolchain.rocm.gfx }}
+          sha256: ${{ matrix.row.toolchain.rocm.sha256 }}
       - name: Install
         shell: bash
         working-directory: src

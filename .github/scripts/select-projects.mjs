@@ -18,7 +18,7 @@ const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
 const LEG_KEYS = ['args', 'commands', 'ci']
 const CI_KEYS = ['runner', 'setup']
 // Host setup a leg may ask for; each is one workflow step, its version pinned in nx.json.
-const SETUP = ['cuda']
+const SETUP = ['cuda', 'rocm']
 
 // The metadata a target may carry, and on which targets. toolchain is nx.json's, merged into every build target.
 const METADATA = {
@@ -109,13 +109,16 @@ export function rows(project, target, labels) {
     runner: ''
   }
   if (!project.targets[target]?.configurations) return [base]
+  // Every native build compiles fabric, so a host's toolkits come from nx.json; a leg may ask for more.
+  const hostSetup = base.toolchain.hostSetup ?? {}
   return legs(project, target).map((leg) => {
+    const setup = [...new Set([...(hostSetup[`${leg.platform}-${leg.arch}`] ?? []), ...leg.setup])]
     const runner = labels[leg.runnerKey]
     if (!runner)
       throw new Error(
         `${project.name} ${target} configuration ${leg.config}: unknown runner key ${leg.runnerKey}`
       )
-    return { ...base, ...leg, runner }
+    return { ...base, ...leg, setup, runner }
   })
 }
 

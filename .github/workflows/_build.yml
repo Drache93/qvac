@@ -94,6 +94,17 @@ jobs:
         shell: bash
         run: aws s3 cp "${{ steps.vulkan.outputs.upload-archive }}" "s3://${{ secrets.MODEL_S3_BUCKET }}/${{ steps.vulkan.outputs.upload-key }}"
       # The package and its workspace dependencies, so Nx builds a dependency the change touched from its sources.
+      # A host's extra toolkits: nx.json's hostSetup for the leg's platform, plus any the leg asks for.
+      - if: contains(matrix.row.setup, 'cuda')
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: ${{ matrix.row.toolchain.cuda }}
+      - if: contains(matrix.row.setup, 'rocm')
+        uses: ./.github/actions/setup-rocm
+        with:
+          rocm-version: ${{ matrix.row.toolchain.rocm.version }}
+          gfx: ${{ matrix.row.toolchain.rocm.gfx }}
+          sha256: ${{ matrix.row.toolchain.rocm.sha256 }}
       - name: Install
         shell: bash
         working-directory: src

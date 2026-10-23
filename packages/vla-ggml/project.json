@@ -284,8 +284,7 @@
         },
         "linux-x64-gpu": {
           "ci": {
-            "runner": "linux_ubuntu2404_x64_gpu",
-            "setup": ["cuda"]
+            "runner": "linux_ubuntu2404_x64_gpu"
           }
         },
         "linux-arm64": {
@@ -325,8 +324,7 @@
       "configurations": {
         "linux-x64-gpu": {
           "ci": {
-            "runner": "linux_ubuntu2404_x64_gpu",
-            "setup": ["cuda"]
+            "runner": "linux_ubuntu2404_x64_gpu"
           }
         }
       }

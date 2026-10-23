@@ -64,9 +64,24 @@ jobs:
       - name: Install
         working-directory: src
         run: pnpm install --frozen-lockfile
-      # Nx runs whichever of these targets the package declares.
-      - name: Checks
+      # One step per target; nx run-many skips a target the package does not declare.
+      - name: lint
         working-directory: src
         env:
           PROJECT: ${{ matrix.project.name }}
-        run: pnpm exec nx run-many -t lint,typecheck,test:unit,verify:generated -p "$PROJECT" --parallel=1 --outputStyle=stream
+        run: pnpm exec nx run-many -t lint -p "$PROJECT" --outputStyle=stream
+      - name: typecheck
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run-many -t typecheck -p "$PROJECT" --outputStyle=stream
+      - name: test:unit
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run-many -t test:unit -p "$PROJECT" --outputStyle=stream
+      - name: verify:generated
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.project.name }}
+        run: pnpm exec nx run-many -t verify:generated -p "$PROJECT" --outputStyle=stream
