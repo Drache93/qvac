@@ -7,7 +7,19 @@ on:
         description: Capture mode (intrusive probes run separately from baseline)
         type: choice
         default: baseline
-        options: [baseline, sync, no-graphs, no-fusion, memcheck, initcheck, nsys, node, repeat]
+        options:
+          [
+            baseline,
+            sync,
+            no-graphs,
+            no-fusion,
+            memcheck,
+            initcheck,
+            mmq-initcheck,
+            nsys,
+            node,
+            repeat
+          ]
       node_filter:
         description: Tensor-name substring required for the node probe
         type: string

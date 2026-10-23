@@ -14,6 +14,35 @@ import time
 from compare import compare_capture
 
 
+def first_uninitialized_read(log):
+    marker = '========= Uninitialized __global__ memory read'
+    position = log.find(marker)
+    if position < 0:
+        return None
+    preceding = log[:position].splitlines()
+    records = [json.loads(line[len('ABOT_MMQ '):]) for line in preceding if line.startswith('ABOT_MMQ ')]
+    following = log[position:].splitlines()
+    return {'error': following[0],
+            'kernel': next((line.strip() for line in following[1:] if line.startswith('=========     at ')), None),
+            'operation': records[-1] if records else None,
+            'completedSanitizerReport': False}
+
+
+def wait_for_probe(child, log_path, stop_on_uninitialized=False, timeout=2400):
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return child.wait(timeout=min(2, max(0.01, deadline - time.monotonic()))), None
+        except subprocess.TimeoutExpired:
+            evidence = first_uninitialized_read(log_path.read_text(errors='replace')) if stop_on_uninitialized else None
+            if evidence or time.monotonic() >= deadline:
+                # Only terminate this diagnostic's process group; retain a
+                # detected error as a failure, never as a completed clean run.
+                os.killpg(child.pid, signal.SIGKILL)
+                child.wait()
+                return (86 if evidence else 124), evidence
+
+
 def digest(path):
     h = hashlib.sha256()
     with Path(path).open('rb') as f:
@@ -54,11 +83,16 @@ def execute(args):
             raise ValueError('Node capture requires an explicit tensor-name filter')
         env['SD_ABOT_DIAGNOSTIC_NODE'] = args.node_filter
     prefix = []
-    if args.probe in ('memcheck', 'initcheck'):
+    if args.probe == 'mmq-initcheck':
+        env['SD_ABOT_DIAGNOSTIC_MMQ'] = '1'
+    if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck'):
         tool = shutil.which('compute-sanitizer')
         if not tool:
             raise RuntimeError('Requested compute-sanitizer is unavailable on this runner')
-        prefix = [tool, '--tool', args.probe, '--launch-timeout', '0', '--kill', '--error-exitcode', '86']
+        sanitizer = 'initcheck' if args.probe == 'mmq-initcheck' else args.probe
+        prefix = [tool, '--tool', sanitizer, '--launch-timeout', '0', '--kill', '--error-exitcode', '86']
+        if args.probe == 'mmq-initcheck':
+            prefix += ['--print-limit', '8']
     if args.probe == 'nsys':
         tool = shutil.which('nsys')
         if not tool:
@@ -72,7 +106,7 @@ def execute(args):
         for repeat in range(args.repeats):
             capture = args.output / f'repeat-{repeat + 1}'
             capture.mkdir()
-            blocks = 1 if args.probe in ('memcheck', 'initcheck', 'nsys', 'node', 'repeat') else 4
+            blocks = 1 if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat') else 4
             actions = 'idle:1' if blocks == 1 else 'idle:1,W:1,WL:1,S:1'
             cmd = [*prefix, str(args.cli), '--mode', 'diagnostic-parity', '--backend', 'cuda0',
                    '--dit', inputs['model'], '--taehv', inputs['taehv'], '--scene', inputs['scene'],
@@ -85,16 +119,17 @@ def execute(args):
                     maps = Path(f'/proc/{child.pid}/maps')
                     if maps.exists():
                         (capture / 'process-maps.txt').write_text(maps.read_text())
-                    try:
-                        status = child.wait(timeout=2400)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(child.pid, signal.SIGKILL)
-                        child.wait()
-                        status = 124
+                    status, evidence = wait_for_probe(child, capture / 'native.log', args.probe == 'mmq-initcheck')
             row = {'repeat': repeat + 1, 'exitCode': status, 'seconds': round(time.monotonic() - start, 3)}
+            if args.probe == 'mmq-initcheck':
+                evidence = evidence or first_uninitialized_read((capture / 'native.log').read_text(errors='replace'))
+                row['firstUninitializedRead'] = evidence
+                (capture / 'first-uninitialized-read.json').write_text(json.dumps(evidence, indent=2) + '\n')
+                if evidence and status == 0:
+                    status = row['exitCode'] = 86
             if status == 0:
                 native_log = (capture / 'native.log').read_text(errors='replace')
-                if args.probe in ('memcheck', 'initcheck') and (
+                if args.probe in ('memcheck', 'initcheck', 'mmq-initcheck') and (
                     'ERROR SUMMARY: 0 errors' not in native_log or
                     re.search(r'========= (Error:|Internal Sanitizer Error)', native_log)
                 ):
@@ -148,7 +183,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     for name in ('cli', 'inputs', 'cuda-module', 'cpu-module', 'output', 'guards'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--probe', choices=['baseline', 'sync', 'no-graphs', 'no-fusion', 'memcheck', 'initcheck', 'nsys', 'node', 'repeat'], default='baseline')
+    parser.add_argument('--probe', choices=['baseline', 'sync', 'no-graphs', 'no-fusion', 'memcheck', 'initcheck', 'mmq-initcheck', 'nsys', 'node', 'repeat'], default='baseline')
     parser.add_argument('--node-filter', default='')
     parser.add_argument('--repeats', type=int, default=2)
     args = parser.parse_args()

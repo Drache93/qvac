@@ -12,6 +12,7 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
       'no-fusion',
       'memcheck',
       'initcheck',
+      'mmq-initcheck',
       'nsys'
     ].includes(probe),
     'Unknown diagnostic probe'
@@ -48,7 +49,7 @@ export function originalProbe({ probe, bare, testFile, output, environment }) {
     ]
   } else if (probe === 'no-graphs') env.GGML_CUDA_DISABLE_GRAPHS = '1'
   else if (probe === 'no-fusion') env.GGML_CUDA_DISABLE_FUSION = '1'
-  // Sync/node instrumentation lives in the rebuilt native executable only.
+  // Sync/node/MMQ instrumentation lives in the rebuilt native executable only.
   return { command, args, env }
 }
 

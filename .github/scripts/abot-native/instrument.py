@@ -55,7 +55,7 @@ endif()''')
     if (const char* module = std::getenv("SD_ABOT_DIAGNOSTIC_CUDA_MODULE")) {
         if (!ggml_backend_load(module)) return 2;
     }
-    if (std::getenv("SD_ABOT_DIAGNOSTIC_NODE")) sd_set_backend_eval_callback(abot_diag_node, nullptr);
+    if (std::getenv("SD_ABOT_DIAGNOSTIC_NODE") || std::getenv("SD_ABOT_DIAGNOSTIC_MMQ")) sd_set_backend_eval_callback(abot_diag_node, nullptr);
 #endif''')
     s = replace_once(s, '    if (mode == "create-scene") {', '''#ifdef SD_ABOT_DIAGNOSTICS
     if (mode == "diagnostic-parity") {

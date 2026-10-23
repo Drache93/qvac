@@ -8,8 +8,10 @@ import binascii
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+from run import first_uninitialized_read, wait_for_probe
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('compare', HERE / 'compare.py')
@@ -18,6 +20,27 @@ spec.loader.exec_module(compare)
 
 
 class DiagnosticsTest(unittest.TestCase):
+    def test_mmq_report_records_operation_and_stops_only_diagnostic_process(self):
+        operation = {'phase': 'before', 'lane': 'resident-no-kv', 'tensors': [{'name': 'test.weight', 'ne': [128, 256, 1, 1]}]}
+        report = ('ABOT_MMQ ' + json.dumps(operation) + '\n'
+                  '========= Uninitialized __global__ memory read of size 4 bytes\n'
+                  '=========     at void mul_mat_q<8, 128, false>()+0x2220\n')
+        self.assertIsNone(first_uninitialized_read('========= ERROR SUMMARY: 0 errors'))
+        self.assertIsNone(first_uninitialized_read(report.split('=========')[0]))
+        parsed = first_uninitialized_read(report)
+        self.assertEqual(parsed['operation'], operation)
+        self.assertIn('mul_mat_q', parsed['kernel'])
+        self.assertFalse(parsed['completedSanitizerReport'])
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / 'native.log'
+            with log_path.open('w') as log:
+                code = 'import time; print(' + repr(report) + ', flush=True); time.sleep(30)'
+                with subprocess.Popen([sys.executable, '-c', code], stdout=log, start_new_session=True) as child:
+                    status, evidence = wait_for_probe(child, log_path, True, timeout=10)
+            self.assertEqual(status, 86)
+            self.assertEqual(evidence['operation'], operation)
+            self.assertIsNotNone(child.returncode)
+
     def test_numerical_error_and_nonfinite(self):
         with tempfile.TemporaryDirectory() as tmp:
             a, b = Path(tmp) / 'a', Path(tmp) / 'b'

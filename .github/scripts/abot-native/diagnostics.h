@@ -2,6 +2,7 @@
 #define QVAC_ABOT_DIAGNOSTICS_H
 
 #include <cstdlib>
+#include <cstdio>
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -59,6 +60,33 @@ inline void abot_diag_sync(ggml_backend_t backend, const char* stage) {
 }
 
 inline bool abot_diag_node(ggml_tensor* tensor, bool ask, void*) {
+    if (abot_diag_dir() && std::getenv("SD_ABOT_DIAGNOSTIC_MMQ")) {
+        const bool selected = tensor->op == GGML_OP_MUL_MAT && tensor->src[0] &&
+                              tensor->src[0]->type == GGML_TYPE_Q8_0;
+        if (selected) {
+            // The callback splits the graph at this operation and synchronizes
+            // before the completion record. Metadata only: no weight contents.
+            std::ostringstream row;
+            row << "ABOT_MMQ {\"phase\":" << std::quoted(ask ? "before" : "after")
+                << ",\"lane\":" << std::quoted(abot_diag_dir()) << ",\"tensors\":[";
+            const ggml_tensor* tensors[] = {tensor, tensor->src[0], tensor->src[1]};
+            for (int i = 0; i < 3; ++i) {
+                const auto* t = tensors[i];
+                if (!t) std::abort();
+                if (i) row << ',';
+                row << "{\"name\":" << std::quoted(t->name) << ",\"type\":" << int(t->type)
+                    << ",\"data\":\"" << t->data << "\",\"ne\":[";
+                for (int d = 0; d < 4; ++d) { if (d) row << ','; row << t->ne[d]; }
+                row << "],\"nb\":[";
+                for (int d = 0; d < 4; ++d) { if (d) row << ','; row << t->nb[d]; }
+                row << "]}";
+            }
+            row << "]}\n";
+            std::fputs(row.str().c_str(), stderr);
+            std::fflush(stderr);
+        }
+        return ask ? selected : true;
+    }
     const char* filter = std::getenv("SD_ABOT_DIAGNOSTIC_NODE");
     const bool selected = filter && *filter && tensor->op != GGML_OP_NONE &&
                           tensor->type == GGML_TYPE_F32 && ggml_is_contiguous(tensor) &&
