@@ -1,6 +1,6 @@
 name: C++ lint
 
-# cpp:lint formats and tidies the package's changed sources, after bare-make generate writes compile_commands.json.
+# Runs each package's cpp:lint target through Nx, which lints the C/C++ the change touched against BASE.
 on:
   workflow_call:
     inputs:
@@ -27,7 +27,8 @@ jobs:
       matrix:
         row: ${{ fromJSON(inputs.rows) }}
     env:
-      WORKDIR: src/${{ matrix.row.dir }}
+      NX_DAEMON: "false"
+      NX_NO_CLOUD: "true"
       BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
     steps:
       - name: Checkout actions
@@ -36,7 +37,6 @@ jobs:
           ref: feat/package-ci-contract-pilot-vla  # TEMP rehearsal: the pilot branch until merge
           sparse-checkout: |
             .github/actions
-            .github/scripts
             .github/config
           persist-credentials: false
       - name: Checkout source
@@ -61,33 +61,22 @@ jobs:
           platform: ${{ matrix.row.platform }}
           arch: ${{ matrix.row.arch }}
       - uses: tetherto/qvac-actions/setup-node@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+      - uses: tetherto/qvac-actions/setup-pnpm@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        with:
+          package-json-file: src/package.json
       - uses: ./.github/actions/setup-vulkan
         with:
           arch: ${{ matrix.row.arch }}
-      # The global bare-make pin selects system clang; the package-local one is current.
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: |
-          npm install
-          npm install --no-save --ignore-scripts bare-make
-          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
-      - shell: bash
-        working-directory: ${{ env.WORKDIR }}
-        run: bare-make generate -D ENABLE_VULKAN=OFF
-      - id: format
-        continue-on-error: true
-        uses: tetherto/qvac-actions/cpp-check-format@6173f30c9cf1c86da15d6ddb4674060b3335ec4d  # TEMP rehearsal: qvac-actions PR 18 head until it merges
-        with:
-          repo-dir: src
-          workdir: ${{ matrix.row.dir }}
-          base: ${{ env.BASE }}
-      - id: tidy
-        continue-on-error: true
-        uses: ./.github/actions/cpp-tidy-changed
-        with:
-          workdir: ${{ env.WORKDIR }}
-          base: ${{ env.BASE }}
-      - if: steps.format.outcome == 'failure' || steps.tidy.outcome == 'failure'
+      - name: Install
         shell: bash
-        run: echo "::error::C++ format ${{ steps.format.outcome }}, clang-tidy ${{ steps.tidy.outcome }}" && exit 1
-
+        working-directory: src
+        env:
+          NPM: ${{ matrix.row.npm }}
+        run: pnpm install --frozen-lockfile --filter . --filter "$NPM..."
+      - name: cpp:lint
+        shell: bash
+        working-directory: src
+        env:
+          PROJECT: ${{ matrix.row.project }}
+          CONFIG: ${{ matrix.row.config }}
+        run: pnpm exec nx run-many -t ci:system,cpp:lint -p "$PROJECT" -c "$CONFIG" --diff-base="$BASE" --parallel=1 --outputStyle=stream

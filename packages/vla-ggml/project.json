@@ -146,14 +146,30 @@
     },
     "cpp:lint": {
       "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
       "options": {
-        "command": "pnpm run lint:cpp",
-        "cwd": "packages/vla-ggml"
+        "cwd": "packages/vla-ggml",
+        "parallel": false,
+        "commands": [
+          {
+            "command": "pnpm exec bare-make generate -D ENABLE_VULKAN=OFF",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node ../../scripts/ci/cpp-lint-changed.mjs --base {args.diff-base}",
+            "forwardAllArgs": false
+          }
+        ]
+      },
+      "configurations": {
+        "linux-x64": {
+          "ci": {
+            "runner": "linux_ubuntu2204_x64"
+          }
+        }
       },
       "metadata": {
-        "runners": ["linux_ubuntu2204_x64"],
-        "timeoutMinutes": 120,
-        "includeRocmSdk": true
+        "timeoutMinutes": 120
       }
     },
     "cpp:build": {

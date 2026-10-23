@@ -92,12 +92,13 @@ export function rows(project, target, labels) {
     timeout: meta.timeoutMinutes ?? 0,
     meta
   }
+  // Legs come from the target's configurations; a target not yet converted still lists metadata.runners.
+  const own = project.targets[target]?.configurations ? target : project.rowsFrom?.[target]
+  const configured = Boolean(project.targets[own]?.configurations)
   const runners = meta.runners ?? project.targets[project.rowsFrom?.[target]]?.metadata?.runners
-  // A target with no runners is one job per package, on whatever runner the group picks.
-  if (target !== 'build' && !runners)
-    return [{ ...base, platform: '', arch: '', tags: '', runner: '' }]
-  const keys =
-    target === 'build' ? legs(project, 'build') : runners.map((runnerKey) => ({ runnerKey }))
+  // A target with neither is one job per package, on whatever runner the group picks.
+  if (!configured && !runners) return [{ ...base, platform: '', arch: '', tags: '', runner: '' }]
+  const keys = configured ? legs(project, own) : runners.map((runnerKey) => ({ runnerKey }))
   return keys.map((leg) => {
     const [platform, arch] = RUNNER_KEYS[leg.runnerKey] ?? []
     const runner = labels[leg.runnerKey]
