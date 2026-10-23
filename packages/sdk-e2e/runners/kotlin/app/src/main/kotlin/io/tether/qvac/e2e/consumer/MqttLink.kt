@@ -11,7 +11,9 @@ import org.eclipse.paho.mqttv5.client.MqttDisconnectResponse
 import org.eclipse.paho.mqttv5.common.MqttException
 import org.eclipse.paho.mqttv5.common.MqttMessage
 import org.eclipse.paho.mqttv5.common.packet.MqttProperties
+import okhttp3.OkHttpClient
 import java.io.ByteArrayInputStream
+import java.net.URI
 import java.security.KeyStore
 import java.security.SecureRandom
 import java.security.cert.CertificateFactory
@@ -66,19 +68,39 @@ data class MqttSettings(
 ) {
     val secure: Boolean get() = url.startsWith("wss://") || url.startsWith("ssl://")
 
-    fun socketFactory(): SocketFactory? {
-        if (!secure) return null
-        val trust: Array<TrustManager> = when {
-            !rejectUnauthorized -> arrayOf(TrustAll)
-            ca != null -> {
-                val certificates = CertificateFactory.getInstance("X.509").generateCertificates(ByteArrayInputStream(ca.toByteArray()))
-                val store = KeyStore.getInstance(KeyStore.getDefaultType()).apply { load(null, null) }
-                certificates.forEachIndexed { index, certificate -> store.setCertificateEntry("ca-$index", certificate) }
-                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(store) }.trustManagers
-            }
-            else -> return null
+    /** The trust the connection applies, or null for the platform's own. */
+    private fun trustManager(): X509TrustManager? = when {
+        !rejectUnauthorized -> TrustAll
+        ca != null -> {
+            val certificates = CertificateFactory.getInstance("X.509").generateCertificates(ByteArrayInputStream(ca.toByteArray()))
+            val store = KeyStore.getInstance(KeyStore.getDefaultType()).apply { load(null, null) }
+            certificates.forEachIndexed { index, certificate -> store.setCertificateEntry("ca-$index", certificate) }
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(store) }
+                .trustManagers.filterIsInstance<X509TrustManager>().first()
         }
-        return SSLContext.getInstance("TLS").apply { init(null, trust, SecureRandom()) }.socketFactory
+        else -> null
+    }
+
+    private fun sslContext(trust: X509TrustManager): SSLContext =
+        SSLContext.getInstance("TLS").apply { init(null, arrayOf<TrustManager>(trust), SecureRandom()) }
+
+    /** For a plain TCP or TLS broker, which Paho dials itself. */
+    fun socketFactory(): SocketFactory? = if (secure) trustManager()?.let { sslContext(it).socketFactory } else null
+
+    /**
+     * The URI Paho is given. A WebSocket broker goes through [OkHttpWebSocket], which carries the
+     * trust and keeps the socket alive with pings of its own.
+     */
+    fun pahoUri(): String {
+        val scheme = URI(url).scheme
+        if (scheme != "ws" && scheme != "wss") return url
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT_S.toLong(), TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .pingInterval(WEBSOCKET_PING_S, TimeUnit.SECONDS)
+        trustManager()?.let { builder.sslSocketFactory(sslContext(it).socketFactory, it) }
+        if (!rejectUnauthorized) builder.hostnameVerifier { _, _ -> true }
+        return OkHttpWebSocket.register(url, builder.build())
     }
 
     private object TrustAll : X509TrustManager {
@@ -92,6 +114,9 @@ private const val CONNECT_TIMEOUT_S = 15
 private const val KEEPALIVE_S = 30
 private const val RECONNECT_DELAY_S = 3
 
+/** Below the idle timeouts load balancers put on a WebSocket, so the connection is never idle. */
+private const val WEBSOCKET_PING_S = 20L
+
 /**
  * Publishes held while the connection is down, as mqtt.js holds them: a result published during a
  * Wi-Fi blip reaches the producer on reconnect instead of being dropped.
@@ -100,7 +125,7 @@ private const val OFFLINE_BUFFER = 10_000
 private val RETRY = Executors.newSingleThreadScheduledExecutor { Thread(it, "mqtt-connect-retry").apply { isDaemon = true } }
 
 private class PahoV3Link(private val settings: MqttSettings, clientId: String) : MqttLink {
-    private val client = MqttAsyncClientV3(settings.url, clientId, MemoryPersistence())
+    private val client = MqttAsyncClientV3(settings.pahoUri(), clientId, MemoryPersistence())
 
     override fun connect(listener: MqttLink.Listener) {
         client.setCallback(
@@ -189,13 +214,16 @@ private class PahoV3Link(private val settings: MqttSettings, clientId: String) :
 }
 
 private class PahoV5Link(private val settings: MqttSettings, clientId: String) : MqttLink {
-    private val client = MqttAsyncClientV5(settings.url, clientId, MemoryPersistenceV5())
+    private val client = MqttAsyncClientV5(settings.pahoUri(), clientId, MemoryPersistenceV5())
 
     override fun connect(listener: MqttLink.Listener) {
         client.setCallback(
             object : MqttCallback {
-                override fun disconnected(disconnectResponse: MqttDisconnectResponse?) =
-                    listener.lost(disconnectResponse?.reasonString ?: "disconnected")
+                override fun disconnected(disconnectResponse: MqttDisconnectResponse?) = listener.lost(
+                    disconnectResponse?.exception?.let { "${it.message} (${it.reasonCode})" }
+                        ?: disconnectResponse?.reasonString
+                        ?: "disconnected (reason ${disconnectResponse?.returnCode})",
+                )
                 override fun mqttErrorOccurred(exception: MqttException?) = listener.lost(exception?.message ?: "mqtt error")
                 override fun messageArrived(topic: String, message: MqttMessage) = listener.message(topic, message.payload)
                 override fun deliveryComplete(token: IMqttToken?) = Unit

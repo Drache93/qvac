@@ -46,6 +46,11 @@ The Gradle build includes `packages/sdk-kotlin` as a composite build, so the app
 checkout's Kotlin SDK and the worker it bundles. The Kotlin SDK's PR checks run the unit tests, so an
 SDK change that breaks the app is caught there; they need neither npm nor a device.
 
+MQTT runs on Eclipse Paho with OkHttp underneath for WebSocket brokers (`OkHttpWebSocket.kt`). Paho
+1.2.5's own WebSocket transport feeds ping frames into the MQTT stream and never answers them, so behind a
+load balancer that pings, which the CI broker is, the connection dropped every few minutes and stopped
+coming back.
+
 ## What it covers
 
 The interpreter is the Python client's, step for step, so a test that passes on one and fails on the
