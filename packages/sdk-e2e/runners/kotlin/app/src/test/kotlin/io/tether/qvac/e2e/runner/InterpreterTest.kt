@@ -147,6 +147,32 @@ class InterpreterTest {
     }
 
     @Test
+    fun `a typed error's fields are details, as the JS client's error object carries them`() = runTest {
+        val transport = FakeTransport(
+            streams = mapOf(
+                "completionStream" to {
+                    listOf(
+                        json(
+                            """{"type":"error","name":"CONTEXT_OVERFLOW","code":52421,"message":"too long",
+                               "typedFields":{"promptTokens":900,"ctxSize":512}}""",
+                        ),
+                    )
+                },
+            ),
+        )
+        val result = interpreter(transport).run(
+            """
+            {"steps": [
+               {"callError": {"method": "completion", "collect": "text", "params": {"modelId": "m", "history": []}, "as": "err"}},
+               {"project": {"from": "${'$'}err", "path": "details", "as": "details"}},
+               {"assert": {"on": "${'$'}details", "named": "positiveIntegers", "with": {"fields": ["promptTokens", "ctxSize"]}}}
+             ]}
+            """,
+        )
+        assertTrue(result.passed, result.output)
+    }
+
+    @Test
     fun `a completion folds its events the way the JS client does`() = runTest {
         val transport = FakeTransport(
             streams = mapOf(

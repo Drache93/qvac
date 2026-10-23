@@ -344,6 +344,19 @@ const RULES: Rule[] = [
     }
   },
   {
+    match: [
+      'tts-parler-invalid-emotion',
+      'tts-cosyvoice3-invalid-emotion',
+      'system-resources-invalid-input',
+      'transcribe-stream-events-invalid'
+    ],
+    skip: {
+      reason:
+        "Asserts the message the JS client's request schema gives before sending. The Kotlin SDK's typed requests cannot hold an unknown emotion or a non-boolean sample, and admit a negative endOfTurnSilenceMs that the worker rejects later on the session, with a message that names no field",
+      platforms: ['kotlin-android']
+    }
+  },
+  {
     match: /^plugin-(echo-|invoke-unknown-handler$)/,
     skip: {
       reason:

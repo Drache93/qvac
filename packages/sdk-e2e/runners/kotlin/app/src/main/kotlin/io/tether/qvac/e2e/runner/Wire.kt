@@ -5,6 +5,7 @@ import io.tether.qvac.sdk.QvacException
 import io.tether.qvac.sdk.generated.ErrorCodes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.Base64
@@ -28,6 +29,8 @@ class Wire(private val client: QvacClient) {
         toJson(payload.filterValues { it != null && it !== Missing }) as JsonObject
 
     companion object {
+        private val NOT_DETAILS = setOf("type", "code", "message", "stack", "cause", "typedFields")
+
         fun requestId(): String = UUID.randomUUID().toString()
 
         /** A `success: false` reply, as the error the JS client raises for it. */
@@ -60,15 +63,20 @@ class Wire(private val client: QvacClient) {
             var code = ""
             if (error is QvacException) {
                 code = error.code?.toString() ?: ""
+                // What the JS client's error object carries as its own properties (errorDetails in
+                // step-interpreter.ts): the envelope's fields, and the class's `typedFields` -- a
+                // context overflow's token counts -- raised to the top, as its reconstructors do.
                 for ((key, value) in error.payload) {
-                    if (key in setOf("type", "name", "code", "message", "stack", "cause")) continue
+                    if (key in NOT_DETAILS) continue
                     details[key] = fromJson(value)
                 }
+                (error.payload["typedFields"] as? JsonObject)?.forEach { (key, value) -> details[key] = fromJson(value) }
             }
             return linkedMapOf(
                 "code" to code,
                 "message" to (error.message ?: error.toString()),
-                "hasCause" to (error.cause != null),
+                // The worker's envelope carries the original error's cause, which the JS client keeps.
+                "hasCause" to (error.cause != null || (error as? QvacException)?.payload?.get("cause").let { it != null && it !is JsonNull }),
                 "details" to details,
             )
         }
