@@ -12024,7 +12024,7 @@ class LoadModelSrcRequestBciWhispercppTranscriptionModelConfig(GeneratedBaseMode
         str | None,
         Field(
             alias="backendsDir",
-            description="Android only: override the default ggml backend prebuilds directory. Defaults to `<addon>/prebuilds`.",
+            description="Android and Linux: the directory scanned, as given, for the ggml backend modules. Defaults to the directory next to the loaded addon module.",
         ),
     ] = None
     embedder_model_src: Annotated[
@@ -12527,7 +12527,6 @@ class LoadModelSrcRequestLlamacppEmbeddingModelConfigPooling(Enum):
     mean = "mean"
     cls = "cls"
     last = "last"
-    rank = "rank"
 
 
 class LoadModelSrcRequestLlamacppEmbeddingModelConfigAttention(Enum):
@@ -12611,7 +12610,7 @@ class LoadModelSrcRequestLlamacppEmbeddingModelConfig(GeneratedBaseModel):
     pooling: Annotated[
         LoadModelSrcRequestLlamacppEmbeddingModelConfigPooling | None,
         Field(
-            description="Pooling strategy collapsing token embeddings into one sequence vector: `'none'`, `'mean'`, `'cls'`, `'last'`, or `'rank'`. Unset uses the model default.",
+            description="Pooling strategy collapsing token embeddings into one sequence vector: `'none'`, `'mean'`, `'cls'`, or `'last'`. Unset uses the model default.",
             title="LoadModelSrcRequestLlamacppEmbeddingModelConfigPooling",
         ),
     ] = None
