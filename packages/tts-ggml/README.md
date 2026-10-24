@@ -1018,6 +1018,11 @@ synthesis, the analysis half only to clone a voice or run a dialogue, so a
 text-only deployment can omit `files.mossCodecEncoder`.  The backbones have 8B
 parameters, so MOSS targets desktop hosts; mobile is not supported.
 
+On Metal, the native backbone projects only the text-control tokens needed
+during audio generation and omits text projection during the forced drain.
+Embedding tables stay on the GPU, and the control-token head keeps the model
+weight type. This applies automatically when `config.useGPU` selects Metal.
+
 ```js
 const model = new TTSGgml({
   engine: TTSGgml.ENGINE_MOSS,
