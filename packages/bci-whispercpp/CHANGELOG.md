@@ -5,31 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.14.0] - 2026-10-23
+
+### Changed
+
+- Align the shared native `speech-cpp` source pin to `2026-10-20#1` across
+  the speech addons so they use the same source revision
+  ([#5245](https://github.com/tetherto/qvac/pull/5245)).
+- Move the shared native `speech-cpp` source pin to `2026-10-23#2` across
+  the speech addons ([#5326](https://github.com/tetherto/qvac/pull/5326)).
+  Whisper's `assessFit` sizes integrated and unified-memory GPUs that report
+  no capacity of their own against host RAM, and returns the reason
+  `memory-capacity-unavailable` when no capacity is known.
+
+### Fixed
+
+- Adreno GPUs (Android, OpenCL): q8_0 matrix products whose sums exceed
+  the fp16 range no longer come back as infinity, and attention over 32 or
+  more tokens with unpadded lengths is computed correctly. The shared native
+  `ggml-speech` moves to `2026-10-23` across the speech addons
+  ([#5326](https://github.com/tetherto/qvac/pull/5326)).
+
+## [0.13.0] - 2026-10-20
+
+### Breaking
+
+- An explicit `backendsDir` is now scanned as given, as in `@qvac/asr-ggml`
+  and `@qvac/tts-ggml`, rather than as a prebuilds root under which
+  `<host>/<module>` is appended
+  ([#5235](https://github.com/tetherto/qvac/pull/5235)). Unset, the addon finds
+  its ggml backends itself, next to the loaded module, for loads and for
+  `assessFit`, so most callers should drop the option. A caller that keeps it
+  passes the backends directory itself: change
+  `backendsDir: '/app/prebuilds'` to
+  `backendsDir: '/app/prebuilds/linux-x64/qvac__bci-whispercpp'`.
 
 ### Added
 
 - Bounded FuzzTest coverage for the length-prefixed neural-signal parser
   (`readNeuralFeatures`), including the uint32×uint32×sizeof(float) overflow
-  class. Linux C++ CI runs the suite after unit tests. The parser compiles
-  without whisper, so ASan and LeakSanitizer stay at full strength. No public
-  addon API changes.
+  class ([#4605](https://github.com/tetherto/qvac/pull/4605)). Linux C++ CI
+  runs the suite after unit tests. The parser compiles without whisper, so
+  ASan and LeakSanitizer stay at full strength. No public addon API changes.
 
 ### Changed
 
 - Align the shared native `speech-cpp` source pin to `2026-10-19` across
-  the speech addons so they use the same source revision.
-- The addon finds its ggml backends itself, next to the loaded module, for
-  loads and for `assessFit`, as `@qvac/asr-ggml` and `@qvac/tts-ggml` do. An
-  explicit `backendsDir` is now scanned as given rather than as a prebuilds
-  root under which `<host>/<module>` is appended.
+  the speech addons so they use the same source revision
+  ([#5062](https://github.com/tetherto/qvac/pull/5062),
+  [#5194](https://github.com/tetherto/qvac/pull/5194)).
 
 ### Fixed
 
 - On Linux, BCI no longer fails to register any ggml backend when loaded from
-  the SDK worker bundle. The JavaScript side used to point the addon at
-  `<package>/prebuilds`, which does not exist in the bundle, while the
-  backends ship beside the native module.
+  the SDK worker bundle ([#5235](https://github.com/tetherto/qvac/pull/5235)).
+  The JavaScript side used to point the addon at `<package>/prebuilds`, which
+  does not exist in the bundle, while the backends ship beside the native
+  module.
 
 ## [0.12.0] - 2026-10-14
 
