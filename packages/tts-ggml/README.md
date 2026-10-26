@@ -952,16 +952,21 @@ await model.reload({ coremlDecoder: false })
 omitting it inherits the engine's environment/default policy. `coremlStrict`
 is a boolean: omit it to inherit strict mode, or pass `false` to explicitly
 permit fallback. These options are Parler-only load settings and are rejected
-on per-call APIs. Invalid reload options preserve the previous configuration.
+on per-call APIs. Reload options that fail validation are rejected before
+replacing the current addon.
 `assessFit()` accepts `coremlDecoder` to match the load's decoder policy.
 
 Strict mode requires a usable DAC sidecar even when `coremlDecoder` is false;
 enabling the decoder also requires its sidecar. A build without Core ML fails
 in strict mode. Combining strict mode with `PARLER_COREML_DISABLE` remains a
-fatal configuration under the engine's existing policy. On reload, an explicit
-empty `coremlComputeUnits` string restores environment/default inheritance;
-omitting a setting leaves its current value unchanged. In particular,
-`coremlStrict: undefined` preserves the current strict policy.
+fatal configuration under the engine's existing policy. On reload, omitted or
+`undefined` settings retain their current values; an empty `coremlComputeUnits`
+string is invalid. To return to inherited compute-unit or strict policy,
+construct a new instance with the corresponding options omitted.
+
+If the replacement model fails to load, `reload()` rejects and leaves the
+instance unloaded with the requested settings retained. Recover by reloading
+with a usable configuration or constructing a new instance.
 
 With stats enabled, `decoderSidecarLoaded` and `dacSidecarLoaded` report `1`
 while the corresponding sidecar remains attached. `decoderOnCoreml` and
