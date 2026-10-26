@@ -124,8 +124,29 @@ private const val WEBSOCKET_PING_S = 20L
 private const val OFFLINE_BUFFER = 10_000
 private val RETRY = Executors.newSingleThreadScheduledExecutor { Thread(it, "mqtt-connect-retry").apply { isDaemon = true } }
 
+/**
+ * The first connection, retried until it succeeds: Paho's automatic reconnect only covers one that
+ * once did, and mqtt.js retries this one too. A connect that throws rather than failing is retried
+ * the same way, or the consumer would stay offline without a word.
+ */
+private fun connectWithRetry(listener: MqttLink.Listener, closed: () -> Boolean, attempt: (failed: (Throwable?) -> Unit) -> Unit) {
+    if (closed()) return
+    val failed = { error: Throwable? ->
+        if (!closed()) {
+            listener.lost("connect failed: ${error?.message}")
+            RETRY.schedule({ connectWithRetry(listener, closed, attempt) }, RECONNECT_DELAY_S.toLong(), TimeUnit.SECONDS)
+        }
+    }
+    try {
+        attempt(failed)
+    } catch (error: Exception) {
+        failed(error)
+    }
+}
+
 private class PahoV3Link(private val settings: MqttSettings, clientId: String) : MqttLink {
     private val client = MqttAsyncClientV3(settings.pahoUri(), clientId, MemoryPersistence())
+    @Volatile private var closed = false
 
     override fun connect(listener: MqttLink.Listener) {
         client.setCallback(
@@ -155,21 +176,17 @@ private class PahoV3Link(private val settings: MqttSettings, clientId: String) :
                 isDeleteOldestMessages = false
             },
         )
-        connectWithRetry(listener) { client.connect(options, null, it) }
-    }
-
-    private fun connectWithRetry(listener: MqttLink.Listener, attempt: (org.eclipse.paho.client.mqttv3.IMqttActionListener) -> Unit) {
-        // Automatic reconnect only covers a connection that once succeeded; the first one is retried
-        // here, the way mqtt.js retries it.
-        attempt(
-            object : org.eclipse.paho.client.mqttv3.IMqttActionListener {
-                override fun onSuccess(asyncActionToken: org.eclipse.paho.client.mqttv3.IMqttToken?) = Unit
-                override fun onFailure(asyncActionToken: org.eclipse.paho.client.mqttv3.IMqttToken?, exception: Throwable?) {
-                    listener.lost("connect failed: ${exception?.message}")
-                    RETRY.schedule({ connectWithRetry(listener, attempt) }, RECONNECT_DELAY_S.toLong(), TimeUnit.SECONDS)
-                }
-            },
-        )
+        connectWithRetry(listener, { closed }) { failed ->
+            client.connect(
+                options,
+                null,
+                object : org.eclipse.paho.client.mqttv3.IMqttActionListener {
+                    override fun onSuccess(asyncActionToken: org.eclipse.paho.client.mqttv3.IMqttToken?) = Unit
+                    override fun onFailure(asyncActionToken: org.eclipse.paho.client.mqttv3.IMqttToken?, exception: Throwable?) =
+                        failed(exception)
+                },
+            )
+        }
     }
 
     override fun subscribe(topics: List<String>, done: (Throwable?) -> Unit) {
@@ -208,6 +225,7 @@ private class PahoV3Link(private val settings: MqttSettings, clientId: String) :
     }
 
     override fun close() {
+        closed = true
         runCatching { client.disconnect().waitForCompletion(5000) }
         runCatching { client.close() }
     }
@@ -215,6 +233,7 @@ private class PahoV3Link(private val settings: MqttSettings, clientId: String) :
 
 private class PahoV5Link(private val settings: MqttSettings, clientId: String) : MqttLink {
     private val client = MqttAsyncClientV5(settings.pahoUri(), clientId, MemoryPersistenceV5())
+    @Volatile private var closed = false
 
     override fun connect(listener: MqttLink.Listener) {
         client.setCallback(
@@ -251,19 +270,16 @@ private class PahoV5Link(private val settings: MqttSettings, clientId: String) :
                 isDeleteOldestMessages = false
             },
         )
-        connectWithRetry(listener) { client.connect(options, null, it) }
-    }
-
-    private fun connectWithRetry(listener: MqttLink.Listener, attempt: (org.eclipse.paho.mqttv5.client.MqttActionListener) -> Unit) {
-        attempt(
-            object : org.eclipse.paho.mqttv5.client.MqttActionListener {
-                override fun onSuccess(asyncActionToken: IMqttToken?) = Unit
-                override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                    listener.lost("connect failed: ${exception?.message}")
-                    RETRY.schedule({ connectWithRetry(listener, attempt) }, RECONNECT_DELAY_S.toLong(), TimeUnit.SECONDS)
-                }
-            },
-        )
+        connectWithRetry(listener, { closed }) { failed ->
+            client.connect(
+                options,
+                null,
+                object : org.eclipse.paho.mqttv5.client.MqttActionListener {
+                    override fun onSuccess(asyncActionToken: IMqttToken?) = Unit
+                    override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) = failed(exception)
+                },
+            )
+        }
     }
 
     override fun subscribe(topics: List<String>, done: (Throwable?) -> Unit) {
@@ -301,6 +317,7 @@ private class PahoV5Link(private val settings: MqttSettings, clientId: String) :
     }
 
     override fun close() {
+        closed = true
         // Expire the session now: a finished run must not leave a queue behind on the broker.
         val properties = MqttProperties().apply { sessionExpiryInterval = 0L }
         runCatching { client.disconnect(5000, null, null, 0, properties).waitForCompletion(5000) }

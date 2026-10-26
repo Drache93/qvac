@@ -5,7 +5,11 @@ import io.tether.qvac.sdk.generated.ModelConstant
 import io.tether.qvac.sdk.generated.ModelTypeMaps
 import io.tether.qvac.sdk.generated.Models
 import io.tether.qvac.sdk.models
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -150,28 +154,40 @@ class Resources(
 
     suspend fun close() = evictAllExcept(emptySet())
 
-    private suspend fun unload(dep: String, modelId: String) {
+    /**
+     * Unloads a model this table no longer tracks. It runs to the end even when the test that asked
+     * for it is cut short, within a bound: a model left in the worker but dropped from [loaded] would
+     * be loaded a second time.
+     */
+    private suspend fun unload(dep: String, modelId: String) = withContext(NonCancellable) {
         log("evicting $dep")
-        // Stop what the model is still decoding first, as the JS resource manager does: a test cut
-        // short by its timeout leaves its request running in the worker.
-        try {
-            client.call(
-                buildJsonObject {
-                    put("type", "cancel")
-                    put("operation", "broad")
-                    put("modelId", modelId)
-                    put("kind", "completion")
-                },
-            )
-        } catch (error: Exception) {
-            log("cancelling $dep before evicting it failed (continuing): ${error.message}")
+        val done = withTimeoutOrNull(UNLOAD_TIMEOUT_MS) {
+            // Stop what the model is still decoding first, as the JS resource manager does: a test cut
+            // short by its timeout leaves its request running in the worker.
+            try {
+                client.call(
+                    buildJsonObject {
+                        put("type", "cancel")
+                        put("operation", "broad")
+                        put("modelId", modelId)
+                        put("kind", "completion")
+                    },
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                log("cancelling $dep before evicting it failed (continuing): ${error.message}")
+            }
+            try {
+                client.models.unload(modelId)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                log("evicting $dep failed (continuing): ${error.message}")
+            }
+            if (unloadSettleMs > 0) delay(unloadSettleMs)
         }
-        try {
-            client.models.unload(modelId)
-        } catch (error: Exception) {
-            log("evicting $dep failed (continuing): ${error.message}")
-        }
-        if (unloadSettleMs > 0) delay(unloadSettleMs)
+        if (done == null) log("evicting $dep did not finish within ${UNLOAD_TIMEOUT_MS}ms (continuing)")
     }
 
     /** Every model constant the table's entries for these keys reference, for the bootstrap download. */
@@ -183,8 +199,10 @@ class Resources(
                 is Map<*, *> -> {
                     val name = value["\$const"]
                     if (name is String) {
-                        val constant = constant(name)
-                        found.putIfAbsent(constant.src, constant)
+                        // A constant this registry lacks is left to the test that uses it, which
+                        // reports incomplete; it must not abort every other test's download.
+                        val constant = constants[name]
+                        if (constant != null) found.putIfAbsent(constant.src, constant)
                     } else {
                         value.values.forEach(::collect)
                     }
@@ -228,6 +246,8 @@ class Resources(
             "sha256Checksum" to constant.sha256Checksum,
             "addon" to constant.addon,
         )
+
+        private const val UNLOAD_TIMEOUT_MS = 60_000L
 
         /** The JS client's ModelTypeRequiredError message (sdk-errors-client.ts). */
         private const val MODEL_TYPE_REQUIRED =

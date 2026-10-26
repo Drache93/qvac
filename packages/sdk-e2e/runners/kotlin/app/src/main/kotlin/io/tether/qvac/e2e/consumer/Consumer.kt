@@ -66,10 +66,11 @@ class Consumer(
     private val shutdownStarted = AtomicBoolean(false)
     private var finalProfilingPublished = false
     private var profilingSequence = 0
-    private var totalTests = 0
-    private var testsCompleted = 0
-    private var testsRetried = 0
-    private var testsRetriedPassed = 0
+    // Counted on the queue's coroutine, read by batch-complete's.
+    @Volatile private var totalTests = 0
+    @Volatile private var testsCompleted = 0
+    @Volatile private var testsRetried = 0
+    @Volatile private var testsRetriedPassed = 0
     private var heartbeat: Job? = null
     private var registration: Job? = null
 
@@ -213,16 +214,25 @@ class Consumer(
 
     private suspend fun executeQueue(queue: List<Map<String, Any?>>) {
         for ((index, item) in queue.withIndex()) {
-            if (shutdownRequested) return
-            val testId = item["testId"].toString()
-            val uniqueTestId = item["uniqueTestId"].toString()
-            val definition = definitions[testId]
-            if (definition == null) {
-                publishTestPrepare(uniqueTestId)
-                log("❌ No local test definition for: $testId")
-                publishResult(testId, uniqueTestId, "failure", 0, "No local test definition for: $testId")
-            } else {
-                executeTest(uniqueTestId, definition)
+            // Raised before shutdownRequested is read, and batch-complete raises shutdownRequested
+            // before it reads this: whichever side looks second sees the other, so a test never
+            // starts on a consumer that is shutting down, and the finalize is never missed.
+            processingTest = true
+            try {
+                if (shutdownRequested) return
+                val testId = item["testId"].toString()
+                val uniqueTestId = item["uniqueTestId"].toString()
+                val definition = definitions[testId]
+                if (definition == null) {
+                    publishTestPrepare(uniqueTestId)
+                    log("❌ No local test definition for: $testId")
+                    publishResult(testId, uniqueTestId, "failure", 0, "No local test definition for: $testId")
+                } else {
+                    executeTest(uniqueTestId, definition)
+                }
+            } finally {
+                processingTest = false
+                if (shutdownRequested) finalize()
             }
             if (!shutdownRequested && index < queue.size - 1) delay(INTER_TEST_DELAY_MS)
         }
@@ -270,7 +280,6 @@ class Consumer(
     }
 
     private suspend fun executeTest(uniqueTestId: String, definition: Map<String, Any?>) {
-        processingTest = true
         publishTestPrepare(uniqueTestId)
         val testId = definition["testId"].toString()
         val progress = if (totalTests > 0) "[${testsCompleted + 1}/$totalTests]" else ""
@@ -280,7 +289,6 @@ class Consumer(
             log("⏭️  $testId: $reason")
             testsCompleted++
             publishResult(testId, uniqueTestId, "skipped", 0, reason)
-            processingTest = false
             return
         }
 
@@ -382,9 +390,6 @@ class Consumer(
             log("❌ $testId failed: $message")
             testsCompleted++
             publishResult(testId, uniqueTestId, "failure", duration, message)
-        } finally {
-            processingTest = false
-            if (shutdownRequested) finalize()
         }
     }
 
@@ -448,13 +453,16 @@ class Consumer(
         heartbeat?.cancel()
         registration?.cancel()
         try {
-            runner.close()
+            // A worker wedged enough to have stopped the run must not keep the broker session open.
+            withTimeoutOrNull(CLOSE_TIMEOUT_MS) { runner.close() }
+                ?: log("⚠️  onShutdown: closing the runner did not finish within ${CLOSE_TIMEOUT_MS / 1000}s")
         } catch (error: Exception) {
             log("⚠️  onShutdown error: ${error.message}")
+        } finally {
+            link.close()
+            inbox.close()
+            finished.complete(Unit)
         }
-        link.close()
-        inbox.close()
-        finished.complete(Unit)
     }
 
     private companion object {
@@ -463,6 +471,7 @@ class Consumer(
         const val INTER_TEST_DELAY_MS = 100L
         const val MIN_TEST_TIMEOUT_MS = 120000L
         const val PROFILING_PUBLISH_TIMEOUT_MS = 10000L
+        const val CLOSE_TIMEOUT_MS = 90000L
     }
 }
 

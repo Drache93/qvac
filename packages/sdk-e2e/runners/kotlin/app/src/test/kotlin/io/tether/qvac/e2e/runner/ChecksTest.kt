@@ -17,6 +17,10 @@ class ChecksTest {
         assertTrue(Validation.validate(listOf(1, 2), mapOf("validation" to "type", "expectedType" to "array", "minLength" to 2L)).passed)
         assertEquals("Expected string, got number", Validation.validate(1L, mapOf("validation" to "type", "expectedType" to "string")).output)
         assertTrue(Validation.validate("12", mapOf("validation" to "numeric-range", "min" to 10L, "max" to 20L)).passed)
+        // JS Number(): null and false are 0, true is 1; undefined is not a number.
+        assertTrue(Validation.validate(null, mapOf("validation" to "numeric-range", "min" to 0L, "max" to 0L)).passed)
+        assertTrue(Validation.validate(true, mapOf("validation" to "numeric-range", "min" to 1L, "max" to 1L)).passed)
+        assertFalse(Validation.validate(Missing, mapOf("validation" to "numeric-range", "min" to 0L)).passed)
         assertTrue(Validation.validate(null, mapOf("validation" to "function")).incomplete)
     }
 
@@ -30,6 +34,11 @@ class ChecksTest {
         // Key presence, not truthiness: an explicit null is present.
         assertTrue(fields(mapOf("a" to null), mapOf("fields" to listOf("a"))).passed)
         assertFalse(fields(mapOf("b" to 1), mapOf("fields" to listOf("a"))).passed)
+
+        // The same `!== undefined` reading for anyFieldPresent.
+        val any = Assertions.named.getValue("anyFieldPresent")
+        assertTrue(any(mapOf("a" to null), mapOf("fields" to listOf("a"))).passed)
+        assertTrue(Assertions.named.getValue("isAbsent")(Missing, emptyMap()).passed)
 
         val tool = Assertions.named.getValue("toolCallShape")
         val calls = listOf(mapOf("name" to "get_weather", "arguments" to mapOf("city" to "Paris")))
@@ -70,6 +79,8 @@ class ChecksTest {
         assertEquals("1,2", jsString(listOf(1L, 2L)))
         assertTrue(jsEquals(mapOf("a" to listOf(1L)), mapOf("a" to listOf(1.0))))
         assertEquals("object", jsType(byteArrayOf()))
+        // JSON.stringify writes null for what JSON cannot hold.
+        assertEquals("[null,null,1.5]", toJson(listOf(Double.NaN, Float.POSITIVE_INFINITY, 1.5)).toString())
     }
 
     @Test

@@ -5,6 +5,7 @@ import io.tether.qvac.sdk.QvacTransport
 import io.tether.qvac.sdk.generated.Models
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -26,6 +27,8 @@ private class FakeTransport(
     private val streams: Map<String, (JsonObject) -> List<JsonObject>> = emptyMap(),
     /** Request types the worker never answers. */
     private val hangs: Set<String> = emptySet(),
+    /** Request types the worker answers after this many milliseconds. */
+    private val delays: Map<String, Long> = emptyMap(),
 ) : QvacTransport {
     val requests = mutableListOf<JsonObject>()
 
@@ -33,6 +36,7 @@ private class FakeTransport(
         requests += payload
         val type = payload["type"]!!.jsonPrimitive.content
         if (type in hangs) awaitCancellation()
+        delays[type]?.let { delay(it) }
         return replies[type]?.invoke(payload) ?: error("no reply for $type")
     }
 
@@ -230,6 +234,59 @@ class InterpreterTest {
             }
         }
         assertEquals("resume", transport.requests.last()["type"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a deadline that lands in teardown lets it finish`() = runTest {
+        val transport = FakeTransport(
+            replies = mapOf("suspend" to { json("""{"type":"suspend"}""") }, "resume" to { json("""{"type":"resume"}""") }),
+            delays = mapOf("suspend" to 1_500L),
+        )
+        val interpreter = interpreter(transport)
+        assertFailsWith<TimeoutCancellationException> {
+            withTimeout(1_000) {
+                interpreter.run(
+                    """
+                    {"steps": [{"assert": {"on": true, "named": "isTrue"}}],
+                     "finally": [{"call": {"method": "suspend"}}, {"call": {"method": "resume"}}]}
+                    """,
+                )
+            }
+        }
+        assertEquals(listOf("suspend", "resume"), transport.requests.map { it["type"]!!.jsonPrimitive.content })
+    }
+
+    @Test
+    fun `a teardown that settles a call the timeout cancelled runs to the end`() = runTest {
+        val transport = FakeTransport(replies = mapOf("resume" to { json("""{"type":"resume"}""") }), hangs = setOf("suspend"))
+        val interpreter = interpreter(transport)
+        assertFailsWith<TimeoutCancellationException> {
+            withTimeout(1_000) {
+                interpreter.run(
+                    """
+                    {"steps": [{"start": {"method": "suspend", "as": "pending"}}, {"call": {"method": "suspend"}}],
+                     "finally": [{"settle": {"of": "${'$'}pending", "expect": "reject", "as": "e"}}, {"call": {"method": "resume"}}]}
+                    """,
+                )
+            }
+        }
+        assertEquals("resume", transport.requests.last()["type"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a client-side refusal is bound as the rejection, a gap is not`() = runTest {
+        val refused = interpreter(FakeTransport()).run(
+            """
+            {"steps": [
+               {"callError": {"method": "transcribeStreamWriteBytes", "params": {"sessionId": "nope", "data": "AA==", "chunkBytes": 2}, "as": "e"}},
+               {"assert": {"on": "${'$'}e.message", "named": "containsAll", "with": {"terms": ["is not open"]}}}
+             ]}
+            """,
+        )
+        assertTrue(refused.passed, refused.output)
+
+        val gap = interpreter(FakeTransport()).run("""{"steps": [{"callError": {"method": "teleport", "as": "e"}}]}""")
+        assertTrue(gap.incomplete, gap.output)
     }
 
     @Test

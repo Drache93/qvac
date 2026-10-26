@@ -68,7 +68,7 @@ val catalogJsonDir = layout.buildDirectory.dir("intermediates/e2e-catalog")
 // intent extra at launch wins over both, which is how a local run points an installed app at the
 // broker on this machine without rebuilding it.
 fun setting(property: String, env: String, default: String? = null): String? =
-    providers.gradleProperty(property).orNull
+    providers.gradleProperty(property).orNull?.takeIf { it.isNotEmpty() }
         ?: providers.environmentVariable(env).orNull?.takeIf { it.isNotEmpty() }
         ?: default
 
@@ -86,7 +86,12 @@ val bakedConsumerConfig: Map<String, Any?> = run {
             "path" to setting("qvacMqttPath", "MQTT_PATH", "/mqtt"),
             "username" to setting("qvacMqttUsername", "MQTT_USERNAME"),
             "password" to setting("qvacMqttPassword", "MQTT_PASSWORD"),
-            "ca" to caPath?.let { file(it).takeIf(File::exists)?.readText() },
+            // Resolved against the directory Gradle was started from, as a path on the command line reads.
+            "ca" to caPath?.let { path ->
+                val ca = File(path).let { if (it.isAbsolute) it else File(gradle.startParameter.currentDir, path) }
+                if (!ca.isFile) throw GradleException("the MQTT CA file does not exist: $ca")
+                ca.readText()
+            },
             "rejectUnauthorized" to true,
             "sessionExpiryInterval" to sessionExpiry?.let { raw ->
                 // The MQTT 5 range, checked here the way the JS mobile build checks it.

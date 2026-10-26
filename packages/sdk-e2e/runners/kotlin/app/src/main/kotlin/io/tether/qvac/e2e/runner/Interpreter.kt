@@ -5,7 +5,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -47,15 +48,10 @@ class Interpreter(
         val body = try {
             runBody(steps, scope, expectation)
         } catch (cancelled: CancellationException) {
-            // A body cut short by its timeout still owes its cleanup: a worker left suspended, or a
-            // session or stream left open, would fail every test after it.
-            withContext(NonCancellable) {
-                withTimeoutOrNull(TEARDOWN_TIMEOUT_MS) { runTeardown(teardown, scope, expectation) }
-            }
+            cleanUp(teardown, scope, expectation)
             throw cancelled
         }
-        val failedTeardown = runTeardown(teardown, scope, expectation)
-        scope.started.map { it.task }.awaitAll()
+        val failedTeardown = cleanUp(teardown, scope, expectation)
         when {
             failedTeardown == null -> body
             // A body that passed cannot be claimed on a client that could not clean up after it.
@@ -89,6 +85,25 @@ class Interpreter(
         }
         return last ?: StepResult.fail("test body ran but asserted nothing")
     }
+
+    /**
+     * Runs the teardown and drains the calls the body started, whether the body finished or its
+     * timeout cut it short: a worker left suspended, or a session or stream left open, would fail
+     * every test after it. A deadline that lands here waits for the cleanup, as the JS consumer's
+     * does, within the same bound.
+     */
+    private suspend fun cleanUp(teardown: List<Map<String, Any?>>, scope: Scope, expectation: Map<String, Any?>): StepResult? =
+        withContext(NonCancellable) {
+            val finished = withTimeoutOrNull(TEARDOWN_TIMEOUT_MS) {
+                val failed = runTeardown(teardown, scope, expectation)
+                scope.started.forEach { it.task.join() }
+                // Wrapped: a clean teardown is null, which a timeout must not be mistaken for.
+                Result.success(failed)
+            }
+            if (finished != null) return@withContext finished.getOrNull()
+            scope.started.forEach { it.task.cancel() }
+            StepResult.fail("teardown did not finish within ${TEARDOWN_TIMEOUT_MS}ms")
+        }
 
     /** Runs the teardown steps, returning only a failure. */
     private suspend fun runTeardown(steps: List<Map<String, Any?>>, scope: Scope, expectation: Map<String, Any?>): StepResult? {
@@ -152,12 +167,12 @@ class Interpreter(
         log("callError $method")
         try {
             invoke(method, params, collect)
-        } catch (error: StepError) {
-            // A gap, or a step that could not run at all: not the rejection this step came for.
-            throw error
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
+            // A gap is not the rejection this step came for; any other refusal, a client-side one
+            // included, is bound as the JS interpreter binds it.
+            if (error is StepError && error.incomplete) throw error
             scope.values[body["as"].toString()] = Wire.errorBinding(error)
             return null
         }
@@ -294,18 +309,29 @@ class Interpreter(
         val handle = resolve(body["of"], scope) as? Pending ?: throw StepError("settle: \"${body["of"]}\" is not a started call")
         val withinMs = asDouble(body["withinMs"])?.toLong()
         // A missed deadline fails the step, but the call is still drained at the end of the run.
-        val outcome = if (withinMs == null) handle.task.await() else withTimeoutOrNull(withinMs) { handle.task.await() }
+        val outcome = if (withinMs == null) outcomeOf(handle.task) else withTimeoutOrNull(withinMs) { outcomeOf(handle.task) }
             ?: throw StepError("${body["of"]} did not settle within ${withinMs}ms")
         val target = body["as"]?.toString() ?: "result"
         if (body["expect"] == "reject") {
             val error = outcome.error ?: throw StepError("${body["of"]} was expected to fail but resolved")
-            if (error is StepError) throw error
+            if (error is StepError && error.incomplete) throw error
             scope.values[target] = Wire.errorBinding(error)
             return null
         }
         outcome.error?.let { throw it }
         scope.values[target] = outcome.value
         return null
+    }
+
+    /**
+     * A started call's outcome. One cancelled with the body that started it settles as an error, so
+     * a teardown that settles it still runs to the end; this coroutine's own cancellation propagates.
+     */
+    private suspend fun outcomeOf(task: Deferred<Outcome>): Outcome = try {
+        task.await()
+    } catch (cancelled: CancellationException) {
+        currentCoroutineContext().ensureActive()
+        Outcome(null, cancelled)
     }
 
     private fun project(body: Map<String, Any?>, scope: Scope): StepResult? {

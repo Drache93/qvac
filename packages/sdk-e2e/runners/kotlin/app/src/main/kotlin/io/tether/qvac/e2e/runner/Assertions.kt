@@ -139,7 +139,7 @@ object Assertions {
     }
 
     private fun isAbsent(value: Any?, @Suppress("UNUSED_PARAMETER") args: Map<String, Any?>): StepResult =
-        if (value != null) StepResult.fail("expected nothing, got ${describe(value)}") else StepResult.ok("(absent)")
+        if (value != null && value !== Missing) StepResult.fail("expected nothing, got ${describe(value)}") else StepResult.ok("(absent)")
 
     private fun belowBudget(value: Any?, args: Map<String, Any?>): StepResult {
         val budget = asDouble(args["budget"]) ?: 0.0
@@ -351,10 +351,13 @@ object Assertions {
     private fun anyFieldPresent(value: Any?, args: Map<String, Any?>): StepResult {
         val record = asMap(value)
         val names = fields(args)
-        val found = names.filter { record[it] != null }
+        val found = names.filter { isPresent(record, it) }
         if (found.isEmpty()) return StepResult.fail("none of ${names.joinToString(", ")} are present")
         return StepResult.ok("${found.joinToString(", ")} present")
     }
+
+    /** A key the record carries, null or not: what JS `record[field] !== undefined` asks. */
+    private fun isPresent(record: Map<*, *>, field: String): Boolean = field in record && record[field] !== Missing
 
     private fun isEmptyText(value: Any?, @Suppress("UNUSED_PARAMETER") args: Map<String, Any?>): StepResult {
         if (value != null && value !is String) return StepResult.fail("expected a string, got ${jsType(value)}")

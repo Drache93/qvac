@@ -10,11 +10,14 @@ import io.tether.qvac.e2e.runner.asMap
 import io.tether.qvac.sdk.QvacClient
 import io.tether.qvac.sdk.generated.ModelConstant
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The SDK side of a run: the client and what the interpreter drives it through. */
@@ -107,9 +110,14 @@ class E2eRunner(
 
     override suspend fun close() {
         val runtime = started ?: return
-        runtime.resources.close()
-        runtime.calls.close()
-        runtime.client.close()
+        try {
+            runtime.resources.close()
+            runtime.calls.close()
+        } finally {
+            // Even when shutdown's deadline cut the unloads short: the worker must not outlive the run.
+            // Bounded, so a wedged worker cannot keep shutdown from leaving the broker.
+            withContext(NonCancellable) { withTimeoutOrNull(CLIENT_CLOSE_TIMEOUT_MS) { runtime.client.close() } }
+        }
     }
 
     private fun declaredDeps(test: Map<String, Any?>): List<String> {
@@ -124,5 +132,6 @@ class E2eRunner(
         const val DOWNLOAD_CONCURRENCY = 4
         const val DOWNLOAD_ATTEMPTS = 3
         const val DOWNLOAD_RETRY_DELAY_MS = 5000L
+        const val CLIENT_CLOSE_TIMEOUT_MS = 10_000L
     }
 }

@@ -48,11 +48,11 @@ object OkHttpWebSocket {
     }
 
     internal fun clientFor(uri: URI): OkHttpClient =
-        clients[uri.toString()] ?: throw IllegalStateException("no WebSocket client registered for $uri")
+        clients[uri.toString()] ?: throw IllegalStateException("no WebSocket client registered for this broker")
 
     internal fun validate(uri: URI) {
         require(uri.scheme == SCHEME || uri.scheme == SECURE_SCHEME) { "unsupported scheme ${uri.scheme}" }
-        require(!uri.host.isNullOrEmpty()) { "no host in $uri" }
+        require(!uri.host.isNullOrEmpty()) { "the broker URL has no host" }
     }
 }
 
@@ -61,6 +61,7 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
     private val incoming = LinkedBlockingQueue<ByteArray>()
     private val opened = CountDownLatch(1)
     @Volatile private var socket: WebSocket? = null
+    @Volatile private var open = false
     @Volatile private var failure: Throwable? = null
 
     val input: InputStream = object : InputStream() {
@@ -72,6 +73,8 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
                 val next = incoming.take()
                 if (next === END) {
                     incoming.put(END)
+                    // A failure reaches Paho as the cause of the lost connection; a close as its end.
+                    failure?.let { throw IOException("WebSocket failed: ${it.message}", it) }
                     return false
                 }
                 chunk = next
@@ -105,8 +108,9 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
         override fun flush() {
             val packet = synchronized(pending) { pending.toByteArray().also { pending.reset() } }
             if (packet.isEmpty()) return
-            val open = socket ?: throw IOException("WebSocket to $uri is not open")
-            if (!open.send(packet.toByteString())) throw IOException("WebSocket to $uri is closed")
+            // Errors leave the broker's address out: it is a secret on CI, and logcat is kept.
+            val open = socket ?: throw IOException("WebSocket is not open")
+            if (!open.send(packet.toByteString())) throw IOException("WebSocket is closed")
         }
     }
 
@@ -119,7 +123,10 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
         socket = client.newWebSocket(
             request,
             object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) = opened.countDown()
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    open = true
+                    opened.countDown()
+                }
 
                 override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                     incoming.put(bytes.toByteArray())
@@ -137,13 +144,15 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
         )
         if (!opened.await(connectTimeoutMs, TimeUnit.MILLISECONDS)) {
             stop()
-            throw IOException("WebSocket to $uri did not open within ${connectTimeoutMs}ms")
+            throw IOException("WebSocket did not open within ${connectTimeoutMs}ms")
         }
-        failure?.let { throw IOException("WebSocket to $uri failed: ${it.message}", it) }
+        failure?.let { throw IOException("WebSocket failed: ${it.message}", it) }
     }
 
     fun stop() {
-        socket?.close(NORMAL_CLOSURE, null)
+        // A close frame waits for the handshake; an upgrade that never answers has to be cancelled,
+        // or every retry leaves a call and its socket behind.
+        if (open) socket?.close(NORMAL_CLOSURE, null) else socket?.cancel()
         finish(null)
     }
 

@@ -4,6 +4,8 @@ import io.tether.qvac.e2e.runner.StepResult
 import io.tether.qvac.e2e.runner.asMap
 import io.tether.qvac.e2e.runner.fromJson
 import io.tether.qvac.e2e.runner.toJson
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -11,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** A broker that records what the consumer publishes and delivers what the test sends it. */
@@ -71,7 +74,7 @@ class ConsumerTest {
         ),
     )
 
-    private fun TestScope.consumer(link: FakeLink, runner: FakeRunner) = Consumer(
+    private fun TestScope.consumer(link: FakeLink, runner: TestRunner) = Consumer(
         scope = backgroundScope,
         link = link,
         consumerId = "c1",
@@ -137,6 +140,48 @@ class ConsumerTest {
         assertEquals("failure", result["outcome"])
         assertEquals(true, result["retried"])
         assertEquals(true, result["retryPassed"])
+    }
+
+    @Test
+    fun `batch-complete during a test finalizes once it ends, and starts nothing after it`() = runTest {
+        val link = FakeLink()
+        val gate = CompletableDeferred<Unit>()
+        val runner = object : TestRunner by FakeRunner(mutableListOf()) {
+            override suspend fun execute(definition: Map<String, Any?>): StepResult {
+                gate.await()
+                return StepResult.ok("fine")
+            }
+        }
+        val consumer = consumer(link, runner)
+        runCurrent()
+        link.deliver("qvac/register-ack/c1", ack("runs", "runs"))
+        runCurrent()
+        link.deliver("qvac/batch-complete", mapOf("runId" to "run-1", "totalTests" to 2L))
+        runCurrent()
+        assertFalse(consumer.finished.isCompleted)
+
+        gate.complete(Unit)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(1, link.on("qvac/results").size)
+        assertEquals("final", link.on("qvac/profiling").single()["kind"])
+        assertTrue(consumer.finished.isCompleted && link.closed)
+    }
+
+    @Test
+    fun `a runner that never closes still lets the consumer leave the broker`() = runTest {
+        val link = FakeLink()
+        val runner = object : TestRunner by FakeRunner(mutableListOf()) {
+            override suspend fun close() = awaitCancellation()
+        }
+        val consumer = consumer(link, runner)
+        runCurrent()
+        link.deliver("qvac/register-ack/c1", ack())
+        runCurrent()
+        link.deliver("qvac/batch-complete", mapOf("runId" to "run-1", "totalTests" to 0L))
+        advanceTimeBy(120_000)
+        runCurrent()
+        assertTrue(consumer.finished.isCompleted && link.closed)
     }
 
     @Test

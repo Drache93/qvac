@@ -3,7 +3,8 @@
 //
 //   node runners/kotlin/scripts/device.mjs prepare   assemble the APK and install it (the entry's prepare step)
 //   node runners/kotlin/scripts/device.mjs run       start it on this run and follow its log
-//   node runners/kotlin/scripts/device.mjs build     assemble the APK only (CI, which runs it on Device Farm)
+//   node runners/kotlin/scripts/device.mjs build     assemble the APK only (CI, which runs it on Device Farm;
+//                                                  --prebuilt-sdk when packages/sdk is already built)
 //
 // `prepare` runs before the producer, which gives consumers a fixed window to register: a build
 // and a 400 MB install do not fit in it. `run` is the external consumer itself: the app speaks MQTT
@@ -32,9 +33,20 @@ const appPackage = 'io.tether.qvac.e2e.kotlin'
 const activity = `${appPackage}/io.tether.qvac.e2e.MainActivity`
 const logTag = 'QvacE2E'
 
+/** Undone however the run ends, last first: reversed ports, the log follower, a failed app. */
+const undo = []
+let exiting = false
+
+function exit(code) {
+  if (exiting) return
+  exiting = true
+  for (const step of undo.splice(0).reverse()) step(code)
+  process.exit(code)
+}
+
 function fail(message) {
   console.error(`❌ ${message}`)
-  process.exit(1)
+  exit(1)
 }
 
 function androidSdk() {
@@ -55,7 +67,18 @@ function build() {
   // No daemon on CI: a persistent runner would keep it after the job.
   const daemon = process.env.CI ? ['--no-daemon'] : []
   // Only the all-in-one runtime profile: building the Kotlin SDK's other profiles is wasted here.
-  const args = [':app:assembleRelease', '-PqvacProfile=aio', '--console=plain', ...daemon]
+  // --prebuilt-sdk: packages/sdk is already built (CI does it before packing it), so Gradle's own
+  // build of it -- and the Python that runs -- is skipped.
+  const prebuilt = process.argv.includes('--prebuilt-sdk')
+    ? ['-x', ':sdk-kotlin:android-barekit:buildWorkspaceSdk']
+    : []
+  const args = [
+    ':app:assembleRelease',
+    '-PqvacProfile=aio',
+    '--console=plain',
+    ...daemon,
+    ...prebuilt
+  ]
   const result = spawnSync(gradlew, args, {
     cwd: projectDir,
     stdio: 'inherit',
@@ -74,20 +97,21 @@ function adbPath() {
   return bundled && existsSync(bundled) ? bundled : 'adb'
 }
 
-/** Intent extras whose values must not reach a log. */
-const SECRET_EXTRAS = new Set(['mqttUsername', 'mqttPassword'])
-
-function adb(args, { check = true } = {}) {
-  const result = spawnSync(adbPath(), args, { encoding: 'utf8' })
+/**
+ * Runs adb. A failure is reported by `what`, never by the arguments: `am start` carries the broker
+ * credentials, and nothing that holds them may reach a log.
+ */
+function adb(args, { check = true, what = 'adb' } = {}) {
+  // Room for a whole logcat dump: past the default 1 MiB the tail, where a crash is, is cut off.
+  const result = spawnSync(adbPath(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   if (check && result.status !== 0) {
-    const shown = args.map((arg, index) => (SECRET_EXTRAS.has(args[index - 1]) ? '***' : arg))
-    fail(`adb ${shown.join(' ')} failed: ${(result.stderr || result.stdout || '').trim()}`)
+    fail(`${what} failed: ${(result.stderr || result.stdout || '').trim()}`)
   }
   return result.stdout ?? ''
 }
 
 function pickDevice() {
-  const serials = adb(['devices'])
+  const serials = adb(['devices'], { what: 'adb devices' })
     .split('\n')
     .slice(1)
     .map((line) => line.trim().split(/\s+/))
@@ -111,16 +135,19 @@ function localHosts() {
 /**
  * The broker as the device should dial it. A broker on this machine is reached through
  * `adb reverse`, so the run does not depend on the device and the laptop sharing a network.
+ * Errors name the scheme, never the URL, which may carry credentials.
  */
-/** Ports this run reversed onto the device, removed again when it ends. */
-const reversed = []
-
 function deviceBrokerUrl(serial) {
   const raw = process.env.QVAC_MQTT_BROKER_URL
   if (!raw) fail('QVAC_MQTT_BROKER_URL is not set; run this through qvac-test run:local:external')
-  const url = new URL(raw)
+  let url
+  try {
+    url = new URL(raw)
+  } catch {
+    fail('QVAC_MQTT_BROKER_URL is not a valid URL')
+  }
   if (url.protocol !== 'ws:' && url.protocol !== 'wss:') {
-    fail(`the app connects over WebSocket; the broker URL is ${raw} (set MQTT_PROTOCOL=ws)`)
+    fail(`the app connects over WebSocket, not ${url.protocol} (set MQTT_PROTOCOL=ws)`)
   }
   const pathSuffix = process.env.MQTT_PATH ?? ''
   if (pathSuffix && url.pathname === '/') url.pathname = pathSuffix
@@ -128,9 +155,11 @@ function deviceBrokerUrl(serial) {
   // is pointed at the reversed port.
   // URL keeps IPv6 hosts bracketed; the interface list does not.
   if (url.protocol === 'ws:' && localHosts().has(url.hostname.replace(/^\[|\]$/g, ''))) {
-    const port = url.port || (url.protocol === 'wss:' ? '443' : '80')
-    adb(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`])
-    reversed.push(`tcp:${port}`)
+    const port = url.port || '80'
+    adb(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`], {
+      what: `adb reverse tcp:${port}`
+    })
+    undo.push(() => adb(['-s', serial, 'reverse', '--remove', `tcp:${port}`], { check: false }))
     url.hostname = '127.0.0.1'
     console.log(`🔁 adb reverse tcp:${port} -> this machine`)
   }
@@ -140,10 +169,12 @@ function deviceBrokerUrl(serial) {
 function install() {
   const serial = pickDevice()
   console.log(`📲 Installing on ${serial}...`)
-  adb(['-s', serial, 'install', '-r', '-d', apk])
+  adb(['-s', serial, 'install', '-r', '-d', apk], { what: 'adb install' })
 }
 
 function run() {
+  process.on('SIGINT', () => exit(130))
+  process.on('SIGTERM', () => exit(143))
   const serial = pickDevice()
   console.log(`📱 Device: ${serial}`)
   const installed = adb(['-s', serial, 'shell', 'pm', 'path', appPackage], { check: false })
@@ -154,8 +185,11 @@ function run() {
   // builds freeze outright.
   adb(['-s', serial, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP'], { check: false })
   adb(['-s', serial, 'shell', 'wm', 'dismiss-keyguard'], { check: false })
-  adb(['-s', serial, 'shell', 'am', 'force-stop', appPackage])
+  adb(['-s', serial, 'shell', 'am', 'force-stop', appPackage], { what: 'am force-stop' })
   adb(['-s', serial, 'logcat', '-c'], { check: false })
+  undo.push((code) => {
+    if (code !== 0) adb(['-s', serial, 'shell', 'am', 'force-stop', appPackage], { check: false })
+  })
 
   const extras = [
     ['runId', process.env.QVAC_RUN_ID],
@@ -167,7 +201,7 @@ function run() {
   ].filter(([, value]) => value)
   const start = ['-s', serial, 'shell', 'am', 'start', '-W', '-n', activity]
   for (const [key, value] of extras) start.push('--es', key, `'${value.replaceAll("'", "'\\''")}'`)
-  adb(start)
+  adb(start, { what: `am start ${activity}` })
   console.log(`🚀 Started ${appPackage} on run ${process.env.QVAC_RUN_ID}\n`)
 
   // The app's own log is the consumer's output; it ends with the line the JS consumers end with.
@@ -183,6 +217,7 @@ function run() {
       stdio: ['ignore', 'pipe', 'inherit']
     }
   )
+  undo.push(() => logcat.kill())
   let pending = ''
   let finished = false
   logcat.stdout.setEncoding('utf8')
@@ -196,10 +231,10 @@ function run() {
       if (line.includes('Consumer shutting down')) finished = true
       if (line.includes('FATAL EXCEPTION')) {
         console.error('❌ The app crashed')
-        stop(1)
+        exit(1)
       }
     }
-    if (finished) setTimeout(() => stop(0), 2000)
+    if (finished) setTimeout(() => exit(0), 2000)
   })
   logcat.on('exit', (code) => {
     if (!finished) fail(`logcat exited (${code}) before the consumer finished`)
@@ -209,28 +244,21 @@ function run() {
   // producer would otherwise wait out its timeouts for a consumer that is gone.
   const watch = setInterval(() => {
     if (finished || pidOf() === pid) return
-    const crash = adb(['-s', serial, 'logcat', '-d', '-v', 'brief'], { check: false })
-      .split('\n')
-      .filter(
-        (line) => line.includes(`(${pid})`) && /Fatal signal|Uncaught|F DEBUG|abort/i.test(line)
-      )
+    const lines = adb(['-s', serial, 'logcat', '-d', `--pid=${pid}`, '-v', 'brief'], {
+      check: false
+    }).split('\n')
+    // The follower can lag the exit: a consumer that said it was done finished, it did not die.
+    if (lines.some((line) => line.includes('Consumer shutting down'))) {
+      finished = true
+      setTimeout(() => exit(0), 2000)
+      return
+    }
+    const crash = lines.filter((line) => /Fatal signal|Uncaught|F DEBUG|abort/i.test(line))
     console.error(`❌ The app died (pid ${pid})`)
     for (const line of crash.slice(-10)) console.error(`   ${line}`)
-    stop(1)
+    exit(1)
   }, 5000)
-
-  let stopping = false
-  function stop(code) {
-    if (stopping) return
-    stopping = true
-    clearInterval(watch)
-    logcat.kill()
-    for (const port of reversed) adb(['-s', serial, 'reverse', '--remove', port], { check: false })
-    if (code !== 0) adb(['-s', serial, 'shell', 'am', 'force-stop', appPackage], { check: false })
-    process.exit(code)
-  }
-  process.on('SIGINT', () => stop(130))
-  process.on('SIGTERM', () => stop(143))
+  undo.push(() => clearInterval(watch))
 }
 
 const command = process.argv[2]

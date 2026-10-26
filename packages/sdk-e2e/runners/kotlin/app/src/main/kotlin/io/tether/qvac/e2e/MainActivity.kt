@@ -54,13 +54,14 @@ class MainActivity : Activity() {
     private fun show(message: String) {
         runOnUiThread {
             output.append(message + "\n")
-            if (output.lineCount > UI_LINE_LIMIT) output.text = output.text.takeLast(UI_CHAR_KEEP)
+            // By length, not lineCount: a view that is not laid out (screen off, app frozen) counts no lines.
+            if (output.length() > UI_CHAR_LIMIT) output.text = output.text.takeLast(UI_CHAR_KEEP)
             scroll.post { scroll.fullScroll(ScrollView.FOCUS_DOWN) }
         }
     }
 
     private companion object {
-        const val UI_LINE_LIMIT = 2000
+        const val UI_CHAR_LIMIT = 120000
         const val UI_CHAR_KEEP = 60000
     }
 }

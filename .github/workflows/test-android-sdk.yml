@@ -204,6 +204,16 @@ jobs:
           echo "::error::A re-run from the Actions UI reuses this run's E2E_RUN_ID and Device Farm ARN artifacts. Start a new run: apply test-e2e-rerun-failed for failed tests, re-apply test-e2e-smoke or test-e2e-full when an earlier job failed, or dispatch test-sdk.yml again."
           exit 1
 
+      # Every other value would fall through to the React Native app.
+      - name: Check the app input
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          case "$APP" in
+            js|kotlin) ;;
+            *) echo "::error::app must be js or kotlin, got '$APP'"; exit 1 ;;
+          esac
+
       - name: Manual Workspace Cleanup
         run: rm -rf "$GITHUB_WORKSPACE" && mkdir -p "$GITHUB_WORKSPACE"
         shell: bash
@@ -214,14 +224,12 @@ jobs:
           ref: ${{ inputs.test-version || github.event.pull_request.head.sha || github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: false
-          # The Kotlin app also needs the Kotlin SDK and the worker build script it
-          # shares with the Python client; an empty line is ignored.
+          # The Kotlin app also needs the Kotlin SDK; an empty line is ignored.
           sparse-checkout: |
             ${{ inputs.project-directory }}
             ${{ inputs.working-directory }}
             packages/inference
             ${{ inputs.app == 'kotlin' && 'packages/sdk-kotlin' || '' }}
-            ${{ inputs.app == 'kotlin' && 'packages/sdk-python/scripts' || '' }}
             .github/actions/sdk-e2e-prepare-inference
             .github/actions/sdk-e2e-prepare-test-suite
 
@@ -239,12 +247,6 @@ jobs:
           # Drops `tools` from the action's default: the obsolete SDK Tools
           # package is gone from Google's repository and fails provisioning.
           packages: platform-tools
-
-      - name: Setup Python (Kotlin worker build)
-        if: inputs.app == 'kotlin'
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # 6.2.0
-        with:
-          python-version: "3.10"
 
       - name: Install Android NDK (Kotlin runtime)
         if: inputs.app == 'kotlin'
@@ -386,6 +388,7 @@ jobs:
         shell: bash
         env:
           INFERENCE_SOURCE: ${{ inputs.inference-source }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         run: |
           set -euo pipefail
           if [ "$INFERENCE_SOURCE" != "branch" ]; then
@@ -410,9 +413,11 @@ jobs:
           npm install --ignore-scripts --legacy-peer-deps --no-package-lock "../sdk/${sdk_tgz}"
           popd
 
-          cd "${{ inputs.working-directory }}"
-          echo "Building the Kotlin consumer APK (run ${{ env.E2E_RUN_ID }})..."
-          E2E_RUN_ID="${{ env.E2E_RUN_ID }}" node runners/kotlin/scripts/device.mjs build
+          # packages/sdk is built above, so Gradle's own build of it -- and the Python it
+          # runs -- is skipped, as pr-checks-sdk-kotlin.yml skips it.
+          cd "$WORKING_DIRECTORY"
+          echo "Building the Kotlin consumer APK (run $E2E_RUN_ID)..."
+          node runners/kotlin/scripts/device.mjs build --prebuilt-sdk
           ls -lh build/consumers/kotlin-android/consumer.apk
 
       - name: Upload APK artifact
@@ -548,6 +553,9 @@ jobs:
 
       - name: Upload test spec to Device Farm
         id: upload-spec
+        env:
+          APP: ${{ inputs.app }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         run: |
           SPEC_RESPONSE=$(aws devicefarm create-upload \
             --project-arn "${{ inputs.device-farm-project-arn }}" \
@@ -560,13 +568,13 @@ jobs:
 
           echo "spec-arn=$SPEC_ARN" >> $GITHUB_OUTPUT
 
-          SPEC="${{ inputs.working-directory }}/device-farm/test-spec-android.yml"
+          SPEC="$WORKING_DIRECTORY/device-farm/test-spec-android.yml"
           TIMEOUT_SECONDS=$(( ${{ inputs.device-farm-timeout || 90 }} * 60 ))
           sed -i "s/DEVICEFARM_TIMEOUT:-5400/DEVICEFARM_TIMEOUT:-${TIMEOUT_SECONDS}/" "$SPEC"
           # The spec launches and follows the React Native app; the Kotlin app is
           # another package and logs under its own tag. The log lines it waits for
           # are the same.
-          if [ "${{ inputs.app }}" = "kotlin" ]; then
+          if [ "$APP" = "kotlin" ]; then
             sed -i \
               -e "s#io.tether.qvac_test_consumer_mobile/.MainActivity#io.tether.qvac.e2e.kotlin/io.tether.qvac.e2e.MainActivity#" \
               -e "s/ReactNativeJS/QvacE2E/g" \
@@ -606,11 +614,14 @@ jobs:
 
       - name: Schedule Device Farm run
         id: schedule
+        env:
+          RUN_PREFIX: ${{ inputs.app == 'kotlin' && 'kotlin-android' || 'mobile' }}
+          POOL_NAME: ${{ steps.select.outputs.name }}
         run: |
-          echo "Scheduling Device Farm run on ${{ steps.select.outputs.name }}..."
+          echo "Scheduling Device Farm run on $POOL_NAME..."
 
           # The two apps share pools; the prefix tells their runs apart in the console.
-          RUN_NAME="${{ inputs.app == 'kotlin' && 'kotlin-android' || 'mobile' }}-${{ steps.select.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}"
+          RUN_NAME="${RUN_PREFIX}-${POOL_NAME}-${{ github.run_number }}-${{ github.run_attempt }}"
 
           RUN_ARN=$(aws devicefarm schedule-run \
             --project-arn "${{ inputs.device-farm-project-arn }}" \
@@ -627,9 +638,9 @@ jobs:
           PROJECT_ID=$(echo "${{ inputs.device-farm-project-arn }}" | sed -n 's/.*:project:\(.*\)/\1/p')
           RUN_ID=$(echo "$RUN_ARN" | sed -n 's/.*:run:[^/]*\/\(.*\)/\1/p')
           DF_URL="https://us-west-2.console.aws.amazon.com/devicefarm/home#/mobile/projects/${PROJECT_ID}/runs/${RUN_ID}"
-          echo "Device Farm Console (${{ steps.select.outputs.name }}): $DF_URL"
+          echo "Device Farm Console ($POOL_NAME): $DF_URL"
 
-          echo "### Device Farm: ${{ steps.select.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Device Farm: $POOL_NAME" >> $GITHUB_STEP_SUMMARY
           echo "[Open Device Farm Console]($DF_URL)" >> $GITHUB_STEP_SUMMARY
 
       - name: Save run ARN

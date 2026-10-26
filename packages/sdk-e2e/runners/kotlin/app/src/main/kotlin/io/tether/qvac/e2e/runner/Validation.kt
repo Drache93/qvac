@@ -51,10 +51,12 @@ object Validation {
     }
 
     private fun numericRange(result: Any?, minimum: Double?, maximum: Double?): StepResult {
+        // JS `Number(result)`: null, a blank string and false are 0, true is 1.
         val number = when (result) {
-            is Boolean -> Double.NaN
+            null -> 0.0
+            is Boolean -> if (result) 1.0 else 0.0
             is Number -> result.toDouble()
-            is String -> result.trim().toDoubleOrNull() ?: Double.NaN
+            is String -> result.trim().let { if (it.isEmpty()) 0.0 else it.toDoubleOrNull() ?: Double.NaN }
             else -> Double.NaN
         }
         if (number.isNaN()) return StepResult.fail("Expected number, got: ${jsString(result)}")

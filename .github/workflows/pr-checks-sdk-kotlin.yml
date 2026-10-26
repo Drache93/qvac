@@ -222,7 +222,9 @@ jobs:
 
           # The Kotlin e2e app compiles against this SDK: an API change that breaks it, or its
           # interpreter's unit tests, fails here rather than on the next Device Farm run. The app
-          # runs the all-in-one profile; unit tests need neither npm nor the e2e package.
+          # runs the all-in-one profile, bundled from the packages/sdk built above.
           pushd packages/sdk-e2e/runners/kotlin
-          ../../../sdk-kotlin/gradlew --no-daemon -PqvacProfile=aio :app:testDebugUnitTest
+          ../../../sdk-kotlin/gradlew --no-daemon -PqvacProfile=aio \
+            -x :sdk-kotlin:android-barekit:buildWorkspaceSdk \
+            :app:testDebugUnitTest
           popd

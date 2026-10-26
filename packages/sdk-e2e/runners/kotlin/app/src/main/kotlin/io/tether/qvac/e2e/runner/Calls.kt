@@ -19,6 +19,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 typealias Call = suspend (params: Map<String, Any?>) -> Any?
 typealias Fold = suspend (params: Map<String, Any?>, collect: String) -> Any?
@@ -474,7 +476,8 @@ class Calls(
 
     private class OpenIndex(val dim: Any?, val storage: Any?, var length: Any?)
 
-    private val indexes = LinkedHashMap<String, OpenIndex>()
+    // Registries are reached from the body and from calls it `start`ed, on different threads.
+    private val indexes: MutableMap<String, OpenIndex> = ConcurrentHashMap()
 
     private fun index(indexId: Any?): OpenIndex =
         indexes[indexId.toString()] ?: throw StepError("vector index \"$indexId\" is not open in this client")
@@ -499,8 +502,8 @@ class Calls(
         var job: Job? = null,
     )
 
-    private val sessions = LinkedHashMap<String, TranscribeSession>()
-    private var sessionSeq = 0
+    private val sessions: MutableMap<String, TranscribeSession> = ConcurrentHashMap()
+    private val sessionSeq = AtomicInteger()
 
     private fun session(id: Any?): TranscribeSession =
         sessions[id.toString()] ?: throw StepError("transcription session \"$id\" is not open")
@@ -553,7 +556,7 @@ class Calls(
                 session.events.close(error)
             }
         }
-        val id = "session-${++sessionSeq}"
+        val id = "session-${sessionSeq.incrementAndGet()}"
         sessions[id] = session
         return mapOf("sessionId" to id)
     }
@@ -588,7 +591,7 @@ class Calls(
         val silenceSamples = ((asDouble(params["trailingSilenceMs"]) ?: 0.0) / 1000 * decoded.sampleRate).toInt()
         val silence = ByteArray(silenceSamples * bytesPerSample)
         val chunkMs = asDouble(params.require("chunkMs"))!!
-        val chunkSize = (chunkMs / 1000 * decoded.sampleRate).toInt() * bytesPerSample
+        val chunkSize = chunkLength((chunkMs / 1000 * decoded.sampleRate).toInt() * bytesPerSample, "chunkMs")
         val delayMs = if (params["pace"] == false) 0L else chunkMs.toLong()
         var chunks = 0
         for (payload in listOf(speech, silence)) {
@@ -603,11 +606,15 @@ class Calls(
         return mapOf("chunks" to chunks, "bytes" to speech.size + silence.size)
     }
 
+    /** A chunk that holds nothing would never advance through the audio. */
+    private fun chunkLength(bytes: Int, param: String): Int =
+        bytes.takeIf { it > 0 } ?: throw StepError("$param gives chunks of $bytes bytes; it must give at least one")
+
     private suspend fun transcribeStreamWriteChunks(params: Map<String, Any?>): Any? {
         val session = session(params["sessionId"])
         val decoded = Media.decodeWavToMonoF32(bytesOf(params["audio"]))
         val speech = Media.f32ToS16LeBytes(decoded.samplesMono)
-        val chunkSize = ((asDouble(params.require("chunkMs"))!! / 1000) * decoded.sampleRate).toInt() * 2
+        val chunkSize = chunkLength(((asDouble(params.require("chunkMs"))!! / 1000) * decoded.sampleRate).toInt() * 2, "chunkMs")
         var written = 0
         for (index in 0 until (asDouble(params["chunks"])?.toInt() ?: 0)) {
             val offset = index * chunkSize
@@ -621,7 +628,7 @@ class Calls(
     private suspend fun transcribeStreamWriteBytes(params: Map<String, Any?>): Any? {
         val session = session(params["sessionId"])
         val data = bytesOf(params["data"])
-        val chunkBytes = asDouble(params.require("chunkBytes"))!!.toInt()
+        val chunkBytes = chunkLength(asDouble(params.require("chunkBytes"))!!.toInt(), "chunkBytes")
         var chunks = 0
         var offset = 0
         while (offset < data.size) {
@@ -666,7 +673,7 @@ class Calls(
 
     private class LogStream(val collected: MutableList<Map<String, Any?>>, var cutoffMs: Long = 0, var job: Job? = null)
 
-    private val logStreams = LinkedHashMap<String, LogStream>()
+    private val logStreams: MutableMap<String, LogStream> = ConcurrentHashMap()
     private var logStreamSeq = 0
 
     private fun logStream(id: Any?): LogStream =
@@ -711,7 +718,7 @@ class Calls(
 
     // --- scratch directories ------------------------------------------------------
 
-    private val scratchDirectories = mutableSetOf<File>()
+    private val scratchDirectories: MutableSet<File> = ConcurrentHashMap.newKeySet()
 
     private fun withinScratch(candidate: File): Boolean {
         val resolved = candidate.canonicalFile

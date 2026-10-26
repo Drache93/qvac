@@ -45,10 +45,14 @@ class AndroidHost(private val context: Context) : HostResolvers {
     override fun packageAsset(pkg: String, file: String): String {
         val asset = PACKAGE_ASSETS["$pkg/$file"]
             ?: error("package asset not bundled on Android: $pkg/$file -- add it to AndroidHost.PACKAGE_ASSETS")
-        val target = File(context.filesDir, "e2e/package-assets/$asset")
+        // Under the fixture root, so a new install replaces it with the fixtures; written aside and
+        // renamed, so a copy cut short is never taken for a whole one.
+        val target = File(fixtureRoot, ".package-assets/$asset")
         if (!target.exists()) {
             target.parentFile?.mkdirs()
-            context.assets.open(asset).use { input -> target.outputStream().use(input::copyTo) }
+            val partial = File(target.path + ".partial")
+            context.assets.open(asset).use { input -> partial.outputStream().use(input::copyTo) }
+            if (!partial.renameTo(target)) error("could not move $asset into place")
         }
         return target.absolutePath
     }

@@ -411,19 +411,25 @@ function applySameDevice(test: TestDefinition): void {
     ...group,
     platforms: [...group.platforms]
   }))
+  // A leg can already be listed through a rule of its own while a device group still lacks it.
+  let changed = false
   for (const [leg, device] of Object.entries(SAME_DEVICE)) {
     if (!skip.platforms.some((entry) => applies(entry, device))) continue
-    platforms.add(leg)
+    if (!platforms.has(leg)) {
+      platforms.add(leg)
+      changed = true
+    }
     for (const group of groups) {
       if (
         group.platforms.some((entry) => applies(entry, device)) &&
         !group.platforms.includes(leg)
       ) {
         group.platforms.push(leg)
+        changed = true
       }
     }
   }
-  if (platforms.size === skip.platforms.length) return
+  if (!changed) return
   test.skip = { ...skip, platforms: [...platforms], ...(skip.reasons ? { reasons: groups } : {}) }
 }
 

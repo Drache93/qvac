@@ -38,11 +38,12 @@ fun toJson(value: Any?): JsonElement = when (value) {
     is Boolean -> JsonPrimitive(value)
     is Int -> JsonPrimitive(value.toLong())
     is Long -> JsonPrimitive(value)
-    is Float -> JsonPrimitive(value.toDouble())
-    is Double -> if (value.isFinite() && value == Math.rint(value) && kotlin.math.abs(value) < 9.0e15) {
-        JsonPrimitive(value.toLong())
-    } else {
-        JsonPrimitive(value)
+    is Float -> toJson(value.toDouble())
+    // JSON has no NaN or Infinity; JSON.stringify writes null for them, and so does this.
+    is Double -> when {
+        !value.isFinite() -> JsonNull
+        value == Math.rint(value) && kotlin.math.abs(value) < 9.0e15 -> JsonPrimitive(value.toLong())
+        else -> JsonPrimitive(value)
     }
     is Number -> JsonPrimitive(value.toDouble())
     is String -> JsonPrimitive(value)

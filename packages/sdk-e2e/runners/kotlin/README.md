@@ -35,7 +35,9 @@ In CI, `test-android-sdk.yml` with `app: kotlin` builds the same APK with the ru
 and runs it on Device Farm under the same test spec as the React Native app. Dispatch it from
 `test-sdk.yml` with **Kotlin Android tests**.
 
-Building by hand needs JDK 17 and an Android SDK with NDK `29.0.14206865`:
+Building by hand needs JDK 17, Node.js, Python 3 (the Kotlin SDK's build of `packages/sdk` runs
+`build_worker.py`), an Android SDK with NDK `29.0.14206865`, and `npm run install:build` in
+`packages/sdk-e2e` (the APK's catalog is emitted from it):
 
 ```bash
 node runners/kotlin/scripts/device.mjs build   # -> build/consumers/kotlin-android/consumer.apk
@@ -44,7 +46,7 @@ cd runners/kotlin && ../../../sdk-kotlin/gradlew :app:testDebugUnitTest
 
 The Gradle build includes `packages/sdk-kotlin` as a composite build, so the app always runs this
 checkout's Kotlin SDK and the worker it bundles. The Kotlin SDK's PR checks run the unit tests, so an
-SDK change that breaks the app is caught there; they need neither npm nor a device.
+SDK change that breaks the app is caught there; they need no device.
 
 MQTT runs on Eclipse Paho with OkHttp underneath for WebSocket brokers (`OkHttpWebSocket.kt`). Paho
 1.2.5's own WebSocket transport feeds ping frames into the MQTT stream and never answers them, so behind a

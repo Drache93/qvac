@@ -6,8 +6,10 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import java.io.IOException
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -15,6 +17,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class OkHttpWebSocketTest {
@@ -73,6 +76,30 @@ class OkHttpWebSocketTest {
         assertContentEquals(byteArrayOf(0x20, 0x02, 0x00, 0x00), reply)
         stream.stop()
         peer.close(1000, null)
+    }
+
+    @Test
+    fun `an upgrade that never answers is cancelled, not left behind`() {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        server.start()
+        val uri = URI(OkHttpWebSocket.register("ws://${server.hostName}:${server.port}/mqtt", OkHttpClient()))
+        val client = OkHttpWebSocket.clientFor(uri)
+        val stream = OkHttpWebSocketStream(uri, client, 500)
+        assertFailsWith<IOException> { stream.start() }
+        val deadline = System.currentTimeMillis() + 5_000
+        while (client.dispatcher.runningCallsCount() > 0 && System.currentTimeMillis() < deadline) Thread.sleep(50)
+        assertEquals(0, client.dispatcher.runningCallsCount())
+    }
+
+    @Test
+    fun `a connection that fails after it opened reaches Paho as an error`() {
+        val uri = serve()
+        val stream = OkHttpWebSocketStream(uri, OkHttpWebSocket.clientFor(uri), 5_000)
+        stream.start()
+        opened.poll(5, TimeUnit.SECONDS)!!
+        // The peer's socket goes away without a close frame.
+        server.shutdown()
+        assertFailsWith<IOException> { stream.input.read() }
     }
 
     @Test
