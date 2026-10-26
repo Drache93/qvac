@@ -74,8 +74,6 @@ export const registryModelsResult = z.object({
 
 export const REGISTRY_FIELD_CODES: Record<string, string> = {
   addon: 'invalid_addon',
-  limit: 'invalid_limit',
-  offset: 'invalid_offset',
   registrySource: 'invalid_registry_source',
   registryPath: 'invalid_registry_path'
 }
