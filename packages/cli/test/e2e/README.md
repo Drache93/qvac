@@ -59,7 +59,7 @@ test/e2e/
   core/               shape-agnostic server behavior, in-process & modelless
     routing-cors-auth.test.ts, model-load-config.test.ts
   default/            /qvac/v1/* route tests, in-process & modelless
-    chat-batch.test.ts, kv-cache.test.ts, system-model-fit.test.ts, translate.test.ts, ocr.test.ts
+    chat-batch.test.ts, kv-cache.test.ts, system-model-fit.test.ts, translate.test.ts, ocr.test.ts, music.test.ts
   openai/             /v1/* route tests, in-process & modelless
     *-validation.test.ts, models, models-catalog, audio-*
   cli/                commands, serve lifecycle & flag behavior (spawned binary)
