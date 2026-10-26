@@ -79,7 +79,7 @@ Both formats are interchangeable. The `hypercore-id-encoding` library handles co
 
 ### System Requirements
 
-- Node.js ≥ 20
+- Node.js 22.23.4, 24.22.1, 26.12.1 or later in the same line. Earlier releases bundle a Brotli decoder vulnerable to CVE-2026-111497, and Node.js 20 has no fix. After upgrading, run `pm2 update` so the pm2 daemon and the registry restart on the new runtime. `remote-update.sh` refuses to deploy otherwise.
 - `npm install` completed inside `registry-server/`
 - `npm run build:spec` executed (generates hyperschema/hyperdb/hyperdispatch artifacts)
 - Unique storage directory per writer (`./corestore`, `./store2`, `./store3`, …)

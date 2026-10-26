@@ -54,6 +54,42 @@ command -v npm >/dev/null || fail "npm not found on node"
 command -v pm2 >/dev/null || fail "pm2 not found on node"
 command -v curl >/dev/null || fail "curl not found on node"
 
+# CVE-2026-111497 (Node2Shell): Node's bundled Brotli decoder can be driven to an
+# out-of-bounds write by a crafted `br` response, and the server's HF downloads
+# decode with Node's zlib. Refuse to deploy onto a Node.js release without the fix.
+# Keep these floors in step with `engines.node` in package.json.
+node_has_brotli_fix() {
+  node -e '
+    const [maj, min, pat] = process.argv[1].replace(/^v/, "").split(".").map(Number)
+    const floor = { 22: [23, 4], 24: [22, 1], 26: [12, 1] }[maj]
+    const ok = maj > 26 || (!!floor && (min > floor[0] || (min === floor[0] && pat >= floor[1])))
+    process.exit(ok ? 0 : 1)
+  ' "$1"
+}
+NODE_FIX_HINT="needs Node.js 22.23.4, 24.22.1, 26.12.1 or later"
+
+node_on_path="$(node -v)"
+node_has_brotli_fix "$node_on_path" \
+  || fail "node $node_on_path on PATH lacks the CVE-2026-111497 fix; $NODE_FIX_HINT as the nvm default"
+
+# pm2 keeps the interpreter it started with, so a patched nvm default does not
+# reach the running server until the daemon restarts. The child reports its own
+# runtime version, which is the one that matters.
+running_node="$(pm2 jlist 2>/dev/null | node -e '
+  let raw = ""
+  process.stdin.on("data", (c) => { raw += c }).on("end", () => {
+    try {
+      const app = JSON.parse(raw).find((p) => p.name === process.argv[1])
+      process.stdout.write(app?.pm2_env?.node_version || "")
+    } catch {}
+  })
+' "$PM2_PROCESS")" || fail "could not read the pm2 process list"
+if [ -n "$running_node" ]; then
+  node_has_brotli_fix "$running_node" \
+    || fail "pm2 process '$PM2_PROCESS' runs node $running_node, which lacks the CVE-2026-111497 fix; $NODE_FIX_HINT, then run 'pm2 update'"
+fi
+log "Node.js runtime: PATH $node_on_path, pm2 '$PM2_PROCESS' ${running_node:-not running}"
+
 [ -d "$REPO_PATH/.git" ] || fail "REPO_PATH '$REPO_PATH' is not a git checkout"
 cd "$REPO_PATH"
 
