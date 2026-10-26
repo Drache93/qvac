@@ -778,6 +778,39 @@ TEST_F(ToolGrammarModelTest, PromptParserRejectsMalformedToolTurns) {
   }
 }
 
+// Nesting past the parser's limit is rejected before picojson recurses into
+// it; brackets inside strings do not count.
+TEST_F(ToolGrammarModelTest, PromptParserRejectsDeepNesting) {
+  if (!hasQwen3Model()) {
+    GTEST_SKIP() << qwen3Model_.missingMessage();
+  }
+  auto model = createModel();
+  const auto nested = [](size_t depth) {
+    return std::string(depth, '[') + std::string(depth, ']');
+  };
+  EXPECT_NO_THROW(LlamaModelTestPeer::formatPrompt(*model, nested(128)));
+  EXPECT_THROW(
+      LlamaModelTestPeer::formatPrompt(*model, nested(129)),
+      qvac_errors::StatusError);
+  // Deep enough to overflow a worker thread's stack without the check.
+  EXPECT_THROW(
+      LlamaModelTestPeer::formatPrompt(*model, nested(100000)),
+      qvac_errors::StatusError);
+  EXPECT_THROW(
+      LlamaModelTestPeer::formatPrompt(
+          *model,
+          R"([{"role":"assistant","content":"","tool_calls":[{"name":"f",)"
+          R"("arguments":"{\"a\":)" +
+              nested(200) + R"(}"}]}])"),
+      qvac_errors::StatusError);
+
+  const ParsedPromptPayload parsed = LlamaModelTestPeer::formatPrompt(
+      *model,
+      R"([{"role":"user","content":"\")" + std::string(200, '[') + R"("}])");
+  ASSERT_EQ(parsed.chatMsgs.size(), 1u);
+  EXPECT_EQ(parsed.chatMsgs[0].content, "\"" + std::string(200, '['));
+}
+
 // Unset keeps fabric's single-call grammar; only `true` renders one that
 // accepts several calls.
 TEST_F(ToolGrammarModelTest, ParallelToolCallsIsOptIn) {

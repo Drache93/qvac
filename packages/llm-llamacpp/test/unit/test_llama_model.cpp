@@ -1169,6 +1169,12 @@ TEST_F(LlamaModelTest, CalcTokenRejectsInvalidRequests) {
   EXPECT_THROW(
       (void)model.calcToken({.text = "Hi", .history = R"(["Hi"])"}),
       qvac_errors::StatusError);
+  // Nested deep enough to overflow the stack without the depth check.
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.text = "Hi",
+           .tools = std::string(100000, '[') + std::string(100000, ']')}),
+      qvac_errors::StatusError);
 }
 
 TEST_F(LlamaModelTest, ProcessContextOverflow) {
