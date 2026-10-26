@@ -197,7 +197,8 @@ public:
   void discardCache(const std::string& cacheKey);
 
   /// What `calcToken` counts. `history` is a `Message[]` in `process`'s JSON
-  /// shape, tool definitions allowed; `tools` holds tool definitions only.
+  /// shape, tool definitions allowed; `tools` holds tool definitions only. A
+  /// tool name in both is a duplicate and throws.
   struct CalcTokenRequest {
     std::string text;
     std::optional<std::string> history;
