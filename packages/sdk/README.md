@@ -20,8 +20,6 @@ For AI/LLM tools, use [https://docs.qvac.tether.io/llms-full.txt](https://docs.q
 
 ## Supported environments and installation
 
-For mobile apps that use only raw PCM streaming transcription, list the required audio plugins and set `"includeAudioDecoder": false` in `qvac.config.*` before bundling or running Expo prebuild. You can also use `qvac bundle sdk --defer bare-ffmpeg`. Both options leave `bare-ffmpeg` out of the native addon manifest. Bundle FFmpeg when the app decodes compressed audio files or asks `audiogen-ggml` for a compressed output format; PCM and WAV output need no FFmpeg.
-
 See https://docs.qvac.tether.io/sdk/getting-started/installation
 
 On Node.js, the SDK installs and launches its own Bare worker through `bare-runtime`.
@@ -30,6 +28,8 @@ When upgrading the SDK, reinstall dependencies with the existing lockfile so the
 package manager can replace an older, incompatible runtime. Remove any override
 or resolution that forces the worker below that requirement; installing a newer
 global `bare` executable does not change the SDK's worker dependency.
+
+For mobile apps that use only raw PCM streaming transcription, list the required audio plugins and set `"includeAudioDecoder": false` in `qvac.config.*` before bundling or running Expo prebuild. You can also use `qvac bundle sdk --defer bare-ffmpeg`. Both options leave `bare-ffmpeg` out of the native addon manifest. Bundle FFmpeg when the app decodes compressed audio files or asks `audiogen-ggml` for a compressed output format; PCM and WAV output need no FFmpeg.
 
 ## Quickstart
 
