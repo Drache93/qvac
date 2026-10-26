@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Native `calcToken` binding: counts the tokens a text takes on the loaded
+  model, or a conversation (`history`, `tools`) rendered by its chat template.
+  The JS API does not expose it yet
+  ([#5353](https://github.com/tetherto/qvac/pull/5353)).
+
 ## [0.64.2] - 2026-10-23
 
 ### Added

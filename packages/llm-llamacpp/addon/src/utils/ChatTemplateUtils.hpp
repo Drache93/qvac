@@ -329,6 +329,19 @@ void requireToolChoiceHonoured(
     common_chat_tool_choice choice, bool toolDefinitionsDropped,
     bool toolGrammarApplied, const char* logTag);
 
+/**
+ * @brief Tokens @p messages and @p tools take as the opening request of a
+ * fresh conversation, rendered the way `tokenizeChat` renders one with no
+ * per-request overrides. @p tokenize must add BOS the way a fresh prompt does.
+ *
+ * The tools are validated like a request's (`resolveToolChoice`).
+ */
+[[nodiscard]] size_t countRenderedChatTokens(
+    const struct common_chat_templates* tmpls,
+    const std::vector<common_chat_msg>& messages,
+    const std::vector<common_chat_tool>& tools, bool useJinja,
+    bool enableThinking, const Tokenizer& tokenize);
+
 std::string getThinkingForcedOpenText(
     const std::string& generationPrompt, const std::string& thinkingStartTag);
 

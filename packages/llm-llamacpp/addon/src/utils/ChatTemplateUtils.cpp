@@ -1049,6 +1049,28 @@ void requireToolChoiceHonoured(
   }
 }
 
+size_t countRenderedChatTokens(
+    const struct common_chat_templates* tmpls,
+    const std::vector<common_chat_msg>& messages,
+    const std::vector<common_chat_tool>& tools, bool useJinja,
+    bool enableThinking, const Tokenizer& tokenize) {
+  common_chat_templates_inputs inputs;
+  inputs.use_jinja = useJinja;
+  inputs.enable_thinking = enableThinking;
+  inputs.messages = messages;
+  inputs.add_generation_prompt =
+      !messages.empty() &&
+      (messages.back().role == "user" || messages.back().role == "tool");
+  ResolvedToolChoice toolChoice = resolveToolChoice(std::nullopt, tools);
+  if (!toolChoice.tools.empty()) {
+    inputs.tools = std::move(toolChoice.tools);
+    inputs.tool_choice = toolChoice.choice;
+  }
+  // Only the count is returned. `toolDefinitionsDropped` could be returned
+  // with it, to tell a caller the template left the tools out of the count.
+  return tokenize(getPrompt(tmpls, inputs).prompt).size();
+}
+
 bool configureTemplateDerivedSampling(
     common_params& params, const Tokenizer& tokenize,
     const PromptRenderResult& rendered, bool toolsRequested,

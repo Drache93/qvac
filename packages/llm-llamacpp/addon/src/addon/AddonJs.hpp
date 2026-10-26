@@ -1056,6 +1056,44 @@ inline js_value_t* discardCache(js_env_t* env, js_callback_info_t* info) try {
 }
 JSCATCH
 
+/// `calcToken(instance, { text?, history?, tools? })`: tokens the input takes
+/// on the loaded model (see LlamaModel::calcToken). `history` and `tools` are
+/// JSON strings, like `runJob`'s `input`. Resolves with the count as a plain
+/// number; see utils::countRenderedChatTokens for `toolDefinitionsDropped`.
+/// Off the JS thread: a reload holds the model's state lock.
+inline js_value_t* calcToken(js_env_t* env, js_callback_info_t* info) try {
+  using namespace qvac_lib_inference_addon_cpp;
+
+  JsArgsParser args(env, info);
+  AddonJs& instance = JsInterface::getInstance(env, args.get(0, "instance"));
+  auto params = args.getJsObject(1, "params");
+  LlamaModel::CalcTokenRequest request;
+  request.text =
+      params.getOptionalPropertyAs<js::String, std::string>(env, "text")
+          .value_or("");
+  request.history =
+      params.getOptionalPropertyAs<js::String, std::string>(env, "history");
+  request.tools =
+      params.getOptionalPropertyAs<js::String, std::string>(env, "tools");
+  // Keeps the model alive past a JS-side destroyInstance(), as cancel does.
+  auto addonCppRef = instance.addonCpp;
+  return js::JsAsyncTask::run(
+      env,
+      [addonCppRef, request = std::move(request)]() {
+        const LlamaModel* model = tryGetLlamaModel(*addonCppRef);
+        if (model == nullptr) {
+          throw StatusError(
+              general_error::InvalidArgument,
+              "calcToken: the model is not loaded");
+        }
+        return model->calcToken(request);
+      },
+      [](js_env_t* jsEnv, const size_t& count) -> js_value_t* {
+        return js::Number::create(jsEnv, static_cast<double>(count));
+      });
+}
+JSCATCH
+
 inline js_value_t* finetune(js_env_t* env, js_callback_info_t* info) try {
   using namespace qvac_lib_inference_addon_cpp;
   using namespace std;

@@ -1020,6 +1020,116 @@ TEST_F(LlamaModelTest, FormatPromptMediaWithoutRequest) {
   EXPECT_THROW({ model.process(input); }, qvac_errors::StatusError);
 }
 
+TEST_F(LlamaModelTest, CalcTokenBeforeLoadThrows) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  EXPECT_THROW(
+      (void)model.calcToken({.text = "Hello"}), qvac_errors::StatusError);
+}
+
+TEST_F(LlamaModelTest, CalcTokenCountsRawText) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  const size_t hello = model.calcToken({.text = "Hello"});
+  const size_t longer =
+      model.calcToken({.text = "Hello, world! How are you today?"});
+  EXPECT_GT(hello, 0U);
+  EXPECT_GT(longer, hello);
+  EXPECT_EQ(model.calcToken({.text = ""}), 0U);
+  // The template wraps the same text in a user turn, BOS and a generation
+  // prompt.
+  EXPECT_GT(model.calcToken({.text = "Hello", .history = "[]"}), hello);
+}
+
+// The count is what a fresh request on the same conversation decodes.
+TEST_F(LlamaModelTest, CalcTokenMatchesPromptTokensOfAFreshRun) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  const std::string system =
+      R"({"role": "system", "content": "You are a helpful assistant."})";
+  const std::string user = R"({"role": "user", "content": "Hello, world!"})";
+  const size_t fromHistory =
+      model.calcToken({.history = "[" + system + "," + user + "]"});
+  const size_t fromText =
+      model.calcToken({.text = "Hello, world!", .history = "[" + system + "]"});
+  EXPECT_EQ(fromHistory, fromText);
+
+  LlamaModel::Prompt prompt;
+  prompt.input = "[" + system + "," + user + "]";
+  (void)model.processPrompt(prompt);
+  EXPECT_EQ(
+      static_cast<double>(fromHistory),
+      getStatValue(model.runtimeStats(), "promptTokens"));
+}
+
+TEST_F(LlamaModelTest, CalcTokenCountsTools) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  const std::string tools = R"([{"type": "function", "name": "get_weather",
+    "description": "Get the weather for a city", "parameters": {"type":
+    "object", "properties": {"city": {"type": "string"}}, "required":
+    ["city"]}}])";
+  const size_t withoutTools =
+      model.calcToken({.text = "Weather in Paris?", .history = "[]"});
+  const size_t withTools =
+      model.calcToken({.text = "Weather in Paris?", .tools = tools});
+  EXPECT_GT(withTools, withoutTools);
+  // Tool definitions inside the history count the same.
+  EXPECT_EQ(
+      model.calcToken({.text = "Weather in Paris?", .history = tools}),
+      withTools);
+}
+
+TEST_F(LlamaModelTest, CalcTokenRejectsInvalidRequests) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  // A message among the tool definitions.
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.text = "Hi", .tools = R"([{"role": "user", "content": "Hi"}])"}),
+      qvac_errors::StatusError);
+  // Tools with nothing to render them with.
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.tools = R"([{"type": "function", "name": "get_weather"}])"}),
+      qvac_errors::StatusError);
+  // Media on a text-only model.
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.history =
+               R"([{"role": "user", "type": "media", "content": "data"}])"}),
+      qvac_errors::StatusError);
+  EXPECT_THROW(
+      (void)model.calcToken({.history = "not json"}), qvac_errors::StatusError);
+}
+
 TEST_F(LlamaModelTest, ProcessContextOverflow) {
   if (!fs::exists(getValidModelPath())) {
     FAIL() << "Test model not found at: " << getValidModelPath();

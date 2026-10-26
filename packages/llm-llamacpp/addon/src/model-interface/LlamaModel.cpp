@@ -5,6 +5,8 @@
 #include <cinttypes>
 #include <cstddef>
 #include <filesystem>
+#include <functional>
+#include <iterator>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
@@ -1920,12 +1922,17 @@ void readToolTurnFields(
   }
 }
 
-} // namespace
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static,readability-function-cognitive-complexity)
-ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
+// Parses a JSON prompt into chat messages, tools and planned media without
+// touching model state. `resetMedia` runs before each throw that must drop
+// media the caller staged for this prompt.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+ParsedPromptPayload parsePromptPayload(
+    const std::string& input, bool isTextLlm,
+    const std::optional<qvac_lib_inference_addon_llama::utils::ReasoningTags>&
+        reasoningTags,
+    const std::function<void()>& resetMedia) {
   if (input.empty()) {
-    state_->llmContext_->resetMedia();
+    resetMedia();
     std::string errorMsg = string_format("%s: empty prompt\n", __func__);
     throw qvac_errors::StatusError(ADDON_ID, toString(EmptyPrompt), errorMsg);
   }
@@ -2005,7 +2012,7 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
 
         if (jsonObj.find("type") != jsonObj.end() &&
             jsonObj["type"].get<std::string>() == "media") {
-          if (state_->isTextLlm_) {
+          if (isTextLlm) {
             const char* errorMsg = "Media not supported by text-only models";
             throw qvac_errors::StatusError(
                 ADDON_ID, toString(MediaNotSupported), errorMsg);
@@ -2029,7 +2036,7 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
           }
         }
         if (newMsg.role != "user" && isNextUser) {
-          state_->llmContext_->resetMedia();
+          resetMedia();
           std::string errorMsg = string_format(
               "%s: Must append a user question after loading "
               "media\n",
@@ -2048,7 +2055,7 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
         try {
           readToolTurnFields(jsonObj, orderedEntry, newMsg);
         } catch (...) {
-          state_->llmContext_->resetMedia();
+          resetMedia();
           throw;
         }
         chatMsgs.push_back(newMsg);
@@ -2056,7 +2063,7 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
     }
 
     if (addMediaPlaceholder > 0) {
-      state_->llmContext_->resetMedia();
+      resetMedia();
       std::string errorMsg =
           string_format("%s: No request for media was made\n", __func__);
       throw qvac_errors::StatusError(
@@ -2064,7 +2071,7 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
     }
   }
   if (!err.empty()) {
-    state_->llmContext_->resetMedia();
+    resetMedia();
     std::string errorMsg =
         string_format("%s: Invalid input format: %s\n", __func__, err.c_str());
     throw qvac_errors::StatusError(
@@ -2076,11 +2083,84 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
   // print it as part of the answer. Hand every template the split form, the
   // shape llama-server's OpenAI-compatible input has, cut with the markers
   // the template itself reports.
-  if (const auto tags = state_->llmContext_->historyReasoningTags()) {
+  if (reasoningTags.has_value()) {
     qvac_lib_inference_addon_llama::utils::moveReasoningOutOfContent(
-        chatMsgs, *tags);
+        chatMsgs, *reasoningTags);
   }
   return parsed;
+}
+
+} // namespace
+
+ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
+  return parsePromptPayload(
+      input,
+      state_->isTextLlm_,
+      state_->llmContext_->historyReasoningTags(),
+      [this] { state_->llmContext_->resetMedia(); });
+}
+
+size_t LlamaModel::calcToken(const CalcTokenRequest& request) const {
+  std::shared_lock lock(stateMtx_);
+  if (!state_ || !state_->llmContext_) {
+    throw qvac_errors::StatusError(
+        ADDON_ID,
+        toString(qvac_errors::general_error::InvalidArgument),
+        "calcToken: the model is not loaded");
+  }
+  LlmContext& context = *state_->llmContext_;
+  if (!request.history.has_value() && !request.tools.has_value()) {
+    return ::common_tokenize(
+               llama_model_get_vocab(context.getModel()),
+               request.text,
+               false,
+               true)
+        .size();
+  }
+
+  // Never resets media: a request running beside this one may have staged it.
+  const auto keepMedia = [] {};
+  ParsedPromptPayload conversation;
+  if (request.history.has_value()) {
+    conversation = parsePromptPayload(
+        *request.history,
+        state_->isTextLlm_,
+        context.historyReasoningTags(),
+        keepMedia);
+  }
+  if (request.tools.has_value()) {
+    ParsedPromptPayload tools = parsePromptPayload(
+        *request.tools, state_->isTextLlm_, std::nullopt, keepMedia);
+    if (!tools.chatMsgs.empty()) {
+      throw qvac_errors::StatusError(
+          ADDON_ID,
+          toString(qvac_errors::general_error::InvalidArgument),
+          "calcToken: tools must hold only function definitions");
+    }
+    conversation.tools.insert(
+        conversation.tools.end(),
+        std::make_move_iterator(tools.tools.begin()),
+        std::make_move_iterator(tools.tools.end()));
+  }
+  if (!conversation.mediaPlan.empty()) {
+    throw qvac_errors::StatusError(
+        ADDON_ID,
+        toString(qvac_errors::general_error::InvalidArgument),
+        "calcToken: media messages cannot be counted");
+  }
+  if (!request.text.empty()) {
+    common_chat_msg userTurn;
+    userTurn.role = "user";
+    userTurn.content = request.text;
+    conversation.chatMsgs.push_back(std::move(userTurn));
+  }
+  if (conversation.chatMsgs.empty()) {
+    throw qvac_errors::StatusError(
+        ADDON_ID,
+        toString(qvac_errors::general_error::InvalidArgument),
+        "calcToken: tools need a history or text to render with");
+  }
+  return context.countChatTokens(conversation.chatMsgs, conversation.tools);
 }
 
 void LlamaModel::resetState(bool resetStats) {

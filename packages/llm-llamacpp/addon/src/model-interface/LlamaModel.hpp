@@ -196,6 +196,23 @@ public:
   /// kept for the key.
   void discardCache(const std::string& cacheKey);
 
+  /// What `calcToken` counts. `history` is a `Message[]` in `process`'s JSON
+  /// shape, tool definitions allowed; `tools` holds tool definitions only.
+  struct CalcTokenRequest {
+    std::string text;
+    std::optional<std::string> history;
+    std::optional<std::string> tools;
+  };
+
+  /// Tokens @p request takes on this model. `text` alone is counted raw, with
+  /// no chat template and no BOS. With `history` or `tools` the conversation,
+  /// `text` appended as a user turn, is rendered by the chat template as the
+  /// opening request of a fresh conversation, BOS and generation prompt
+  /// included. Media is not counted: a media message throws
+  /// `InvalidArgument`. Reads only load-time state and never enters the job
+  /// scheduler, so it runs beside in-flight requests.
+  [[nodiscard]] size_t calcToken(const CalcTokenRequest& request) const;
+
   /**
    * The Reset method.
    */
