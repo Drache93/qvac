@@ -105,7 +105,7 @@ def main():
     manifest['records'] = records
     manifest['checkpoint_sha256'] = CHECKPOINT_HASH
     manifest['reference_sha256'] = hashlib.sha256((args.output / 'megaloc-diag-pytorch-f32.bin').read_bytes()).hexdigest()
-    (args.output / 'megaloc-diag-manifest.json').write_text(json.dumps(manifest))
+    (args.output / 'megaloc-diag-manifest.bin').write_text(json.dumps(manifest))
     print(f'Prepared {len(records)} image/reference pairs; SHA256={manifest["reference_sha256"]}', flush=True)
 
 
