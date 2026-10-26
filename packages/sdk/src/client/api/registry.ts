@@ -85,7 +85,8 @@ async function modelRegistrySearch(
  * @param registryPath - Registry-relative path of the model to fetch.
  * @param registrySource - Registry source identifier (e.g., `"huggingface"`, `"local"`).
  * @returns A promise resolving to the matching `ModelRegistryEntry`.
- * @throws {ModelRegistryQueryFailedError} When the model cannot be located or the registry query fails.
+ * @throws {ModelRegistryModelNotFoundError} When the registry has no model at this source and path.
+ * @throws {ModelRegistryQueryFailedError} When the registry query fails.
  */
 async function modelRegistryGetModel(
   registryPath: string,
