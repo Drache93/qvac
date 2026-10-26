@@ -7,9 +7,11 @@ async function runTests () {
 
   test.pause()
 
+  await import('./aaa-megaloc-diagnostics.test.js')
   await import('./classify.test.js')
   await import('./error-cases.test.js')
   await import('./megaloc.test.js')
+  await import('./zzz-megaloc-upload-crash.test.js')
 
   test.resume()
 }

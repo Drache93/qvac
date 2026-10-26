@@ -93,6 +93,10 @@ inputs:
     description: "manual-devices mode: comma-separated MODEL filter values, e.g. 'Pixel 9, iPhone 17'. One run is scheduled per (test-spec × model), each pinned to a single device via device-model-operator (default CONTAINS)."
     required: false
     default: ""
+  device-os-version:
+    description: "Diagnostic branch: optional exact device OS version"
+    required: false
+    default: ""
   job-timeout-minutes:
     description: "Per-run Device Farm jobTimeoutMinutes. Default 120 gives headroom for slower devices (Pixel 9 Pro VLM ~56 min). The crash monitor kills hung tests early so the extra ceiling doesn't waste time on crashes."
     required: false
@@ -126,6 +130,7 @@ runs:
         DEVICE_MODEL_OPERATOR: ${{ inputs.device-model-operator }}
         DEVICE_MANUFACTURER: ${{ inputs.device-manufacturer }}
         DEVICE_MODELS: ${{ inputs.device-models }}
+        DEVICE_OS_VERSION: ${{ inputs.device-os-version }}
         JOB_TIMEOUT_MINUTES: ${{ inputs.job-timeout-minutes }}
       run: |
         set -euo pipefail
@@ -384,11 +389,11 @@ runs:
             SPEC_ARN=$(echo "$TEST_SPECS_JSON" | jq -r ".[$SIDX].arn")
             for MIDX in $(seq 0 $((MODEL_COUNT - 1))); do
               MODEL=$(echo "$MODELS_JSON" | jq -r ".[$MIDX]")
-              FILTER=$(jq -nc --arg plat "$PLAT_UPPER" --arg model "$MODEL" --arg op "$MODEL_OP" '{
-                filters: [
+              FILTER=$(jq -nc --arg plat "$PLAT_UPPER" --arg model "$MODEL" --arg op "$MODEL_OP" --arg osver "$DEVICE_OS_VERSION" '{
+                filters: ([
                   {attribute:"PLATFORM", operator:"EQUALS", values:[$plat]},
                   {attribute:"MODEL",    operator:$op,      values:[$model]}
-                ],
+                ] + (if $osver == "" then [] else [{attribute:"OS_VERSION", operator:"EQUALS", values:[$osver]}] end)),
                 maxDevices: 1
               }')
               SAFE_MODEL=$(printf '%s' "$MODEL" | tr -c '[:alnum:]' '_')

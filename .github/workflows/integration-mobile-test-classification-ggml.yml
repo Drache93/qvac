@@ -34,6 +34,23 @@ on:
   # workflow_call path (benchmarks / weekend / on-merge) is unchanged.
   workflow_dispatch:
     inputs:
+      diagnostic_assets_run_id:
+        description: "Run containing the pinned megaloc-diagnostic-assets artifact"
+        type: string
+        default: ""
+      diagnostic_mode:
+        description: "Diagnostic scenario"
+        type: choice
+        options: [full, crash]
+        default: full
+      diagnostic_os_version:
+        description: "Optional exact Android OS version for driver comparisons"
+        type: string
+        default: ""
+      diagnostic_cpu_ops:
+        description: "Diagnostic CPU operation intervention (empty keeps engine defaults)"
+        type: string
+        default: ""
       platform:
         description: "Platform to run on (a manual run targets one platform)."
         type: choice
@@ -288,6 +305,23 @@ jobs:
         working-directory: addon/${{ inputs.workdir || 'packages/classification-ggml' }}
         run: npm run mobile:copy-prebuilds
 
+      - name: Download pinned diagnostic images and PyTorch references
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: megaloc-diagnostic-assets
+          path: addon/packages/classification-ggml/test/mobile/testAssets
+          run-id: ${{ inputs.diagnostic_assets_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure diagnostic scenario
+        working-directory: addon/packages/classification-ggml
+        env:
+          DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode || 'full' }}
+          DIAGNOSTIC_CPU_OPS: ${{ inputs.diagnostic_cpu_ops }}
+        run: >-
+          python3 -c 'import json,os; from pathlib import Path;
+          Path("test/fixtures/megaloc-diagnostic-plan.json").write_text(json.dumps({"mode":os.environ["DIAGNOSTIC_MODE"],"cpuOps":os.environ["DIAGNOSTIC_CPU_OPS"]}))'
+
       - name: Build mobile app
         id: build
         uses: ./.github/actions/run-mobile-integration-tests/build-mobile-app
@@ -301,6 +335,7 @@ jobs:
           platform: ${{ matrix.platform }}
           addon-workdir: ${{ inputs.workdir || 'packages/classification-ggml' }}
           addon-npm-name: '@qvac/classification-ggml'
+          per-test-timeout-minutes: '35'
           ios-build-cert-base64: ${{ secrets.TEST_APP_APPLE_DISTRIBUTION_CERTIFICATE }}
           ios-build-cert-password: ${{ secrets.APPLE_P12_PASSWORD }}
           ios-keychain-password: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
@@ -331,6 +366,7 @@ jobs:
         uses: ./.github/actions/run-mobile-integration-tests/upload-to-devicefarm
         with:
           platform: ${{ matrix.platform }}
+          mocha-timeout-ms: '2100000'
           addon-workdir: ${{ inputs.workdir || 'packages/classification-ggml' }}
           app-path: ${{ steps.build.outputs.app-path }}
           app-type: ${{ steps.build.outputs.app-type }}
@@ -356,6 +392,7 @@ jobs:
           scheduling-mode: ${{ inputs.platform != '' && 'manual-devices' || 'single-pool' }}
           device-models: ${{ inputs.platform != '' && (inputs.devices_custom != '' && inputs.devices_custom || (inputs.device != '(custom)' && inputs.device || '')) || '' }}
           device-model-operator: ${{ inputs.platform != '' && inputs.device_model_operator || '' }}
+          device-os-version: ${{ inputs.diagnostic_os_version }}
 
       - name: Monitor Device Farm test run
         id: monitor

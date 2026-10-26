@@ -1,5 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -11,6 +15,9 @@
 
 #if defined(__ANDROID__)
 #include <android/log.h>
+#include <dlfcn.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #elif defined(_WIN32)
 #include <windows.h>
 #endif
@@ -65,6 +72,66 @@ inline void compare(const char* label, const std::vector<float>& a,
 
 inline bool contains(const std::string& list, const std::string& item) {
   return ("," + list + ",").find("," + item + ",") != std::string::npos;
+}
+
+inline void openclInfo() {
+#if defined(__ANDROID__)
+  auto* library = dlopen("libOpenCL.so", RTLD_NOW | RTLD_LOCAL);
+  if (!library) {
+    log("OPENCL_INFO unavailable=%s", dlerror());
+    return;
+  }
+  auto platforms = reinterpret_cast<int (*)(unsigned int, void**, unsigned int*)>(dlsym(library, "clGetPlatformIDs"));
+  auto devices = reinterpret_cast<int (*)(void*, uint64_t, unsigned int, void**, unsigned int*)>(dlsym(library, "clGetDeviceIDs"));
+  auto info = reinterpret_cast<int (*)(void*, unsigned int, size_t, void*, size_t*)>(dlsym(library, "clGetDeviceInfo"));
+  unsigned int count = 0;
+  if (!platforms || !devices || !info || platforms(0, nullptr, &count) != 0 || count > 16) {
+    dlclose(library);
+    return;
+  }
+  std::vector<void*> ids(count);
+  platforms(count, ids.data(), nullptr);
+  for (auto* platform : ids) {
+    unsigned int n = 0;
+    if (devices(platform, 0xffffffffULL, 0, nullptr, &n) != 0 || n > 16) continue;
+    std::vector<void*> handles(n);
+    devices(platform, 0xffffffffULL, n, handles.data(), nullptr);
+    for (auto* device : handles) {
+      for (const auto key : {0x102bU, 0x102cU, 0x102dU, 0x102fU, 0x103dU}) {
+        std::array<char, 1024> value{};
+        if (info(device, key, value.size(), value.data(), nullptr) == 0)
+          log("OPENCL_INFO key=0x%x value=%s", key, value.data());
+      }
+    }
+  }
+  dlclose(library);
+#endif
+}
+
+inline void upload(ggml_tensor* tensor, const void* source, size_t offset, size_t count) {
+#if defined(__ANDROID__)
+  if (env("QVAC_MEGALOC_UPLOAD") == "guarded" && ggml_is_quantized(tensor->type) && offset == 0) {
+    const auto pageSize = sysconf(_SC_PAGESIZE);
+    if (pageSize <= 0) throw std::runtime_error("Diagnostic page size is unavailable");
+    const auto page = static_cast<size_t>(pageSize);
+    if (count % page != 0) throw std::runtime_error("Diagnostic chunk is not page aligned");
+    auto* data = mmap(nullptr, count + page, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (data == MAP_FAILED) throw std::runtime_error("Diagnostic guarded allocation failed");
+    auto* boundary = static_cast<char*>(data) + count;
+    if (mprotect(boundary, page, PROT_NONE) != 0) {
+      munmap(data, count + page);
+      throw std::runtime_error("Diagnostic guard page failed");
+    }
+    std::memcpy(data, source, count);
+    log("GUARDED_UPLOAD tensor=%s supplied=%zu full=%zu source=%p guard=%p guard_bytes=%zu",
+        tensor->name, count, ggml_nbytes(tensor), data, static_cast<void*>(boundary), page);
+    ggml_backend_tensor_set(tensor, data, offset, count);
+    log("GUARDED_UPLOAD_RETURNED tensor=%s", tensor->name);
+    munmap(data, count + page);
+    return;
+  }
+#endif
+  ggml_backend_tensor_set(tensor, source, offset, count);
 }
 
 struct Trace {

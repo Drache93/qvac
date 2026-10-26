@@ -295,8 +295,9 @@ struct MegaLocModel::Impl {
               gguf_get_tensor_offset(
                   gguf.get(), gguf_find_tensor(gguf.get(), name.c_str()))));
       const size_t size = ggml_nbytes(destination);
+      const auto uploadMode = diagnostics::env("QVAC_MEGALOC_UPLOAD");
       const bool wholeQuant = ggml_is_quantized(destination->type) &&
-          diagnostics::env("QVAC_MEGALOC_UPLOAD") != "chunked";
+          uploadMode != "chunked" && uploadMode != "guarded";
       if (wholeQuant) chunk.resize(size);
       if (ggml_is_quantized(destination->type))
         diagnostics::log("UPLOAD backend=%s tensor=%s type=%s full_bytes=%zu supplied_bytes=%zu mode=%s",
@@ -306,7 +307,7 @@ struct MegaLocModel::Impl {
         const size_t count = std::min(chunk.size(), size - offset);
         stream.read(chunk.data(), static_cast<std::streamsize>(count));
         check(stream.good(), "failed reading tensor " + name);
-        ggml_backend_tensor_set(destination, chunk.data(), offset, count);
+        diagnostics::upload(destination, chunk.data(), offset, count);
         offset += count;
       }
       if (wholeQuant) std::vector<char>(8 * 1024 * 1024).swap(chunk);
@@ -505,6 +506,7 @@ void MegaLocModel::load() {
     }
   }
   if (diagnostics::env("QVAC_MEGALOC_DEVICES") == "1") {
+    diagnostics::openclInfo();
     for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
       auto* candidate = ggml_backend_dev_get(i);
       diagnostics::log("DEVICE index=%zu name=%s description=%s", i,
