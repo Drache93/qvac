@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 
 
@@ -17,13 +16,16 @@ def aws(*arguments):
 
 source_id = '40331790857'
 project = os.environ['PROJECT_ARN']
-log = command('gh', 'run', 'view', source_id, '--repo', 'tetherto/qvac',
-              '--job', '121603007629', '--log')
-source_arns = set(re.findall(r'arn:aws:devicefarm:[^\s\"\[\],]+:run:[a-f0-9-]+/[a-f0-9-]+', log))
-assert len(source_arns) == 1, 'Expected exactly one source device run'
-source = aws('get-run', '--arn', source_arns.pop())['run']
+identifiers = json.loads(os.environ['REPLAY_SOURCE'])
+from uuid import UUID
+for identifier in identifiers.values():
+    assert str(UUID(identifier)) == identifier
+namespace, project_id = project.split(':project:')
+source_arn = namespace + ':run:' + project_id + '/' + identifiers['run']
+source = aws('get-run', '--arn', source_arn)['run']
 assert source['status'] == 'COMPLETED'
-package = re.search(r'test-package-upload-arn: (arn:aws:devicefarm:[^\s]+)', log).group(1)
+assert source_id in source['name']
+package = namespace + ':upload:' + project_id + '/' + identifiers['package']
 app = source['appUpload']
 spec = source['testSpecArn']
 for arn, expected in [(app, 'ANDROID_APP'), (package, 'APPIUM_NODE_TEST_PACKAGE'),

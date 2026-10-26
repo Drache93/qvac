@@ -8,6 +8,10 @@ on:
         description: "Schedule four diagnostic controls using the first S25 APK"
         type: boolean
         default: false
+      replay_source:
+        description: "JSON identifiers of the verified source run and test package"
+        type: string
+        default: ""
       devicefarm_run_contains:
         description: "Read-only Device Farm status for this GitHub mobile run ID"
         type: string
@@ -144,7 +148,6 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
-      actions: read
       id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -156,7 +159,7 @@ jobs:
         id: schedule
         env:
           PROJECT_ARN: ${{ secrets.LLM_AWS_DEVICE_FARM_PROJECT_ARN }}
-          GH_TOKEN: ${{ github.token }}
+          REPLAY_SOURCE: ${{ inputs.replay_source }}
         run: python3 .github/scripts/megaloc-replay-controls.py
       - name: Monitor the four controls
         uses: ./.github/actions/run-mobile-integration-tests/monitor-test-run
