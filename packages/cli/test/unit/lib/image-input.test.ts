@@ -1,39 +1,47 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { FastifyReply, FastifyRequest } from 'fastify'
-import { BMP, JPEG, PNG, imageInput } from '@/serve/lib/image-input'
+import type { FastifyRequest } from 'fastify'
 import { HttpError } from '@/serve/lib/http-error'
+import { BMP, JPEG, PNG, createImageInput } from '@/serve/lib/image-input'
 
-function request(image: Buffer): FastifyRequest {
-  return { body: { image } } as unknown as FastifyRequest
+// A direct upload resolves without touching the request beyond its multipart files.
+function fakeRequest(): FastifyRequest {
+  return {} as FastifyRequest
 }
 
-async function read(input: ReturnType<typeof imageInput>, req: FastifyRequest): Promise<void> {
-  await input.read.call(undefined as never, req, {} as FastifyReply)
+function rejection(fn: () => void): HttpError {
+  try {
+    fn()
+  } catch (err) {
+    assert.ok(err instanceof HttpError)
+    return err
+  }
+  assert.fail('expected a rejection')
 }
 
-describe('imageInput', () => {
-  it('keeps the bytes of an image in an accepted format', async () => {
-    const input = imageInput([PNG, JPEG])
-    const req = request(Buffer.from([0xff, 0xd8, 0xff, 0xe0]))
-    await read(input, req)
-    assert.deepEqual(input.bytes(req), Buffer.from([0xff, 0xd8, 0xff, 0xe0]))
+describe('createImageInput', () => {
+  const pngBytes = Buffer.from([...PNG.signature, 0, 0])
+
+  it('keeps an image whose signature matches one of the formats', () => {
+    const image = createImageInput([PNG, JPEG])
+    const req = fakeRequest()
+    image.read(req, pngBytes)
+    assert.equal(image.get(req), pngBytes)
   })
 
-  it('needs the whole PNG signature, not only its first bytes', async () => {
-    const input = imageInput([PNG])
-    const req = request(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x00, 0x00]))
-    await assert.rejects(read(input, req), (err: unknown) => {
-      assert.ok(err instanceof HttpError)
-      assert.equal(err.code, 'unsupported_image_format')
-      return true
-    })
+  it('rejects a PNG that matches only the first four signature bytes', () => {
+    const image = createImageInput([PNG, JPEG])
+    const err = rejection(() =>
+      image.read(fakeRequest(), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))
+    )
+    assert.equal(err.status, 400)
+    assert.equal(err.code, 'unsupported_image_format')
+    assert.match(err.message, /expected a PNG or JPEG image/)
   })
 
-  it('names the accepted formats when it refuses one', async () => {
-    const input = imageInput([PNG, JPEG, BMP])
-    await assert.rejects(read(input, request(Buffer.from('GIF89a'))), {
-      message: 'image: expected a PNG, JPEG or BMP image.'
-    })
+  it('names every accepted format in the rejection', () => {
+    const image = createImageInput([PNG, JPEG, BMP])
+    const err = rejection(() => image.read(fakeRequest(), Buffer.from('hello')))
+    assert.match(err.message, /expected a PNG, JPEG or BMP image/)
   })
 })

@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { upscale } from '@qvac/sdk'
 import { HttpError } from '@/serve/lib/http-error'
 import { multipartToBodyOptional } from '@/serve/lib/multipart'
-import { JPEG, PNG, imageInput } from '@/serve/lib/image-input'
+import { JPEG, PNG, createImageInput } from '@/serve/lib/image-input'
 import { errorResponses } from '@/serve/lib/error-responses'
 import {
   IMAGE_OUTPUT_FORMAT,
@@ -14,7 +14,7 @@ import { requireModel } from '@/serve/core/plugins/require-model'
 import { MAX_UPSCALE_REPEATS, upscaleBody } from '@/serve/extensions/default/schemas/upscale'
 
 // The formats the ESRGAN upscaler decodes.
-const image = imageInput([PNG, JPEG])
+const image = createImageInput([PNG, JPEG])
 
 // The addon's messages for an image it refuses; the SDK passes them through
 // with no error code. Some decode failures are size limits, so TOO_LARGE is tested first.
@@ -80,12 +80,18 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
         consumes: ['application/json', 'multipart/form-data']
       },
       preValidation: multipartToBodyOptional,
-      preHandler: [image.read, requireModel('upscale')]
+      preHandler: [
+        // lunte-disable-next-line require-await
+        async function (req) {
+          image.read(req, req.body.image)
+        },
+        requireModel('upscale')
+      ]
     },
     async (req) => {
       const { repeats } = req.body
       const { sdkModelId, alias } = req.qvacModel!
-      const bytes = image.bytes(req)
+      const bytes = image.get(req)
 
       app.qvac.logger.info(
         `  image_upscale model=${alias} bytes=${bytes.length} repeats=${repeats ?? 1}`
