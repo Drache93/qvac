@@ -2090,6 +2090,25 @@ ParsedPromptPayload parsePromptPayload(
   return parsed;
 }
 
+// `parsePromptPayload` skips JSON that is not an array of objects; a count
+// must not.
+void requireArrayOfObjects(const std::string& json, const char* field) {
+  picojson::value value;
+  const auto isObject = [](const picojson::value& item) {
+    return item.is<picojson::object>();
+  };
+  if (!picojson::parse(value, json).empty() || !value.is<picojson::array>() ||
+      !std::all_of(
+          value.get<picojson::array>().begin(),
+          value.get<picojson::array>().end(),
+          isObject)) {
+    throw qvac_errors::StatusError(
+        ADDON_ID,
+        toString(qvac_errors::general_error::InvalidArgument),
+        string_format("calcToken: %s must be a JSON array of objects", field));
+  }
+}
+
 } // namespace
 
 ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
@@ -2122,6 +2141,7 @@ size_t LlamaModel::calcToken(const CalcTokenRequest& request) const {
   const auto keepMedia = [] {};
   ParsedPromptPayload conversation;
   if (request.history.has_value()) {
+    requireArrayOfObjects(*request.history, "history");
     conversation = parsePromptPayload(
         *request.history,
         state_->isTextLlm_,
@@ -2129,6 +2149,7 @@ size_t LlamaModel::calcToken(const CalcTokenRequest& request) const {
         keepMedia);
   }
   if (request.tools.has_value()) {
+    requireArrayOfObjects(*request.tools, "tools");
     ParsedPromptPayload tools = parsePromptPayload(
         *request.tools, state_->isTextLlm_, std::nullopt, keepMedia);
     if (!tools.chatMsgs.empty()) {

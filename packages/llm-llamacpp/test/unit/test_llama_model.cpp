@@ -1128,6 +1128,19 @@ TEST_F(LlamaModelTest, CalcTokenRejectsInvalidRequests) {
       qvac_errors::StatusError);
   EXPECT_THROW(
       (void)model.calcToken({.history = "not json"}), qvac_errors::StatusError);
+  // Valid JSON that is not an array of objects.
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.text = "Hi",
+           .tools = R"({"type": "function", "name": "get_weather"})"}),
+      qvac_errors::StatusError);
+  EXPECT_THROW(
+      (void)model.calcToken(
+          {.text = "Hi", .history = R"({"role": "user", "content": "Hi"})"}),
+      qvac_errors::StatusError);
+  EXPECT_THROW(
+      (void)model.calcToken({.text = "Hi", .history = R"(["Hi"])"}),
+      qvac_errors::StatusError);
 }
 
 TEST_F(LlamaModelTest, ProcessContextOverflow) {
