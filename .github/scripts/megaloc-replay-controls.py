@@ -11,18 +11,18 @@ def command(*arguments):
 
 
 def aws(*arguments):
+    print('Device Farm:', arguments[0], flush=True)
     return json.loads(command('aws', 'devicefarm', *arguments, '--output', 'json'))
 
 
 source_id = '40331790857'
 project = os.environ['PROJECT_ARN']
-source_runs = [run for run in aws('list-runs', '--arn', project)['runs']
-               if source_id in run['name']]
-assert len(source_runs) == 1, 'Expected exactly one source device run'
-source = aws('get-run', '--arn', source_runs[0]['arn'])['run']
-assert source['status'] == 'COMPLETED'
 log = command('gh', 'run', 'view', source_id, '--repo', 'tetherto/qvac',
               '--job', '121603007629', '--log')
+source_arns = set(re.findall(r'arn:aws:devicefarm:[^\s\"\[\],]+:run:[a-f0-9-]+/[a-f0-9-]+', log))
+assert len(source_arns) == 1, 'Expected exactly one source device run'
+source = aws('get-run', '--arn', source_arns.pop())['run']
+assert source['status'] == 'COMPLETED'
 package = re.search(r'test-package-upload-arn: (arn:aws:devicefarm:[^\s]+)', log).group(1)
 app = source['appUpload']
 spec = source['testSpecArn']
@@ -34,7 +34,7 @@ for arn, expected in [(app, 'ANDROID_APP'), (package, 'APPIUM_NODE_TEST_PACKAGE'
 targets = [('Samsung Galaxy S25', '16'), ('Samsung Galaxy S26 Ultra', '16'),
            ('Google Pixel 9 Pro', '15'), ('Samsung Galaxy S24 Ultra', '14')]
 assert len(targets) == 4
-existing = aws('list-runs', '--arn', project)['runs']
+existing = aws('list-runs', '--arn', project, '--max-items', '100')['runs']
 devices = aws('list-devices', '--filters', json.dumps([
     {'attribute': 'PLATFORM', 'operator': 'EQUALS', 'values': ['ANDROID']}
 ]))['devices']

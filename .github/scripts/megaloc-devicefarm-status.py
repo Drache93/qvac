@@ -18,7 +18,7 @@ assert needle.isdigit()
 destination = Path('devicefarm-diagnostic-status')
 destination.mkdir(exist_ok=True)
 reports = []
-for run in aws('list-runs', '--arn', project)['runs']:
+for run in aws('list-runs', '--arn', project, '--max-items', '100')['runs']:
     if needle not in run['name']:
         continue
     report = {k: run.get(k) for k in ['name', 'status', 'result', 'counters', 'started', 'stopped', 'message', 'deviceMinutes']}
