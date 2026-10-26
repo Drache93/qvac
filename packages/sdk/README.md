@@ -90,18 +90,13 @@ call fails with `RPC_INIT_TIMEOUT`. Re-running usually succeeds; to give every
 start more room, raise `rpcInitTimeoutMs` in `qvac.config.*` or set the
 `QVAC_RPC_INIT_TIMEOUT_MS` environment variable.
 
-## Guides
+## Documentation
 
-- [System resource diagnostics](./docs/system-resources.md): inspect CPU, memory
-  and GPU capabilities, and attach resource samples to profiled operations.
-- [Pre-download model fit assessment](./docs/assess-model-fit.md): check whether
-  models are likely to fit in this device's memory before downloading them.
-- [Transcription](./docs/transcription.md): transcription statistics, Parakeet
-  Core ML encoders, MOSS speaker-aware transcription and Nemotron diarization.
-- [MOSS text-to-speech engines](./docs/tts-moss.md): MOSS-SoundEffect and
-  MOSS-Speech.
-- [ABot-World interactive world sessions](./docs/abot-world.md): hardware
-  requirements, scene packs, cancellation and concurrency.
+The [QVAC SDK documentation](https://docs.qvac.tether.io/sdk/) covers each
+capability with its configuration and examples. See the
+[API reference](https://docs.qvac.tether.io/sdk/reference/api/) for the full API
+and the [release notes](https://docs.qvac.tether.io/sdk/reference/release-notes/)
+for what changed in each release.
 
 ## Examples
 

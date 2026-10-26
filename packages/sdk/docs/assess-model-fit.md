@@ -123,10 +123,7 @@ through `modelConfig` the way `loadModel` does.
 Each source resolves to the registry's weightless description of the artifact, or
 to the file itself where it is already on disk. The floor reads its workload from
 the same config: `ctx_size` for a token context, `duration_ms` for an audio
-window. MOSS candidates declare their workload beside `modelConfig` instead:
-`ttsWorkload` for [MOSS text-to-speech](./tts-moss.md#memory-fit) and
-`transcriptionWorkload` for
-[MOSS transcription](./transcription.md#speaker-aware-transcription).
+window.
 
 ### `execution` is a declared assumption
 
