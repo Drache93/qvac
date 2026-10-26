@@ -220,9 +220,8 @@ jobs:
           ./scripts/verify-maven-consumers.sh -PqvacProfile="$QVAC_PROFILE"
           popd
 
-          # The Kotlin e2e app compiles against this SDK: an API change that breaks it, or its
-          # interpreter's unit tests, fails here rather than on the next Device Farm run. The app
-          # runs the all-in-one profile, bundled from the packages/sdk built above.
+          # Build and unit-test the Kotlin e2e app against this SDK, so an API break fails
+          # here rather than on Device Farm. -x buildWorkspaceSdk: packages/sdk is built above.
           pushd packages/sdk-e2e/runners/kotlin
           ../../../sdk-kotlin/gradlew --no-daemon -PqvacProfile=aio \
             -x :sdk-kotlin:android-barekit:buildWorkspaceSdk \

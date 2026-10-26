@@ -21,11 +21,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** A worker that answers from a table, keyed by request type. */
 private class FakeTransport(
     private val replies: Map<String, (JsonObject) -> JsonObject> = emptyMap(),
     private val streams: Map<String, (JsonObject) -> List<JsonObject>> = emptyMap(),
-    /** Request types the worker never answers. */
     private val hangs: Set<String> = emptySet(),
     /** Request types the worker answers after this many milliseconds. */
     private val delays: Map<String, Long> = emptyMap(),

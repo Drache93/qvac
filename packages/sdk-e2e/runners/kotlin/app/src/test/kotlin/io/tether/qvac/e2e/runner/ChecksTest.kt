@@ -53,8 +53,7 @@ class ChecksTest {
 
     @Test
     fun `every refusal this client raises carries the SDK's code for it`() {
-        // A name the generated table does not know binds `code: ""`, which an errorIsStructured
-        // assertion reads as an unstructured error.
+        // An unknown name binds `code: ""`, which errorIsStructured reads as an unstructured error.
         val names = listOf(
             "CANCEL_FAILED", "COMPLETION_FAILED", "DELETE_CACHE_FAILED", "DOWNLOAD_ASSET_FAILED",
             "INFERENCE_CANCELLED", "INVALID_DELETE_CACHE_PARAMS", "MODEL_LOAD_FAILED", "MODEL_TYPE_REQUIRED",

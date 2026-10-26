@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-// The Kotlin consumer on an Android device, for `qvac-test run:local:external --name=kotlin-android`.
+// The Kotlin e2e app on an Android device (`qvac-test run:local:kotlin-android`).
 //
-//   node runners/kotlin/scripts/device.mjs prepare   assemble the APK and install it (the entry's prepare step)
-//   node runners/kotlin/scripts/device.mjs run       start it on this run and follow its log
-//   node runners/kotlin/scripts/device.mjs build     assemble the APK only (CI, which runs it on Device Farm;
-//                                                  --prebuilt-sdk when packages/sdk is already built)
+//   device.mjs prepare   build the APK and install it
+//   device.mjs run       start the app on this run and follow its log until it reports done
+//   device.mjs build     build the APK only (CI; --prebuilt-sdk when packages/sdk is already built)
 //
-// `prepare` runs before the producer, which gives consumers a fixed window to register: a build
-// and a 400 MB install do not fit in it. `run` is the external consumer itself: the app speaks MQTT
-// on its own, so this only points it at the broker on this machine and exits when the app reports
-// it is done.
-// The run comes from the framework's environment (QVAC_RUN_ID, QVAC_MQTT_BROKER_URL, ...); the
-// device from ANDROID_SERIAL when there is more than one.
+// `prepare` runs before the producer: its consumer-registration window is too short for a build and
+// a large APK install. The app speaks MQTT itself, so `run` only points it at the broker.
+// The run comes from the framework's env (QVAC_RUN_ID, QVAC_MQTT_BROKER_URL, ...); the device from
+// ANDROID_SERIAL when several are connected.
 
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
@@ -33,7 +30,7 @@ const appPackage = 'io.tether.qvac.e2e.kotlin'
 const activity = `${appPackage}/io.tether.qvac.e2e.MainActivity`
 const logTag = 'QvacE2E'
 
-/** Undone however the run ends, last first: reversed ports, the log follower, a failed app. */
+/** Cleanup run on any exit, last first: adb reverse, the log follower, stopping a failed app. */
 const undo = []
 let exiting = false
 
@@ -66,9 +63,8 @@ function build() {
   if (!sdk) fail('no Android SDK found: set ANDROID_HOME')
   // No daemon on CI: a persistent runner would keep it after the job.
   const daemon = process.env.CI ? ['--no-daemon'] : []
-  // Only the all-in-one runtime profile: building the Kotlin SDK's other profiles is wasted here.
-  // --prebuilt-sdk: packages/sdk is already built (CI does it before packing it), so Gradle's own
-  // build of it -- and the Python that runs -- is skipped.
+  // aio only: the Kotlin SDK's other runtime profiles are not needed here.
+  // --prebuilt-sdk: CI builds packages/sdk before packing it; skip Gradle's rebuild and its Python.
   const prebuilt = process.argv.includes('--prebuilt-sdk')
     ? ['-x', ':sdk-kotlin:android-barekit:buildWorkspaceSdk']
     : []
@@ -97,12 +93,9 @@ function adbPath() {
   return bundled && existsSync(bundled) ? bundled : 'adb'
 }
 
-/**
- * Runs adb. A failure is reported by `what`, never by the arguments: `am start` carries the broker
- * credentials, and nothing that holds them may reach a log.
- */
+/** Errors name `what`, never the args: `am start` carries the broker credentials. */
 function adb(args, { check = true, what = 'adb' } = {}) {
-  // Room for a whole logcat dump: past the default 1 MiB the tail, where a crash is, is cut off.
+  // A logcat dump can exceed the 1 MiB default, which would cut off the tail where the crash is.
   const result = spawnSync(adbPath(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   if (check && result.status !== 0) {
     fail(`${what} failed: ${(result.stderr || result.stdout || '').trim()}`)
@@ -133,9 +126,8 @@ function localHosts() {
 }
 
 /**
- * The broker as the device should dial it. A broker on this machine is reached through
- * `adb reverse`, so the run does not depend on the device and the laptop sharing a network.
- * Errors name the scheme, never the URL, which may carry credentials.
+ * The broker URL as the device dials it. A local broker goes through `adb reverse`, so the device
+ * need not share this machine's network. Errors never print the URL: it may carry credentials.
  */
 function deviceBrokerUrl(serial) {
   const raw = process.env.QVAC_MQTT_BROKER_URL
@@ -151,9 +143,8 @@ function deviceBrokerUrl(serial) {
   }
   const pathSuffix = process.env.MQTT_PATH ?? ''
   if (pathSuffix && url.pathname === '/') url.pathname = pathSuffix
-  // A certificate names its host, so a TLS broker is dialled as configured; only plain WebSocket
-  // is pointed at the reversed port.
-  // URL keeps IPv6 hosts bracketed; the interface list does not.
+  // Only ws:// is reversed: a TLS certificate names its host, so wss:// is dialled as configured.
+  // URL keeps IPv6 hosts bracketed; networkInterfaces() does not.
   if (url.protocol === 'ws:' && localHosts().has(url.hostname.replace(/^\[|\]$/g, ''))) {
     const port = url.port || '80'
     adb(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`], {
@@ -181,8 +172,7 @@ function run() {
   if (!installed.includes('package:'))
     fail(`${appPackage} is not installed on ${serial}; drop --skip-build`)
   const brokerUrl = deviceBrokerUrl(serial)
-  // Awake and unlocked: a consumer behind the lock screen is a stopped activity, which some OEM
-  // builds freeze outright.
+  // Wake and unlock: behind the lock screen the activity is stopped, and some OEM builds freeze it.
   adb(['-s', serial, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP'], { check: false })
   adb(['-s', serial, 'shell', 'wm', 'dismiss-keyguard'], { check: false })
   adb(['-s', serial, 'shell', 'am', 'force-stop', appPackage], { what: 'am force-stop' })
@@ -204,9 +194,8 @@ function run() {
   adb(start, { what: `am start ${activity}` })
   console.log(`🚀 Started ${appPackage} on run ${process.env.QVAC_RUN_ID}\n`)
 
-  // The app's own log is the consumer's output; it ends with the line the JS consumers end with.
-  // The worker runs in-process (a Bare worklet), so this one pid is the whole consumer, and the log
-  // is read for it alone: another app crashing on a developer's phone is not this run's failure.
+  // The app's log is the consumer output. The worker is an in-process Bare worklet, so this pid is
+  // the whole consumer; filtering by it keeps other apps' crashes out of the run.
   const pidOf = () => adb(['-s', serial, 'shell', 'pidof', appPackage], { check: false }).trim()
   const pid = pidOf()
   if (!pid) fail(`${appPackage} did not start`)
@@ -240,22 +229,21 @@ function run() {
     if (!finished) fail(`logcat exited (${code}) before the consumer finished`)
   })
 
-  // A native crash in the worker takes the process down without a Java stack trace, and the
-  // producer would otherwise wait out its timeouts for a consumer that is gone.
+  // A native worker crash kills the process with no Java stack trace; without this the producer
+  // waits out its timeouts.
   const watch = setInterval(() => {
     if (finished || pidOf() === pid) return
     const lines = adb(['-s', serial, 'logcat', '-d', `--pid=${pid}`, '-v', 'brief'], {
       check: false
     }).split('\n')
-    // The follower can lag the exit: a consumer that said it was done finished, it did not die.
+    // The log follower can lag the exit: an app that logged its shutdown finished, it did not die.
     if (lines.some((line) => line.includes('Consumer shutting down'))) {
       finished = true
       setTimeout(() => exit(0), 2000)
       return
     }
     const crash = lines.filter((line) => /Fatal signal|Uncaught|F DEBUG|abort/i.test(line))
-    // A process the system killed (low memory, an OEM memory policy) leaves no crash in its own
-    // log; the system's says so, and with how much memory it held.
+    // A system kill (low memory, OEM policy) leaves nothing in the app's log; the system's has it.
     const killed = adb(['-s', serial, 'logcat', '-d', '-b', 'main,system,events', '-v', 'brief'], {
       check: false
     })
@@ -278,17 +266,16 @@ function run() {
 }
 
 /**
- * The app's memory over the run, published as the JS mobile consumer publishes it
- * (`qvac/app-memory`): the producer writes it to app-mem.ndjson and charts it per test. Sampled
- * from outside through adb, since the app's /proc/self is not readable here. Off with
- * QVAC_ANDROID_MEM_DISABLED=1; QVAC_ANDROID_MEM_INTERVAL_MS sets the period.
+ * Publishes the app's memory on `qvac/app-memory`, as the JS mobile consumer does, for the
+ * producer's per-test chart. Sampled through adb. QVAC_ANDROID_MEM_DISABLED=1 turns it off;
+ * QVAC_ANDROID_MEM_INTERVAL_MS sets the period.
  */
 async function sampleMemory(serial, pid) {
   if (process.env.QVAC_ANDROID_MEM_DISABLED === '1') return
-  // Loaded here: building the APK (CI's `build`) needs no MQTT client.
+  // Lazy: `build` (CI) needs no MQTT client.
   const { default: mqtt } = await import('mqtt')
   const intervalMs = Number(process.env.QVAC_ANDROID_MEM_INTERVAL_MS) || 5000
-  // The broker as this machine reaches it, not the device's reversed view.
+  // This machine's broker URL, not the device's reversed one.
   const client = mqtt.connect(process.env.QVAC_MQTT_BROKER_URL, {
     username: process.env.QVAC_MQTT_USERNAME,
     password: process.env.QVAC_MQTT_PASSWORD,
@@ -340,8 +327,8 @@ async function sampleMemory(serial, pid) {
 }
 
 /**
- * Resident memory from /proc/<pid>/status, and from `dumpsys meminfo` the proportional set the
- * system's memory killers weigh, split into what is most likely to grow under inference.
+ * RSS from /proc/<pid>/status, plus PSS from `dumpsys meminfo` (what Android's memory killers
+ * weigh) and the parts most likely to grow under inference.
  */
 function memoryReadings(text) {
   const kb = (pattern) => {

@@ -42,8 +42,7 @@ async function main() {
     throw new Error(`No external consumer named "${name}" (configured: ${available})`)
   }
   if (entry.mode === 'mqtt') {
-    // The client owns the consumer protocol, so all this process does is start it with the run
-    // in its environment and live as long as it does.
+    // The client speaks the protocol itself: start it with the run env and mirror its exit.
     const mqttConfig = buildMqttConnectionConfig(config)
     if (mqttBrokerOverride) {
       mqttConfig.brokerUrl = mqttBrokerOverride

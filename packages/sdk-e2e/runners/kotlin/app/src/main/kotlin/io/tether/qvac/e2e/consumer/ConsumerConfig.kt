@@ -3,10 +3,8 @@ package io.tether.qvac.e2e.consumer
 import io.tether.qvac.e2e.runner.asMap
 
 /**
- * Who this consumer is and where its broker lives. Baked into the APK at build time
- * (`e2e/consumer-config.json`, from MQTT_* and E2E_RUN_ID as the JS mobile build reads them) and
- * overridable per launch by intent extras, which is how a local run points an installed app at
- * the broker on the developer's machine without rebuilding it.
+ * Baked into the APK at build time (`e2e/consumer-config.json`, from MQTT_* and E2E_RUN_ID) and
+ * overridable per launch by intent extras, so a local run can retarget an installed app.
  */
 data class ConsumerConfig(
     val runId: String,

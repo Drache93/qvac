@@ -46,11 +46,11 @@ inherit its skips.
 
 ## Shared devices
 
-`kotlin-android` runs on the same phones as `mobile-android`, so it inherits
-every skip that applies there: a model too large for the device is too large
-whichever client loads it. `SAME_DEVICE` in `platform-skips.ts` adds the label
-to those skips; a claim that belongs to one client rather than to the device is
-recorded against that client's label instead.
+`kotlin-android` runs on the same phones as `mobile-android`, so
+`SAME_DEVICE` in `platform-skips.ts` adds it to every skip that applies there:
+a model too large for the device is too large whichever client loads it. A skip
+that belongs to one client rather than to the device goes under that client's
+label.
 
 ## Equivalence
 

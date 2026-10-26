@@ -26,9 +26,8 @@ interface HostResolvers {
 }
 
 /**
- * Resource key -> model, and the load/evict lifecycle around a test. The table is the one every
- * client shares (catalog/resources/resource-table.json); see catalog/resource-table-types.ts for
- * how `on` and `configOn` match a platform.
+ * Resource key -> model, loaded and evicted around each test. Table: catalog/resources/resource-table.json;
+ * `on` / `configOn` platform matching: catalog/resource-table-types.ts.
  */
 class Resources(
     private val client: QvacClient,
@@ -36,7 +35,7 @@ class Resources(
     private val platform: String,
     private val host: HostResolvers,
     private val log: (String) -> Unit,
-    /** How long an unload settles before the next load allocates: `unloadSettleMs` in catalog/platform-policy.ts. */
+    /** Pause after an unload before the next load (`unloadSettleMs` in catalog/platform-policy.ts). */
     private val unloadSettleMs: Long,
 ) {
     private val platformSegments = platform.split("-")
@@ -110,8 +109,7 @@ class Resources(
     fun loadArgs(params: Map<String, Any?>): LoadArgs {
         val source = params["modelSrc"]
         val descriptor = source as? Map<*, *>
-        // No source is a source too: a bundled model (classification's packaged weights) is named
-        // by its config, and the JS client sends an empty modelSrc for it.
+        // A bundled model (classification) is named by its config; the JS client sends an empty modelSrc.
         val src = (descriptor?.get("src") ?: source)?.toString() ?: ""
         val declaredType = params["modelType"]?.toString() ?: descriptor?.get("engine")?.toString()
             ?: throw Wire.refusal("MODEL_TYPE_REQUIRED", MODEL_TYPE_REQUIRED)
@@ -155,15 +153,13 @@ class Resources(
     suspend fun close() = evictAllExcept(emptySet())
 
     /**
-     * Unloads a model this table no longer tracks. It runs to the end even when the test that asked
-     * for it is cut short, within a bound: a model left in the worker but dropped from [loaded] would
-     * be loaded a second time.
+     * Runs to the end, within a bound, even when the test is cancelled: a model left in the worker
+     * but dropped from [loaded] would be loaded twice.
      */
     private suspend fun unload(dep: String, modelId: String) = withContext(NonCancellable) {
         log("evicting $dep")
         val done = withTimeoutOrNull(UNLOAD_TIMEOUT_MS) {
-            // Stop what the model is still decoding first, as the JS resource manager does: a test cut
-            // short by its timeout leaves its request running in the worker.
+            // Cancel in-flight decoding first, as the JS resource manager does: a timed-out test leaves it running.
             try {
                 client.call(
                     buildJsonObject {
@@ -199,8 +195,7 @@ class Resources(
                 is Map<*, *> -> {
                     val name = value["\$const"]
                     if (name is String) {
-                        // A constant this registry lacks is left to the test that uses it, which
-                        // reports incomplete; it must not abort every other test's download.
+                        // A missing constant fails only its own test (incomplete), not the whole download.
                         val constant = constants[name]
                         if (constant != null) found.putIfAbsent(constant.src, constant)
                     } else {

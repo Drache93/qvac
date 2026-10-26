@@ -302,8 +302,8 @@ interface ExternalOptions extends LocalOptions {
 }
 
 /**
- * Producer plus one external (non-JS) client. The client runs on this machine, or, in mqtt mode,
- * wherever its launcher puts it -- a device, for an app.
+ * Producer plus one external (non-JS) client: on this machine, or, in mqtt mode, wherever its
+ * launcher puts it (e.g. a device).
  */
 export async function runLocalExternal(opts: ExternalOptions) {
   try {
@@ -315,7 +315,7 @@ export async function runLocalExternal(opts: ExternalOptions) {
     const cliPath = resolveCliPath()
     const tracked: TrackedProcess[] = []
 
-    // Before the producer: it gives consumers a fixed window to register, and a build is longer.
+    // Before the producer: its consumer-registration window is too short for a build.
     const config = await loadConfig(configDir)
     const entry = findExternalConsumer(config.consumers.external, opts.name)
     if (entry.prepare) {
@@ -329,7 +329,7 @@ export async function runLocalExternal(opts: ExternalOptions) {
             externalRunEnv(entry, runId, buildMqttConnectionConfig(config))
           )
         } catch (error) {
-          // Nothing else is running yet, but a broker this command started would outlive it.
+          // Only the broker is up yet; do not leave it running.
           brokerHandle.cleanup()
           throw error
         }

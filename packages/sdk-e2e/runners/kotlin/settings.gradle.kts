@@ -1,6 +1,5 @@
-// The Kotlin client of the SDK e2e catalog. It builds against the checkout's
-// packages/sdk-kotlin through a composite build, so the runner tests the SDK
-// at this commit without anything being published first.
+// Builds against this checkout's packages/sdk-kotlin as a composite build, so the
+// runner tests the SDK at this commit without publishing it first.
 pluginManagement {
     repositories {
         google()

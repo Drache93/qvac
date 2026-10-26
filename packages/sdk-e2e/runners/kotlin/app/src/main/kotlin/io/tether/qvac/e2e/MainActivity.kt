@@ -8,10 +8,8 @@ import android.widget.TextView
 import io.tether.qvac.e2e.consumer.ConsumerConfig
 
 /**
- * The Kotlin e2e consumer's window. Launching it starts [E2eSession], which starts the worker in
- * process, connects to the run's broker and works through the queue the producer hands out.
- * Launched by Device Farm's test spec or by `qvac-test run:local:external --name=kotlin-android`;
- * nothing here needs a tap.
+ * Launching it starts [E2eSession]. Launched by Device Farm's test spec or by
+ * `qvac-test run:local:kotlin-android`; nothing here needs a tap.
  */
 class MainActivity : Activity() {
     private lateinit var output: TextView
@@ -20,9 +18,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // A run lasts hours and the device must not sleep through it. A stopped activity is also fair
-        // game for the OEM app freezers (Samsung's freezes it within seconds), so the window shows
-        // over the lock screen and turns the screen on rather than waiting for someone to unlock it.
+        // Runs last hours, and OEM freezers (Samsung's within seconds) freeze a stopped activity:
+        // keep the screen on and show over the lock screen.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setShowWhenLocked(true)
         setTurnScreenOn(true)

@@ -7,10 +7,8 @@ plugins {
 }
 
 /**
- * Everything the app carries under `assets/e2e`: the catalog, the resource table and policy, the
- * fixtures, and the two configs. One generated source directory, so AGP wires it into every task
- * that reads assets and nothing else -- compiling and unit-testing the app need neither npm nor the
- * e2e package installed.
+ * Stages `assets/e2e` as one generated source directory, so AGP wires it only into tasks that read
+ * assets: compiling and unit-testing the app need neither npm nor the e2e package installed.
  */
 abstract class StageE2eAssets : DefaultTask() {
     @get:InputDirectory
@@ -49,8 +47,7 @@ abstract class StageE2eAssets : DefaultTask() {
             from(fixtures) { into("fixtures") }
         }
         root.file("consumer-config.json").asFile.writeText(consumerConfig.get())
-        // The worker settings every e2e leg runs with, minus what the runtime profile decides here:
-        // the plugin list is the profile's, and the RPC server provider and the echo plugin are not in it.
+        // The shared e2e worker config, minus the plugins and rpcServerProvider the profile decides.
         @Suppress("UNCHECKED_CAST")
         val worker = JsonSlurper().parse(workerConfigSource.get().asFile) as Map<String, Any?>
         root.file("worker-config.json").asFile.writeText(
@@ -63,10 +60,8 @@ abstract class StageE2eAssets : DefaultTask() {
 val e2eRoot: File = rootDir.resolve("../..").canonicalFile
 val catalogJsonDir = layout.buildDirectory.dir("intermediates/e2e-catalog")
 
-// Read the way the JS mobile build reads them (qvac-test.config.js): the broker from MQTT_* in the
-// environment, the run from E2E_RUN_ID. A Gradle property wins over the environment, and an
-// intent extra at launch wins over both, which is how a local run points an installed app at the
-// broker on this machine without rebuilding it.
+// Same variables as the JS mobile build (qvac-test.config.js). A Gradle property wins over the
+// environment, and an intent extra at launch wins over both.
 fun setting(property: String, env: String, default: String? = null): String? =
     providers.gradleProperty(property).orNull?.takeIf { it.isNotEmpty() }
         ?: providers.environmentVariable(env).orNull?.takeIf { it.isNotEmpty() }
@@ -149,8 +144,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            // Device Farm only has to install it: the debug key is enough, and no keystore has to
-            // reach the runner.
+            // Device Farm only installs it: the debug key spares the runner a keystore.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -177,7 +171,6 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 }
-
 
 dependencies {
     implementation("io.tether:qvac-sdk-android:local")

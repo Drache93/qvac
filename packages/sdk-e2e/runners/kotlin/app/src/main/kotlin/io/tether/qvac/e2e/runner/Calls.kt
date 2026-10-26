@@ -26,10 +26,8 @@ typealias Call = suspend (params: Map<String, Any?>) -> Any?
 typealias Fold = suspend (params: Map<String, Any?>, collect: String) -> Any?
 
 /**
- * Contract method name -> how this client serves it, kept in step with the JS bindings in
- * runners/js/shared/step-bindings.ts: the same method returns the same shape here, so one
- * definition reads the same field on every client. A method missing here makes its test
- * incomplete, never a pass.
+ * Contract method name -> how this client serves it. Mirrors runners/js/shared/step-bindings.ts so
+ * every client returns the same shape; a method missing here makes its test incomplete.
  */
 class Calls(
     private val wire: Wire,
@@ -683,8 +681,7 @@ class Calls(
         val state = LogStream(java.util.Collections.synchronizedList(mutableListOf()))
         val id = "logs-${++logStreamSeq}"
         logStreams[id] = state
-        // Read in the background: the catalog triggers the operation between this step and the
-        // collect, and nothing would be listening in between.
+        // Read in the background: the catalog triggers the logged operation before the collect step.
         state.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 wire.stream(mapOf("type" to "loggingStream", "id" to (params["id"] ?: SDK_LOG_ID))).collect { entry ->

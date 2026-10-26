@@ -16,7 +16,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** A broker that records what the consumer publishes and delivers what the test sends it. */
 private class FakeLink : MqttLink {
     lateinit var listener: MqttLink.Listener
     val published = mutableListOf<Pair<String, Map<String, Any?>>>()
@@ -101,7 +100,6 @@ class ConsumerTest {
         runCurrent()
         assertEquals(mapOf("runId" to "run-1", "consumerId" to "c1", "platform" to "kotlin-android"), link.on("qvac/register").first() - "timestamp")
 
-        // A message for another run is not ours.
         link.deliver("qvac/register-ack/c1", ack("runs") + ("runId" to "other"))
         runCurrent()
         assertTrue(link.on("qvac/results").isEmpty())

@@ -9,11 +9,8 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 
-/**
- * The values a test body moves around, kept as plain Kotlin so a step can bind, walk and compare
- * them the way the JS and Python clients do: null, Boolean, Long or Double, String, List, Map,
- * and ByteArray for fixtures and media.
- */
+// Test values stay plain Kotlin, compared as the JS and Python clients do: null, Boolean, Long or
+// Double, String, List, Map, and ByteArray for fixtures and media.
 
 /** An optional reference (`$name?`) that resolved to nothing. Dropped from call parameters. */
 object Missing {

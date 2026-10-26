@@ -36,7 +36,7 @@ on:
         description: "Android tests (Device Farm)"
         type: boolean
         default: true
-      # The 25th and last workflow_dispatch input: a new one has to replace one.
+      # workflow_dispatch allows 25 inputs, all used: a new input must replace one.
       kotlin-android:
         description: "Kotlin Android tests (Device Farm, the Kotlin SDK app)"
         type: boolean
@@ -750,8 +750,8 @@ jobs:
       test-suite-provenance: ${{ needs.prepare-test-suite.outputs.provenance }}
     secrets: inherit
 
-  # The Kotlin SDK's app on the same Device Farm pools. It builds its own Android
-  # runtime, so it neither waits for nor needs the JS bundle's shared-lib check.
+  # Same Device Farm pools as android-tests. Builds its own Android runtime, so
+  # no shared-runtime-libs dependency.
   kotlin-android-tests:
     needs: [resolve, prepare-inference, prepare-test-suite]
     permissions:

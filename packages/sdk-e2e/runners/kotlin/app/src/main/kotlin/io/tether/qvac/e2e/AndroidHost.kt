@@ -38,10 +38,7 @@ class AndroidHost(private val context: Context) : HostResolvers {
         return File(File(fixtureRoot, root), file).absolutePath
     }
 
-    /**
-     * A data file an npm package ships. The runtime profile copies the ones a plugin needs into the
-     * APK (packages/sdk-kotlin scripts/prepare-android-runtime.mjs), named by file.
-     */
+    /** Copied into the APK by packages/sdk-kotlin/scripts/prepare-android-runtime.mjs. */
     override fun packageAsset(pkg: String, file: String): String {
         val asset = PACKAGE_ASSETS["$pkg/$file"]
             ?: error("package asset not bundled on Android: $pkg/$file -- add it to AndroidHost.PACKAGE_ASSETS")

@@ -66,10 +66,9 @@ await ensureHostPrebuilds('android-arm64', modulesRoot)
 // runtime's own node_modules is a separate tree; for a standalone consumer they
 // are the same. ensureHostPrebuilds installs into this tree too.
 //
-// bare-pack keys every file in the bundle by its path from the working
-// directory. Run from here, the workspace SDK beside this package would be keyed
-// `/../sdk/...`, which the worklet resolves past the bundle root and cannot read
-// -- so the bundle is packed from the tree it is built from.
+// Pack from modulesRoot: bare-pack keys files by their path from the cwd, and
+// from here the workspace SDK would be keyed `/../sdk/...`, outside the bundle
+// root, where the worklet cannot read it.
 const workingDirectory = process.cwd()
 process.chdir(modulesRoot)
 let bundle

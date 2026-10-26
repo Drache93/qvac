@@ -74,12 +74,9 @@ full list.
   The leg runs the same worker bundle the desktop leg does, so
   `npm run bundle:sdk` (part of `install:build:full`) has to have run.
 
-- Kotlin Android: `adb` + a USB-debuggable arm64 device, JDK 17, and an Android SDK with NDK
-  `29.0.14206865` (`ANDROID_HOME`, or the usual install locations). The entry's `prepare` step builds the
-  app against this checkout's `packages/sdk-kotlin`, `packages/sdk` and `packages/inference` and installs
-  it; `--skip-build` reuses the installed one. The app reaches the broker through `adb reverse`, so the
-  device does not have to share the laptop's network. `ANDROID_SERIAL` picks a device when several are
-  connected. See [`runners/kotlin/`](./runners/kotlin/README.md).
+- Kotlin Android: `adb` + a USB-debuggable arm64 device, JDK 17, Python 3, and an Android SDK with NDK
+  `29.0.14206865`. The `prepare` step builds the app from this checkout and installs it; `--skip-build`
+  reuses the installed one. See [`runners/kotlin/`](./runners/kotlin/README.md).
 - Electron: Node 22+, Electron Forge dependencies, and a desktop runner capable of launching packaged Electron
   apps. The config declares `macos`, `windows`, and `linux`; local runs package the current host target unless
   `--platform` / `--arch` are supplied.
@@ -308,9 +305,9 @@ and submit the form.
 
 Select any combination of the platform checkboxes. Desktop, Android, and iOS are selected by default.
 Electron, strict Snap, and Kotlin Android runs are manual-only and must be selected explicitly. Kotlin
-Android runs the Kotlin client's app on the same Device Farm pools as Android; it always builds against
-the checkout's `packages/inference`, whatever `inference-source` says. Both Android legs draw on the
-same device pools, so with a single-device pool select one of them per run.
+Android always builds against the checkout's `packages/inference`, whatever `inference-source` says. Both
+Android legs choose from the same Device Farm pools; to run them together, set `android-device-pool` to a
+public pool so they do not queue on one private device.
 
 Non-obvious inputs:
 

@@ -20,7 +20,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 
-/** The SDK side of a run: the client and what the interpreter drives it through. */
 class Runtime(
     val client: QvacClient,
     val wire: Wire,
@@ -30,10 +29,8 @@ class Runtime(
 )
 
 /**
- * Runs one definition at a time through the interpreter, with the models the run needs cached
- * first. The runtime starts in [bootstrap], after registration, the way the JS mobile consumer
- * starts its worker: the producer gives a consumer a fixed window to register, and starting the
- * worker does not have to fit in it.
+ * The runtime starts in [bootstrap], after registration, as the JS mobile consumer's worker does:
+ * worker startup does not have to fit in the producer's registration window.
  */
 class E2eRunner(
     private val start: suspend () -> Runtime,
@@ -46,8 +43,7 @@ class E2eRunner(
     override suspend fun bootstrap(tests: List<Map<String, Any?>>?) {
         val runtime = runtime()
         val resources = runtime.resources
-        // The same scope the JS consumers pre-download (runners/js/shared/collect-test-deps.ts): the
-        // dependencies the run's tests declare, or every key when the producer sent no filter.
+        // As runners/js/shared/collect-test-deps.ts: declared deps, or every key without a filter.
         val deps = tests?.flatMap(::declaredDeps)?.toSet() ?: resources.keys
         val constants = resources.constantsFor(deps)
         log("📥 Pre-downloading ${constants.size} unique model constant(s) for ${deps.size} resource key(s)...")
@@ -105,7 +101,6 @@ class E2eRunner(
         )
     }
 
-    /** Unload everything, so the retry loads fresh. */
     override suspend fun reload() = runtime().resources.close()
 
     override suspend fun close() {
@@ -114,8 +109,8 @@ class E2eRunner(
             runtime.resources.close()
             runtime.calls.close()
         } finally {
-            // Even when shutdown's deadline cut the unloads short: the worker must not outlive the run.
-            // Bounded, so a wedged worker cannot keep shutdown from leaving the broker.
+            // Bounded and non-cancellable: the worker must not outlive the run, nor a wedged one
+            // keep shutdown from leaving the broker.
             withContext(NonCancellable) { withTimeoutOrNull(CLIENT_CLOSE_TIMEOUT_MS) { runtime.client.close() } }
         }
     }

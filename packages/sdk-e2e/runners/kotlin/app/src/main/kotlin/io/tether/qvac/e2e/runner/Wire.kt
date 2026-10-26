@@ -12,9 +12,8 @@ import java.util.Base64
 import java.util.UUID
 
 /**
- * The SDK's raw request surface, in the plain values the interpreter moves around. The payloads
- * are the ones the JS client builds (packages/sdk/src/client/api), so a difference between the two
- * clients is a difference in the SDKs rather than in what each test sent.
+ * The SDK's raw request surface in plain values. Payloads mirror the JS client's
+ * (packages/sdk/src/client/api), so a cross-client difference points at the SDKs.
  */
 class Wire(private val client: QvacClient) {
     suspend fun send(payload: Map<String, Any?>): Map<String, Any?> = asMap(fromJson(client.call(encode(payload))))
@@ -51,7 +50,6 @@ class Wire(private val client: QvacClient) {
             )
         }
 
-        /** Raises the refusal when a reply says it failed. */
         fun requireSuccess(response: Map<String, Any?>, name: String, fallback: String? = null): Map<String, Any?> {
             if (response["success"] == false) throw refusal(name, (response["error"] as? String) ?: fallback)
             return response
@@ -63,9 +61,8 @@ class Wire(private val client: QvacClient) {
             var code = ""
             if (error is QvacException) {
                 code = error.code?.toString() ?: ""
-                // What the JS client's error object carries as its own properties (errorDetails in
-                // step-interpreter.ts): the envelope's fields, and the class's `typedFields` -- a
-                // context overflow's token counts -- raised to the top, as its reconstructors do.
+                // As errorDetails in step-interpreter.ts: envelope fields, plus `typedFields`
+                // (e.g. context-overflow token counts) lifted to the top.
                 for ((key, value) in error.payload) {
                     if (key in NOT_DETAILS) continue
                     details[key] = fromJson(value)

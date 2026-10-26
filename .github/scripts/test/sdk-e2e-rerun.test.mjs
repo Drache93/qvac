@@ -298,7 +298,7 @@ test('without a plan the run keeps every runner and the incoming filter', () => 
 test('every reusable target still resolves', () => {
   const cases = [
     ['desktop + mobile', 'true,false,false,true,false,true'],
-    // The Kotlin app is dispatched on its own, never as part of a preset.
+    // kotlin-android is never part of a preset.
     ['all', 'true,false,false,true,false,true'],
     ['mobile', 'false,false,false,true,false,true'],
     ['desktop', 'true,false,false,false,false,false'],
@@ -548,8 +548,8 @@ test('each kind of run gets its own concurrency group', () => {
 })
 
 test('every device family is handled by the report and rerun actions', () => {
-  // Device Farm families name their results artifact after the family alone. test-sdk.yml runs
-  // the Android workflow once per app; `app: kotlin` reports as `kotlin-android`.
+  // Device Farm families name their results artifact after the family alone; the Android
+  // workflow's `app: kotlin` reports as `kotlin-android`.
   const families = ['android', 'ios']
   if (/^\s+app:\s*kotlin\s*$/m.test(readRepoFile('.github/workflows/test-sdk.yml'))) {
     families.push('kotlin-android')

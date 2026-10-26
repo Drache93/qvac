@@ -20,13 +20,11 @@ import java.util.concurrent.TimeUnit
 /**
  * MQTT over WebSocket for Paho, carried by OkHttp.
  *
- * Paho 1.2.5's own WebSocket transport reads every frame as MQTT data whatever its opcode: a ping
- * from a load balancer lands in the MQTT stream, nothing answers it with a pong, and its close frame
- * carries a malformed status code. The connection drops a few minutes into a CI run and does not
- * come back. OkHttp answers pings, sends its own and closes cleanly, so Paho keeps its MQTT state
- * machine and only the socket underneath changes. Registered through Paho's NetworkModuleFactory
- * SPI (META-INF/services) under the `okws` and `okwss` schemes, so it never competes with the
- * built-in `ws` and `wss` modules.
+ * Paho 1.2.5's WebSocket transport reads every frame as MQTT data whatever its opcode: pings
+ * from load balancers go unanswered and close frames are malformed, so CI connections drop and
+ * do not come back. OkHttp handles pings and close; Paho keeps its MQTT state machine.
+ * Registered through Paho's NetworkModuleFactory SPI (META-INF/services) under `okws`/`okwss`,
+ * so it never competes with the built-in `ws`/`wss` modules.
  */
 object OkHttpWebSocket {
     const val SCHEME = "okws"
@@ -150,8 +148,8 @@ class OkHttpWebSocketStream(private val uri: URI, private val client: OkHttpClie
     }
 
     fun stop() {
-        // A close frame waits for the handshake; an upgrade that never answers has to be cancelled,
-        // or every retry leaves a call and its socket behind.
+        // A close frame waits for the handshake; an unanswered upgrade must be cancelled, or each
+        // retry leaks a call and its socket.
         if (open) socket?.close(NORMAL_CLOSURE, null) else socket?.cancel()
         finish(null)
     }

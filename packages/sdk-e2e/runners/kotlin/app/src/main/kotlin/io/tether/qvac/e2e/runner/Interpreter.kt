@@ -14,19 +14,16 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 /**
- * Executes a declarative test body: the Kotlin port of the interpreter every client shares
- * (packages/test-suite StepInterpreter, runners/python/qvac_e2e/interpreter.py). Same operations,
- * same binding rules, same verdicts, so a test that passes on one client and fails on another
- * points at an SDK.
+ * Kotlin port of the shared step interpreter (packages/test-suite StepInterpreter,
+ * runners/python/qvac_e2e/interpreter.py); keep operations, bindings and verdicts in sync.
  */
 class Interpreter(
     private val resources: Resources,
     private val calls: Calls,
-    /** The extracted fixtures: `<root>/images`, `<root>/audio`, ... */
+    /** Extracted fixtures: `<root>/images`, `<root>/audio`, ... */
     private val assetRoot: File,
     private val log: (String) -> Unit,
 ) {
-    /** A call `start` began and `settle` has yet to await. */
     private class Pending(val task: Deferred<Outcome>)
 
     private class Outcome(val value: Any?, val error: Throwable?)
@@ -37,8 +34,7 @@ class Interpreter(
         expectation: Map<String, Any?>,
         teardown: List<Map<String, Any?>> = emptyList(),
     ): StepResult = coroutineScope {
-        // Evict anything this test did not declare before it starts, so a run does not depend on the
-        // order tests happened to arrive in.
+        // Evict undeclared models first so a result does not depend on test order.
         val declared = (steps + teardown).filter { "useModel" in it }
             .flatMap { step -> asList(asMap(step["useModel"])["deps"]).map(Any?::toString) }
             .toSet()
@@ -60,7 +56,6 @@ class Interpreter(
         }
     }
 
-    /** The bindings a test body builds up, and the calls it started. */
     private class Scope(
         val coroutines: CoroutineScope,
         val values: MutableMap<String, Any?>,
@@ -87,10 +82,8 @@ class Interpreter(
     }
 
     /**
-     * Runs the teardown and drains the calls the body started, whether the body finished or its
-     * timeout cut it short: a worker left suspended, or a session or stream left open, would fail
-     * every test after it. A deadline that lands here waits for the cleanup, as the JS consumer's
-     * does, within the same bound.
+     * Runs teardown and drains started calls even after a body timeout: a suspended worker or open
+     * session would fail every later test. Bounded like the JS consumer's teardown.
      */
     private suspend fun cleanUp(teardown: List<Map<String, Any?>>, scope: Scope, expectation: Map<String, Any?>): StepResult? =
         withContext(NonCancellable) {
@@ -170,8 +163,7 @@ class Interpreter(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            // A gap is not the rejection this step came for; any other refusal, a client-side one
-            // included, is bound as the JS interpreter binds it.
+            // A gap stays incomplete; any other refusal, client-side included, binds as in the JS interpreter.
             if (error is StepError && error.incomplete) throw error
             scope.values[body["as"].toString()] = Wire.errorBinding(error)
             return null
@@ -196,7 +188,7 @@ class Interpreter(
         val steps = asList(body["steps"]).map(::asMap)
         val collected = mutableListOf<Any?>()
         for (item in items) {
-            // Each iteration gets its own scope so a binding from one item cannot leak into the next.
+            // A child scope per item so bindings cannot leak into the next iteration.
             val inner = scope.child(body["as"].toString(), item)
             val failure = runSteps(steps, inner, expectation)
             if (failure != null && !failure.passed) {
@@ -257,7 +249,6 @@ class Interpreter(
         } catch (error: UnknownResourceError) {
             throw StepError(error.message ?: "", incomplete = true)
         }
-        // One key binds the id itself; several bind the list.
         body["as"]?.toString()?.let { scope.values[it] = if (modelIds.size == 1) modelIds[0] else modelIds }
         // The first declared model is addressable as $model.
         modelIds.firstOrNull()?.let { scope.values.putIfAbsent("model", it) }
@@ -266,8 +257,7 @@ class Interpreter(
 
     private suspend fun callValue(body: Map<String, Any?>, scope: Scope): Any? {
         val method = body["method"].toString()
-        // Not an SDK call: a reload test has to put the model back where the resource manager can
-        // find it.
+        // Not an SDK call: reload tests evict through the resource manager so it can reload the model.
         if (method == "evictResource") {
             resources.evict(callParams(body["params"], scope)["dep"].toString())
             return mapOf("evicted" to true)
@@ -282,10 +272,8 @@ class Interpreter(
         return invoke(method, params, collect)
     }
 
-    /** Begins a call without waiting for it to finish. */
     private suspend fun start(body: Map<String, Any?>, scope: Scope): StepResult? {
         log("start ${body["method"]}")
-        // The scope as it stands now.
         val snapshot = scope.snapshot()
         val task = scope.coroutines.async {
             try {
@@ -387,7 +375,7 @@ class Interpreter(
         private val SCRATCH = setOf("scratchDirectory", "producedFile", "discardScratchDirectory")
         private const val START_ON_WIRE_MS = 50L
 
-        /** The bound the JS consumer puts on teardown (DEFAULT_TEARDOWN_TIMEOUT_MS in consumer-base.ts). */
+        /** Matches DEFAULT_TEARDOWN_TIMEOUT_MS in consumer-base.ts. */
         private const val TEARDOWN_TIMEOUT_MS = 120_000L
         private val INDEX = Regex("""^(.*?)\[(\d+)]$""")
         private val WILDCARD = Regex("""^(.*?)\[\*]$""")

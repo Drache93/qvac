@@ -94,10 +94,8 @@ export default {
       },
       {
         // The Kotlin SDK on an Android device. An app cannot be driven over
-        // stdin, so this client speaks the consumer protocol itself (mqtt
-        // mode): `prepare` builds and installs the APK before the producer
-        // starts, `run` points the app at this run's broker and follows its
-        // log. CI runs the same APK on Device Farm.
+        // stdin, so it speaks the consumer protocol itself (mqtt mode).
+        // See runners/kotlin/README.md.
         name: 'kotlin-android',
         platform: 'kotlin-android',
         mode: 'mqtt',

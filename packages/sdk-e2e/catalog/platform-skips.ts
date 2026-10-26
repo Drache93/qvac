@@ -326,7 +326,7 @@ const RULES: Rule[] = [
   },
 
   // ── the Kotlin client ────────────────────────────────────────────────────
-  // Same rule as for Python: skipped only where the claim belongs to the JS client.
+  // As for Python: skip only claims that belong to the JS client.
   {
     match: ['model-load-llm-legacy-no-mmap-rejected'],
     skip: {
@@ -382,10 +382,9 @@ const RULES: Rule[] = [
 ]
 
 /**
- * Legs that run on another leg's devices and so inherit its device policy. The Kotlin client runs
- * on the Android phones the JS mobile app runs on -- same memory, same Device Farm budget, same
- * resource-table platform -- so a test that is off for `mobile-android` is off for it too. A claim
- * that belongs to one client rather than to the device is recorded against that client's own label.
+ * Legs that run on another leg's devices (same phones, memory and Device Farm budget) and inherit
+ * its device skips. A skip that belongs to one client, not the device, goes under that client's
+ * label.
  */
 const SAME_DEVICE: Record<string, string> = { 'kotlin-android': 'mobile-android' }
 
@@ -411,7 +410,7 @@ function applySameDevice(test: TestDefinition): void {
     ...group,
     platforms: [...group.platforms]
   }))
-  // A leg can already be listed through a rule of its own while a device group still lacks it.
+  // A leg may already be listed by its own rule while a device reason group still lacks it.
   let changed = false
   for (const [leg, device] of Object.entries(SAME_DEVICE)) {
     if (!skip.platforms.some((entry) => applies(entry, device))) continue

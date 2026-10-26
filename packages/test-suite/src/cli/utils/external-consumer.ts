@@ -14,9 +14,8 @@ interface ExternalCommand {
 const RUN_LOCAL = 'run:local:'
 
 /**
- * `run:local:<name>` for an external consumer, as `run:local:external --name=<name>`, so every
- * client in `consumers.external` is run the way the built-in platforms are. A command the CLI
- * defines itself (`run:local:python` among them) is left alone.
+ * Rewrites `run:local:<name>` to `run:local:external --name=<name>`. Commands the CLI defines
+ * (`run:local:python` among them) are left alone.
  */
 export function routeRunLocal(argv: string[], commands: readonly string[]): string[] {
   const command = argv[2]
@@ -38,10 +37,7 @@ export function findExternalConsumer(
   throw new Error(`No external consumer named "${name}" (configured: ${available})`)
 }
 
-/**
- * What an external client is told about the run. A bridge client never needs it; an mqtt-mode
- * client, or a prepare step that bakes the run into an app, reads it from here.
- */
+/** The run, for an mqtt-mode client or a prepare step; bridge clients do not need it. */
 export function externalRunEnv(
   entry: ExternalConsumerConfig,
   runId: string,
@@ -61,8 +57,7 @@ export function externalRunEnv(
 }
 
 function resolveCommand(configDir: string, command: ExternalCommand) {
-  // A relative interpreter is relative to the config directory: spawn() resolves the command
-  // against the parent's cwd, not the child's.
+  // spawn() resolves a relative command against the parent's cwd, so resolve it against configDir.
   const interpreter = /[\\/]/.test(command.interpreter)
     ? path.resolve(configDir, command.interpreter)
     : command.interpreter
@@ -89,10 +84,7 @@ export function runExternalPrepare(
   }
 }
 
-/**
- * Starts an mqtt-mode client and mirrors its lifetime: its exit code is this process's, and a
- * signal sent here reaches it.
- */
+/** Starts an mqtt-mode client and mirrors its lifetime: exit code, SIGINT and SIGTERM. */
 export function runMqttClient(
   configDir: string,
   entry: ExternalConsumerConfig,

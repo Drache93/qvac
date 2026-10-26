@@ -47,10 +47,9 @@ interface MqttLink {
 
     companion object {
         /**
-         * The same choice the JS consumers make (packages/test-suite src/utils/mqtt-session.ts): MQTT 5
-         * with a persistent session when a session expiry is configured, which is how CI keeps a
-         * device's queue across a reconnect, and MQTT 3.1.1 otherwise, which is what the embedded
-         * local broker speaks.
+         * As in packages/test-suite/src/utils/mqtt-session.ts: MQTT 5 with a persistent session
+         * when an expiry is set (CI keeps a device's queue across reconnects), else MQTT 3.1.1,
+         * which the local broker speaks.
          */
         fun create(settings: MqttSettings, clientId: String): MqttLink =
             if (settings.sessionExpiryInterval != null) PahoV5Link(settings, clientId) else PahoV3Link(settings, clientId)
@@ -68,7 +67,7 @@ data class MqttSettings(
 ) {
     val secure: Boolean get() = url.startsWith("wss://") || url.startsWith("ssl://")
 
-    /** The trust the connection applies, or null for the platform's own. */
+    /** Null means the platform's default trust. */
     private fun trustManager(): X509TrustManager? = when {
         !rejectUnauthorized -> TrustAll
         ca != null -> {
@@ -87,10 +86,7 @@ data class MqttSettings(
     /** For a plain TCP or TLS broker, which Paho dials itself. */
     fun socketFactory(): SocketFactory? = if (secure) trustManager()?.let { sslContext(it).socketFactory } else null
 
-    /**
-     * The URI Paho is given. A WebSocket broker goes through [OkHttpWebSocket], which carries the
-     * trust and keeps the socket alive with pings of its own.
-     */
+    /** A WebSocket broker goes through [OkHttpWebSocket], which carries the trust and pings. */
     fun pahoUri(): String {
         val scheme = URI(url).scheme
         if (scheme != "ws" && scheme != "wss") return url
@@ -117,17 +113,13 @@ private const val RECONNECT_DELAY_S = 3
 /** Below the idle timeouts load balancers put on a WebSocket, so the connection is never idle. */
 private const val WEBSOCKET_PING_S = 20L
 
-/**
- * Publishes held while the connection is down, as mqtt.js holds them: a result published during a
- * Wi-Fi blip reaches the producer on reconnect instead of being dropped.
- */
+/** Publishes held while offline, as mqtt.js does: a result sent in a blip arrives on reconnect. */
 private const val OFFLINE_BUFFER = 10_000
 private val RETRY = Executors.newSingleThreadScheduledExecutor { Thread(it, "mqtt-connect-retry").apply { isDaemon = true } }
 
 /**
- * The first connection, retried until it succeeds: Paho's automatic reconnect only covers one that
- * once did, and mqtt.js retries this one too. A connect that throws rather than failing is retried
- * the same way, or the consumer would stay offline without a word.
+ * Retries the first connect: Paho's automatic reconnect only covers one that once succeeded.
+ * A connect that throws is retried too, or the consumer would stay offline silently.
  */
 private fun connectWithRetry(listener: MqttLink.Listener, closed: () -> Boolean, attempt: (failed: (Throwable?) -> Unit) -> Unit) {
     if (closed()) return

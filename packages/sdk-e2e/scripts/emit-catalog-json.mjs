@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 /**
- * Write the catalog out as JSON for a client that carries its definitions with it rather than
- * receiving them from the producer -- the Kotlin Android app, which runs the batch protocol on the
- * device and resolves each queued testId against its own copy, as the JS mobile app does.
+ * Writes the catalog, platform skips applied, as JSON for a client that carries its own copy of the
+ * definitions (the Kotlin Android app).
  *
- * The definitions are written with their platform skips already applied, exactly as the producer
- * and the JS consumers see them. A JS closure (`expectation.fn`) cannot be represented: the
- * definition keeps `validation: 'function'`, which a client reports as incomplete. Any other value
- * JSON cannot hold fails the run here instead of reaching a device as something else.
+ * `expectation.fn` closures are dropped; the definition keeps `validation: 'function'`, which a
+ * client reports as incomplete. Any other non-JSON value fails here.
  *
  *   node scripts/emit-catalog-json.mjs --out <directory>
  *
- * Reads dist/catalog, so run `npm run build:catalog` first (`npm run emit:catalog-json` does both).
+ * Reads dist/catalog: run `npm run build:catalog` first, or `npm run emit:catalog-json` for both.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,8 +35,7 @@ if (!fs.existsSync(definitionsPath)) {
 const { tests } = await import(pathToFileURL(definitionsPath).href)
 const problems = []
 
-// A plain JSON value, or the one closure the format allows for. Anything else is reported with
-// the path it was found at, so the definition that needs migrating is named.
+// Plain JSON plus `expectation.fn`; anything else is reported with its path in the definition.
 function toJson(value, where) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {

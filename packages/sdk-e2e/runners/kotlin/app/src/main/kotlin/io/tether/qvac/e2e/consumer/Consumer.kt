@@ -38,10 +38,8 @@ interface TestRunner {
 }
 
 /**
- * The batch consumer protocol, ported from packages/test-suite src/core/consumer-base.ts:
- * register until acknowledged, run the queue the producer hands out with the definitions this app
- * carries, report each test, and shut down on batch-complete. The log lines are the JS consumer's,
- * because the Device Farm spec reads progress out of logcat by them.
+ * The batch consumer protocol, ported from packages/test-suite/src/core/consumer-base.ts. Log lines
+ * match the JS consumer's: the Device Farm spec reads progress out of logcat by them.
  */
 class Consumer(
     private val scope: CoroutineScope,
@@ -94,8 +92,6 @@ class Consumer(
         link.connect(this)
     }
 
-    // --- MqttLink.Listener --------------------------------------------------------
-
     override fun connected(reconnect: Boolean) {
         if (registered) {
             log("✅ Reconnected to MQTT broker")
@@ -131,8 +127,6 @@ class Consumer(
         if (!shutdownStarted.get()) log("📴 Consumer offline: $reason")
     }
 
-    // --- protocol -----------------------------------------------------------------
-
     private fun now() = Instant.now().toString()
 
     private fun publish(topic: String, payload: Map<String, Any?>, qos: Int = 1, done: ((Throwable?) -> Unit)? = null) {
@@ -166,8 +160,6 @@ class Consumer(
         log("🔌 Registration ack - $totalTests tests in queue\n")
         startHeartbeat()
 
-        // The producer's filtered ids, resolved here: unknown ids and tests skipped on this platform
-        // contribute no bootstrap deps.
         val filteredIds = message["filteredTestIds"] as? List<*>
         val filtered = filteredIds?.let { ids ->
             var unresolved = 0
@@ -214,9 +206,8 @@ class Consumer(
 
     private suspend fun executeQueue(queue: List<Map<String, Any?>>) {
         for ((index, item) in queue.withIndex()) {
-            // Raised before shutdownRequested is read, and batch-complete raises shutdownRequested
-            // before it reads this: whichever side looks second sees the other, so a test never
-            // starts on a consumer that is shutting down, and the finalize is never missed.
+            // Dekker-style: set before reading shutdownRequested, which batch-complete sets before
+            // reading this, so no test starts during shutdown and finalize is never missed.
             processingTest = true
             try {
                 if (shutdownRequested) return
@@ -416,8 +407,7 @@ class Consumer(
     private suspend fun publishFinalProfiling() {
         if (!finalProfilingPublished) {
             finalProfilingPublished = true
-            // No profiler on this client: the producer still waits for a final export, so it gets an
-            // empty one rather than a ten-second timeout.
+            // No profiler here, but the producer waits for a final export: send an empty one.
             val published = CompletableDeferred<Unit>()
             publish(
                 "qvac/profiling",

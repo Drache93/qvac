@@ -140,8 +140,8 @@ on:
         required: true
 
 env:
-  # The report family, and the prefix of every artifact this workflow names:
-  # test-sdk.yml can call it for both apps in one run.
+  # Report family and artifact-name prefix: test-sdk.yml may call this for both
+  # apps in one run.
   E2E_FAMILY: ${{ inputs.app == 'kotlin' && 'kotlin-android' || 'android' }}
   # Unique: test-sdk.yml calls this workflow once per app per run. A UI re-run
   # keeps run_id, so build, device-farm, wait-device-farm-running and
@@ -185,8 +185,7 @@ jobs:
     name: "[${{ inputs.app == 'kotlin' && 'kotlin-android' || 'android' }}] build"
     runs-on: qvac-ubuntu2204-x64
     environment: release
-    # The Kotlin app builds the Android runtime from source (worker bundle, addon
-    # linking, CMake), which takes longer than the React Native bundle.
+    # The Kotlin app builds the Android runtime from source (worker bundle, CMake).
     timeout-minutes: ${{ inputs.app == 'kotlin' && 60 || 30 }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -250,8 +249,8 @@ jobs:
 
       - name: Install Android NDK (Kotlin runtime)
         if: inputs.app == 'kotlin'
-        # The version the Kotlin SDK pins (packages/sdk-kotlin); r30 links a libc++
-        # the prebuilt addons cannot load.
+        # The NDK packages/sdk-kotlin pins; r30 links a libc++ the prebuilt addons
+        # cannot load.
         run: sdkmanager 'ndk;29.0.14206865'
 
       - name: Configure npm registries
@@ -377,12 +376,8 @@ jobs:
             exit 1
           fi
 
-      # The same packing the Kotlin SDK's PR checks do (pr-checks-sdk-kotlin.yml):
-      # the runtime bundles this commit's worker, and its addons come from a
-      # tarball of this commit's @qvac/sdk with @qvac/inference overridden to this
-      # commit's engine, so the app tests the branch rather than a release. That
-      # makes the Kotlin app always run the checkout's inference, whatever
-      # inference-source says.
+      # Packs this commit's @qvac/sdk and @qvac/inference as pr-checks-sdk-kotlin.yml
+      # does, so the app tests the branch; inference-source applies to the producer only.
       - name: Build Kotlin consumer APK
         if: inputs.app == 'kotlin'
         shell: bash
@@ -413,8 +408,7 @@ jobs:
           npm install --ignore-scripts --legacy-peer-deps --no-package-lock "../sdk/${sdk_tgz}"
           popd
 
-          # packages/sdk is built above, so Gradle's own build of it -- and the Python it
-          # runs -- is skipped, as pr-checks-sdk-kotlin.yml skips it.
+          # packages/sdk is built above: skip Gradle's rebuild of it and its Python step.
           cd "$WORKING_DIRECTORY"
           echo "Building the Kotlin consumer APK (run $E2E_RUN_ID)..."
           node runners/kotlin/scripts/device.mjs build --prebuilt-sdk
@@ -492,8 +486,7 @@ jobs:
           curl -T "./apk/consumer.apk" "$APP_UPLOAD_URL"
 
           echo "Waiting for APK to be processed..."
-          # Ten minutes: the Kotlin app is several hundred MB and processes slower than the
-          # React Native one.
+          # 10 min: the Kotlin APK is several hundred MB and processes slowly.
           for i in {1..60}; do
             STATUS=$(aws devicefarm get-upload --arn "$APP_UPLOAD_ARN" --query "upload.status" --output text)
             echo "Status (attempt $i/60): $STATUS"
@@ -571,9 +564,8 @@ jobs:
           SPEC="$WORKING_DIRECTORY/device-farm/test-spec-android.yml"
           TIMEOUT_SECONDS=$(( ${{ inputs.device-farm-timeout || 90 }} * 60 ))
           sed -i "s/DEVICEFARM_TIMEOUT:-5400/DEVICEFARM_TIMEOUT:-${TIMEOUT_SECONDS}/" "$SPEC"
-          # The spec launches and follows the React Native app; the Kotlin app is
-          # another package and logs under its own tag. The log lines it waits for
-          # are the same.
+          # The spec targets the React Native app; swap in the Kotlin package and log
+          # tag (the awaited log lines are the same).
           if [ "$APP" = "kotlin" ]; then
             sed -i \
               -e "s#io.tether.qvac_test_consumer_mobile/.MainActivity#io.tether.qvac.e2e.kotlin/io.tether.qvac.e2e.MainActivity#" \

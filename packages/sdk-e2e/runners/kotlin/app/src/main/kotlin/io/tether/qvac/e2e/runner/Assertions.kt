@@ -8,9 +8,8 @@ typealias Assertion = (value: Any?, args: Map<String, Any?>) -> StepResult
 typealias Comparison = (left: Any?, right: Any?, args: Map<String, Any?>) -> StepResult
 
 /**
- * Named assertions and comparisons, ported from the Python client (runners/python/qvac_e2e/
- * assertions.py) with the same verdicts and messages, so two clients disagree only when the SDKs
- * do. A name missing here makes the step incomplete, never a pass.
+ * Named assertions ported from runners/python/qvac_e2e/assertions.py; keep verdicts and messages
+ * identical. A name missing here makes the step incomplete.
  */
 object Assertions {
     private fun text(value: Any?): String = if (value == null) "" else jsString(value)

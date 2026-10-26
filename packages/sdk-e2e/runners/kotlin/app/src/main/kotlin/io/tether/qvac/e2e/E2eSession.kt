@@ -29,8 +29,8 @@ import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * One run of the consumer. It belongs to the process, not to a window: it holds the application
- * context only, so a recreated activity neither restarts the run nor is kept alive by it.
+ * Process-scoped and holding only the application context, so a recreated activity neither restarts
+ * the run nor is kept alive by it.
  */
 object E2eSession {
     const val TAG = "QvacE2E"
@@ -42,7 +42,7 @@ object E2eSession {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val running = AtomicBoolean(false)
 
-    /** Where log lines are shown besides logcat: the activity on screen, if there is one. */
+    /** The on-screen activity's log sink, if any. */
     @Volatile var display: ((String) -> Unit)? = null
 
     /** Starts a run unless one is already going; the overrides are the launch intent's extras. */
@@ -99,7 +99,6 @@ object E2eSession {
         }
     }
 
-    /** Fixtures out of the APK, the worker up, and the interpreter wired to it. */
     private suspend fun startRuntime(app: Context): Runtime {
         log("🔧 Starting the QVAC worker...")
         val host = AndroidHost(app)
