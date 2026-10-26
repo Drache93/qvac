@@ -9,6 +9,15 @@
   The JS API does not expose it yet
   ([#5353](https://github.com/tetherto/qvac/pull/5353)).
 
+### Fixed
+
+- A prompt nested deeper than 128 levels, including `tool_calls` arguments,
+  is rejected with `InvalidInputFormat` instead of crashing the process.
+  Malformed tool definitions (no top-level `name`, or a non-string `name`,
+  `description`, `role` or `type`) are rejected the same way instead of
+  throwing picojson's raw type-mismatch error
+  ([#5353](https://github.com/tetherto/qvac/pull/5353)).
+
 ## [0.64.2] - 2026-10-23
 
 ### Added
