@@ -128,7 +128,7 @@ jobs:
           aws-region: us-west-2
       - name: Inspect current device job without scheduling tests
         env:
-          PROJECT_ARN: ${{ secrets.LLM_DEVICE_FARM_PROJECT_ARN }}
+          PROJECT_ARN: ${{ secrets.LLM_AWS_DEVICE_FARM_PROJECT_ARN }}
           RUN_FILTER: ${{ inputs.devicefarm_run_contains }}
         run: python3 .github/scripts/megaloc-devicefarm-status.py
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -155,7 +155,7 @@ jobs:
       - name: Reuse the diagnostic app on four control devices
         id: schedule
         env:
-          PROJECT_ARN: ${{ secrets.LLM_DEVICE_FARM_PROJECT_ARN }}
+          PROJECT_ARN: ${{ secrets.LLM_AWS_DEVICE_FARM_PROJECT_ARN }}
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/megaloc-replay-controls.py
       - name: Monitor the four controls
