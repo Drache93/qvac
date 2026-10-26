@@ -2179,7 +2179,7 @@ size_t LlamaModel::calcToken(const CalcTokenRequest& request) const {
     throw qvac_errors::StatusError(
         ADDON_ID,
         toString(qvac_errors::general_error::InvalidArgument),
-        "calcToken: tools need a history or text to render with");
+        "calcToken: history and text hold no message to count");
   }
   return context.countChatTokens(conversation.chatMsgs, conversation.tools);
 }

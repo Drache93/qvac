@@ -1120,6 +1120,9 @@ TEST_F(LlamaModelTest, CalcTokenRejectsInvalidRequests) {
       (void)model.calcToken(
           {.tools = R"([{"type": "function", "name": "get_weather"}])"}),
       qvac_errors::StatusError);
+  // An empty conversation.
+  EXPECT_THROW(
+      (void)model.calcToken({.history = "[]"}), qvac_errors::StatusError);
   // Media on a text-only model.
   EXPECT_THROW(
       (void)model.calcToken(
