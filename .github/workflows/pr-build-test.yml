@@ -124,8 +124,8 @@ jobs:
           path: prebuilds/${{ matrix.project.dir }}/prebuilds
 
   cpp-lint:
-    needs: [select, route]
-    if: needs.route.outputs.run_verified_checks == 'true'
+    needs: [select, route, trust]
+    if: needs.trust.outputs.allowed == 'true' && needs.route.outputs.run_verified_checks == 'true'
     permissions:
       contents: read
       actions: read
@@ -137,8 +137,8 @@ jobs:
 
   # C++ and desktop tests run against the build's outputs.
   cpp-tests:
-    needs: [select, route, build]
-    if: needs.route.outputs.run_cpp_tests == 'true'
+    needs: [select, route, trust, build]
+    if: needs.trust.outputs.allowed == 'true' && needs.route.outputs.run_cpp_tests == 'true'
     permissions:
       contents: read
       actions: read

@@ -1477,19 +1477,26 @@ test("merge guard changes filter: ALL_PACKAGES and producer-less workflow paths"
     "ALL_PACKAGES must list every changes filter key whose package directory exists",
   );
 
-  // on-pr-nx only triggers on packages/**. A workflow path on an nx-produced
-  // key flags the package on a PR that never runs on-pr-nx, so the verify job
-  // waits to its deadline for a status nothing posts.
+  // on-pr-nx and the contract's pr-build-test select packages by nx affected,
+  // which never selects one for a .github/ change. A .github/ path on their key
+  // flags the package on a PR they post nothing for, so the verify job waits to
+  // its deadline.
+  const nxSelected = [
+    ".github/workflows/on-pr-nx.yml",
+    ".github/workflows/pr-build-test.yml",
+  ];
   const nxProduced = [...new Set([...CPP_TEST_KEYS, ...PREBUILD_KEYS])].filter(
-    (pkg) => !(pkg in CARVED_OUT_PRODUCERS) && exists(pkg),
+    (pkg) =>
+      nxSelected.includes(CARVED_OUT_PRODUCERS[pkg] ?? nxSelected[0]) &&
+      exists(pkg),
   );
   const offenders = nxProduced.filter((pkg) =>
-    (filters[pkg] ?? []).some((path) => path.startsWith(".github/workflows/")),
+    (filters[pkg] ?? []).some((path) => path.startsWith(".github/")),
   );
   assert.deepEqual(
     offenders,
     [],
-    "nx-produced packages must not list a workflow path in the changes filter",
+    "nx-selected packages must not list a .github/ path in the changes filter",
   );
 });
 
@@ -1552,6 +1559,48 @@ test("on-pr-nx: every non-exempt job gates on fork-approval", () => {
   }
 
   // The exempt map must not drift into naming jobs that no longer exist.
+  for (const job of exempt.keys()) {
+    assert.ok(jobNames.includes(job), `exempt job '${job}' still exists`);
+  }
+});
+
+// pr-build-test is on-pr-nx's successor for contract packages and holds every privileged PR job, so the same rule
+// applies. trust reports allowed=false rather than failing, so a gated job needs it in both needs and if.
+test("pr-build-test: every non-exempt job gates on trust", () => {
+  const source = read(".github/workflows/pr-build-test.yml");
+
+  const exempt = new Map([
+    ["select", "checks out the trusted ref and installs with --ignore-scripts"],
+    ["fork-approval", "is the gate"],
+    ["route", "reads PR labels from a trusted sparse checkout; runs no PR code"],
+    ["trust", "needs fork-approval already, and is the second half of the gate"],
+    ["merge", "only moves artifacts the gated build uploaded"],
+    ["status", "trusted sparse checkout; publishes a commit status after gated jobs"],
+    ["summary", "trusted sparse checkout; summarizes the run"],
+  ]);
+
+  const jobNames = [...source.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map(
+    (m) => m[1],
+  );
+  assert.ok(jobNames.includes("build"), "parsed the pr-build-test job list");
+
+  for (const job of jobNames) {
+    if (exempt.has(job)) continue;
+    const block = jobBlock(source, job);
+    const needs = block.match(/needs:[\s\S]*?(?=\n {4}[a-z#]|\n {2}[a-z])/);
+    assert.ok(needs, `'${job}' declares needs`);
+    assert.match(
+      needs[0],
+      /\btrust\b/,
+      `'${job}' must need trust (or be added to the exempt map with a reason)`,
+    );
+    assert.match(
+      block,
+      /\n {4}if:[^\n]*needs\.trust\.outputs\.allowed == 'true'/,
+      `'${job}' must run only when trust allowed it`,
+    );
+  }
+
   for (const job of exempt.keys()) {
     assert.ok(jobNames.includes(job), `exempt job '${job}' still exists`);
   }
