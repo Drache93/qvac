@@ -49,7 +49,7 @@ mossSpeechCodecModelSrc: <codec source> }` and the language-model GGUF as
 Earlier turns go in `messages`; each turn has a `role` and either `text` or
 `audio` plus `sampleRate`. Per-call controls include `systemPrompt`,
 `replyVoice` plus `replyVoiceSampleRate`, `maxReplySeconds`, `maxNewTokens`,
-`textReply`, `greedy`, `temperature`, `topP` and `topK`. Consume `bufferStream` in the default streaming mode, or await `buffer` with
+`textReply`, `greedy`, `temperature`, `topP` and `topK`. Consume `chunkStream` (one `Float32Array` per frame) or `bufferStream` (per sample) in the default streaming mode, or await `buffer` with
 `stream: false`, then await `result.text` for any reply text.
 Spoken mode can return an audio-only reply; use `textReply: true` when text is required.
 Spoken replies are 24 kHz; `textReply: true` returns text with an empty audio
