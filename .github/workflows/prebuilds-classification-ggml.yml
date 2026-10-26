@@ -4,6 +4,10 @@ name: Prebuilds (GGML Classification)
 on:
   workflow_dispatch:
     inputs:
+      devicefarm_run_contains:
+        description: "Read-only Device Farm status for this GitHub mobile run ID"
+        type: string
+        default: ""
       assets_only:
         description: "Prepare diagnostic assets without rebuilding the addon"
         type: boolean
@@ -42,7 +46,7 @@ permissions:
 
 jobs:
   prebuild:
-    if: inputs.assets_only != true
+    if: inputs.assets_only != true && inputs.devicefarm_run_contains == ''
     permissions:
       contents: write
       pull-requests: write
@@ -64,7 +68,7 @@ jobs:
     secrets: inherit
 
   diagnostic-device-inventory:
-    if: inputs.assets_only != true
+    if: inputs.assets_only != true && inputs.devicefarm_run_contains == ''
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -102,4 +106,29 @@ jobs:
         with:
           name: megaloc-diagnostic-assets
           path: diagnostic-assets
+          retention-days: 7
+
+  diagnostic-mobile-status:
+    if: inputs.devicefarm_run_contains != ''
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Inspect current device job without scheduling tests
+        env:
+          PROJECT_ARN: ${{ secrets.LLM_DEVICE_FARM_PROJECT_ARN }}
+          RUN_FILTER: ${{ inputs.devicefarm_run_contains }}
+        run: python3 .github/scripts/megaloc-devicefarm-status.py
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: devicefarm-diagnostic-status
+          path: devicefarm-diagnostic-status
           retention-days: 7
