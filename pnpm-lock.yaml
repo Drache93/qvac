@@ -2206,11 +2206,11 @@ importers:
         version: 3.1.1
     devDependencies:
       '@qvac/fabric-android-arm64':
-        specifier: 0.23.1
-        version: 0.23.1
+        specifier: 0.23.0
+        version: 0.23.0
       '@qvac/fabric-ios':
-        specifier: 0.23.1
-        version: 0.23.1
+        specifier: 0.23.0
+        version: 0.23.0
       '@types/node':
         specifier: ^24.2.1
         version: 24.13.3
@@ -4636,10 +4636,6 @@ packages:
     resolution: {integrity: sha512-bDEbfNBKBgib8gyiAm6fktYuQo5kajvke84RiPpm2UxK0EBinDMqxh2A67umV5+4Opru7l5hD05sRr3naMf2Rw==}
     engines: {bare: '>=1.24.0'}
 
-  '@qvac/fabric-android-arm64@0.23.1':
-    resolution: {integrity: sha512-90jEXajp8O5TqXOZWtoFyNY4HneOgnnetx8t8oNVoVKjxsfDwCAaAAQee80tx9K77t/FmJFrOIIG5a7oh8xBAg==}
-    engines: {bare: '>=1.24.0'}
-
   '@qvac/fabric-darwin-arm64@0.22.0':
     resolution: {integrity: sha512-VveZlg8vEg02tT6fP9va6yojgyENyvAgOzWh+H8my444wGWUQtk+F1h82F/F/wSPeTFxsJaC29BsztJWM5Rk6A==}
     engines: {bare: '>=1.24.0'}
@@ -4670,10 +4666,6 @@ packages:
 
   '@qvac/fabric-ios@0.23.0':
     resolution: {integrity: sha512-dTYH8oMor8STNo+ibFBg4f+w6j9zI8uOXHhTHKAWAmNv22/GH0yA5lsGjUWF1A3I4PeN7r+u0b/jXYOwu9bAQA==}
-    engines: {bare: '>=1.24.0'}
-
-  '@qvac/fabric-ios@0.23.1':
-    resolution: {integrity: sha512-Dui79DmZdE8zjD6z69W/4OlnTmWHdlNTSvonld7w7AcwwbVwfcw2v7jH7IAPl6WkWdzk1H1Oadhl7FPPhz3hWg==}
     engines: {bare: '>=1.24.0'}
 
   '@qvac/fabric-linux-arm64@0.22.0':
@@ -14712,8 +14704,6 @@ snapshots:
 
   '@qvac/fabric-android-arm64@0.23.0': {}
 
-  '@qvac/fabric-android-arm64@0.23.1': {}
-
   '@qvac/fabric-darwin-arm64@0.22.0':
     optional: true
 
@@ -14730,8 +14720,6 @@ snapshots:
     optional: true
 
   '@qvac/fabric-ios@0.23.0': {}
-
-  '@qvac/fabric-ios@0.23.1': {}
 
   '@qvac/fabric-linux-arm64@0.22.0':
     optional: true
