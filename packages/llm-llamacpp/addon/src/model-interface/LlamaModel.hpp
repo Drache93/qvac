@@ -208,9 +208,11 @@ public:
   /// no chat template and no BOS. With `history` or `tools` the conversation,
   /// `text` appended as a user turn, is rendered by the chat template as the
   /// opening request of a fresh conversation, BOS and generation prompt
-  /// included. Media is not counted: a media message throws
-  /// `InvalidArgument`. Reads only load-time state and never enters the job
-  /// scheduler, so it runs beside in-flight requests.
+  /// included. Tools the template leaves out are not counted, and a `prefill`
+  /// request, which renders without a user turn, can differ. Media is not
+  /// counted: a media message throws `InvalidArgument`. Reads only load-time
+  /// state and never enters the job scheduler, so it runs beside in-flight
+  /// requests.
   [[nodiscard]] size_t calcToken(const CalcTokenRequest& request) const;
 
   /**
