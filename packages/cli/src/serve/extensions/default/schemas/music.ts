@@ -202,7 +202,9 @@ function jobResource<O extends string>(object: O) {
     object: z.literal(object),
     model: z.string(),
     status: jobStatus,
-    progress: z.number().describe('0..100, a high-water mark across the run stages.'),
+    progress: z
+      .number()
+      .describe('0..100 within the current `stage`; restarts at each stage, 100 once completed.'),
     stage: z.string().nullable().describe('The engine stage last reported, e.g. `lm` or `dit`.'),
     created_at: z.number(),
     completed_at: z.number().nullable(),

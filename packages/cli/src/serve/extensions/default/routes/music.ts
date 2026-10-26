@@ -493,15 +493,14 @@ async function driveJob(
   // Ticks can still arrive after the run settles; they must not reopen the job.
   let settled = false
 
-  // Each stage restarts its step count, so progress is a high-water mark.
+  // Progress is stage-local: the LM stage reports 1/1 before the much longer
+  // DiT and VAE stages start, so a run-wide high-water mark would sit at 99.
   async function drainProgress(): Promise<void> {
-    let high = 0
     try {
       for await (const tick of run.progressStream) {
         if (signal.aborted || settled) return
         const pct = tick.total > 0 ? Math.round((tick.step / tick.total) * 100) : 0
-        high = Math.max(high, Math.min(99, pct))
-        store.update(id, { status: 'in_progress', stage: tick.stage, progress: high })
+        store.update(id, { status: 'in_progress', stage: tick.stage, progress: Math.min(99, pct) })
       }
     } catch {
       // `run.audio` reports the failure.

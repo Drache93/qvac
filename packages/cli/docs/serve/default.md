@@ -625,8 +625,9 @@ The same routes serve both job kinds, under `/qvac/v1/audio/generations` and
 | `GET`    | `/{id}/content` | The audio                                       |
 | `DELETE` | `/{id}`         | Deletes the job, cancelling it if still running |
 
-`status` moves `queued` → `in_progress` → `completed` or `failed`. `progress` (0–100) is a
-high-water mark across the engine stages, the last of which is in `stage`. Once completed,
+`status` moves `queued` → `in_progress` → `completed` or `failed`. `progress` (0–100) is the
+progress of the engine stage named in `stage`, and restarts at each stage (an ACE-Step generation
+runs `lm`, then the longer DiT and VAE stages); it reads 100 once the job completes. Once completed,
 `stats` carries the SDK's run stats; for ACE-Step that includes `metadata`, what was rendered
 after the LM filled in unset fields, and `lrc`, `lyricsScore` and `qualityScore` when requested.
 A failed job carries `error.code` `audio_generation_failed` or `audio_edit_failed`.

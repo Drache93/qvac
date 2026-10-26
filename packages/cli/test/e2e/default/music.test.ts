@@ -321,6 +321,34 @@ describe('qvac music: jobs against a stubbed SDK', () => {
     assertStatusAndError(gone, 404, 'audio_job_not_found')
   })
 
+  it('reports progress within the current stage', async () => {
+    const audio = deferred<AudioGenAudio>()
+    state().audioGenOverride = () =>
+      fakeRun(audio.promise, [
+        { stage: 'lm', step: 1, total: 1 },
+        { stage: 'dit', step: 2, total: 8 }
+      ])
+    const res = await server().inject({
+      method: 'POST',
+      url: GENERATIONS,
+      payload: { model: 'music', caption: 'lofi' }
+    })
+    const { id } = res.json() as JobBody
+
+    let job: JobBody | undefined
+    for (let i = 0; i < 100; i++) {
+      job = (await server().inject({ method: 'GET', url: `${GENERATIONS}/${id}` })).json()
+      if (job?.stage === 'dit') break
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    assert.equal(job?.status, 'in_progress')
+    assert.equal(job?.stage, 'dit')
+    assert.equal(job?.progress, 25)
+
+    audio.resolve(AUDIO)
+    assert.equal((await waitForJob(server(), GENERATIONS, id)).progress, 100)
+  })
+
   it('records a failed run on the job', async () => {
     state().audioGenOverride = () => fakeRun(Promise.reject(new Error('DiT exploded')))
     const res = await server().inject({
