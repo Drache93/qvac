@@ -99,6 +99,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io") // bare-rpc-kotlin
         maven {
             url = uri("https://maven.pkg.github.com/tetherto/qvac")
             credentials {
@@ -123,6 +124,20 @@ Replace `qvac-sdk-android` with `qvac-sdk-android-assistant`, `-llm`, `-speech`,
 `-vision`, `-media`, or `-robotics` when the app only needs that profile. The
 Kotlin API and import namespace remain identical across all artifacts.
 
+The artifacts depend on `bare-rpc-kotlin`, which is compiled with Kotlin 2.4,
+so the consuming project needs a Kotlin 2.3 or newer compiler. AGP 9's built-in
+Kotlin compiles with the Kotlin Gradle plugin version on the classpath, and
+bundles 2.2 when none is declared, so such a project adds the plugin without
+applying it:
+
+```kotlin
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android") version "2.4.20" apply false
+}
+```
+
 Each `sdk-v<version>` GitHub Release also contains token-free Maven repository
 ZIPs for the seven Android profiles and the desktop JVM client. For example,
 download `qvac-sdk-android-llm-<version>-maven.zip`, extract it, and point a
@@ -133,13 +148,14 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io") // bare-rpc-kotlin
         maven { url = uri("/absolute/path/to/extracted-qvac-repository") }
     }
 }
 ```
 
 The archive includes the selected runtime and the Kotlin client modules it
-depends on, so the dependency declaration remains
+depends on, but not the Holepunch libraries from JitPack, so the dependency declaration remains
 `implementation("io.tether:qvac-sdk-android-llm:<version>")`. Verify downloads
 against the release's `SHA256SUMS` asset. GitHub Packages or the configured
 public Maven repository remains the recommended path for normal dependency
@@ -457,22 +473,17 @@ schema), and Kotlin compilation. Unsupported schema constructs fail generation
 instead of silently degrading to an empty DTO. The generated schema namespace
 is large by design; edit the exporter/generator, never generated DTOs.
 
-## Streaming resource limits
+## Bare-RPC
 
-Bare-RPC honors request-stream PAUSE/RESUME and sends response-stream flow
-control at byte/chunk watermarks. Queues are bounded even for empty chunks.
-An addressed oversized frame up to the discard safety limit is drained in
-64 KiB pieces and fails only its request with `BareRpcLimitException`; later
-RPCs remain usable. Unaddressable/malformed frames and frames beyond the safety
-limit close the connection. JSON lines have a separate bound, including lines
-split across frames. These are memory-safety limits, not generation cutoffs.
-
-Pass `rpcLimits = BareRpcLimits(...)` to `AndroidBareKitTransport.connect` or
-`JvmBareRpcTransport.connect/ connectResolved` when a capability needs larger
-individual frames/JSON lines. Defaults: 16 MiB frame and JSON line, 256 MiB
-discard ceiling, 32 MiB/1024 chunks per stream, pause at 1 MiB and resume below
-512 KiB. Account for device RAM before raising them. The isolated Android
-service uses the safe defaults.
+Both transports speak bare-rpc through Holepunch's
+[`bare-rpc-kotlin`](https://github.com/holepunchto/bare-rpc-kotlin), published
+on JitPack, so a consuming project lists the JitPack repository next to Maven
+Central as the snippets above do. The library owns the wire limits: a frame
+over 16 MiB, or a stream buffering more than 16 MiB ahead of its collector,
+fails the connection, and the worker's stream is paused at 16 KiB buffered and
+resumed once drained. JSON lines are bounded separately at 16 MiB, including
+lines split across chunks. These are memory-safety limits, not generation
+cutoffs.
 
 ## Local development
 
@@ -493,8 +504,7 @@ QVAC_RUN_CONFORMANCE=1 ./gradlew jvmTest --tests '*WorkerConformanceTest' --reru
 This downloads small models and tests generation, translation, embeddings,
 load/unload, cancellation, the tool loop, and TTS. Without the opt-in variable
 this test is explicitly skipped; ordinary JVM tests still exercise a live
-JavaScript Bare-RPC process and canonical bytes from the locked upstream
-encoder. CI runs real inference on `test-e2e-smoke`-labelled PRs or manual
+JavaScript bare-rpc peer. CI runs real inference on `test-e2e-smoke`-labelled PRs or manual
 dispatch. Publishing requires a release tag, explicit dispatch, or the SDK
 release workflow.
 
