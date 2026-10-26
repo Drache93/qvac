@@ -400,6 +400,10 @@ describe('qvac music: jobs against a stubbed SDK', () => {
     audio.resolve(AUDIO)
     const job = await waitForJob(server(), EDITS, (res.json() as JobBody).id)
     assert.equal(job.status, 'completed')
+    // The job completes just before its temp files are unlinked.
+    for (let i = 0; i < 100 && existsSync(seen[0]!.path); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
     assert.equal(existsSync(seen[0]!.path), false, 'the file must be deleted once the run ends')
   })
 
