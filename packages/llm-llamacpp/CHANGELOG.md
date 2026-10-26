@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A prompt nested deeper than 128 levels, including `tool_calls` arguments,
+  is rejected with `InvalidInputFormat` instead of crashing the process.
+  Malformed tool definitions (no top-level `name`, or a non-string `name`,
+  `description`, `role` or `type`) are rejected the same way instead of
+  throwing picojson's raw type-mismatch error
+  ([#5371](https://github.com/tetherto/qvac/pull/5371)).
+
 ## [0.64.3] - 2026-10-26
 
 ### Changed
