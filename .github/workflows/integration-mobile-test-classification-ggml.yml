@@ -38,6 +38,10 @@ on:
         description: "Run containing the pinned megaloc-diagnostic-assets artifact"
         type: string
         default: ""
+      diagnostic_disable_xmem:
+        description: "Disable the Adreno half-accumulation GEMM for diagnosis"
+        type: boolean
+        default: false
       diagnostic_mode:
         description: "Diagnostic scenario"
         type: choice
@@ -318,9 +322,10 @@ jobs:
         env:
           DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode || 'full' }}
           DIAGNOSTIC_CPU_OPS: ${{ inputs.diagnostic_cpu_ops }}
+          DIAGNOSTIC_DISABLE_XMEM: ${{ inputs.diagnostic_disable_xmem && '1' || '' }}
         run: >-
           python3 -c 'import json,os; from pathlib import Path;
-          Path("test/fixtures/megaloc-diagnostic-plan.json").write_text(json.dumps({"mode":os.environ["DIAGNOSTIC_MODE"],"cpuOps":os.environ["DIAGNOSTIC_CPU_OPS"]}))'
+          Path("test/fixtures/megaloc-diagnostic-plan.json").write_text(json.dumps({"mode":os.environ["DIAGNOSTIC_MODE"],"cpuOps":os.environ["DIAGNOSTIC_CPU_OPS"],"disableXmem":bool(os.environ["DIAGNOSTIC_DISABLE_XMEM"])}))'
 
       - name: Build mobile app
         id: build

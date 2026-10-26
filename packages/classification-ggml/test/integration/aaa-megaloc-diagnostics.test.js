@@ -10,6 +10,8 @@ const synthetic = require('../fixtures/megaloc-reference.json')
 const plan = require('../fixtures/megaloc-diagnostic-plan.json')
 const { isMobile } = require('./utils')
 
+if (plan.disableXmem) env.GGML_OPENCL_ADRENO_XMEM_GEMM = '0'
+
 const D = 8448
 const traceDir = path.join(path.dirname(asset('megaloc-f16.gguf')), '.megaloc-diagnostic-trace')
 const available = []
@@ -118,6 +120,7 @@ function embedSynthetic(instance, reference) {
 
 test('Diagnostic: backend inventory and isolated engine operations', async function (t) {
   t.timeout(10 * 60 * 1000)
+  report('engine_configuration', { adrenoXmemGemm: env.GGML_OPENCL_ADRENO_XMEM_GEMM || 'default' })
   cleanEnv()
   env.QVAC_MEGALOC_DEVICES = '1'
   env.QVAC_MEGALOC_PROBES = '1'
