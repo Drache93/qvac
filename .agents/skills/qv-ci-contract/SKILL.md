@@ -1,11 +1,11 @@
 ---
 name: qv-ci-contract
-description: Change CI for a package tagged ci:contract, migrate the next package onto the CI contract, or write or change an action the contract workflows call. Use when a task touches a tagged package's build, test, mobile or publish CI, the contract workflows (pr-checks, pr-build-test, mobile-tests, cache-warm, publish-npm, publish-gpr, the _*.yml templates), select-projects.mjs, or moves a package off on-pr-nx.yml or its own on-pr workflow.
+description: Change CI for a package tagged ci:contract, migrate the next package onto the CI contract, or write or change an action the contract's groups call. Use when a task touches a tagged package's build, test, mobile or publish CI, the contract's groups (pr-checks, pr-build-test, mobile-tests, cache-warm, publish-npm, publish-gpr, the _*.yml templates), select-projects.mjs, or moves a package off on-pr-nx.yml or its own on-pr workflow.
 ---
 
 # qv-ci-contract
 
-The standard is [`docs/ci/workflow-standard.md`](../../../docs/ci/workflow-standard.md): target names, legs, metadata, native dependencies, prebuilds and trust. Read it before any of the three tasks below; this skill is the procedure, not the rules.
+The standard is [`docs/ci/workflow-standard.md`](../../../docs/ci/workflow-standard.md): target names, configurations, metadata, native dependencies, prebuilds and trust. Read it before any of the three tasks below; this skill is the procedure, not the rules.
 
 Pick the task:
 
@@ -18,14 +18,14 @@ Pick the task:
 1. Confirm the tag: `pnpm exec nx show projects --projects tag:ci:contract`. An untagged package is not on the contract; follow `.github/AGENTS.md` instead and stop here.
 2. Put the change in the package's own files:
    - a command: a target command in `project.json`, or a script in the package's `ci/` directory that a target runs;
-   - platform flags: the leg's `args`;
-   - a step that differs on one leg: that leg's `commands`;
-   - a runner: the leg's `ci.runner` key from `reusable-runner-names.yml`;
-   - a toolkit: the leg's `ci.setup`;
+   - platform flags: the platform configuration's `args`;
+   - a step that differs on one platform: that configuration's `commands`;
+   - a runner: the configuration's `ci.runner` key from `reusable-runner-names.yml`;
+   - a toolkit: the configuration's `ci.setup`;
    - a timeout, mobile setting or release tag prefix: the target's `metadata`;
    - models: the package's model manifest.
 3. Leave the workflows and actions alone. A package name or directory never appears in a condition there. If the standard cannot express the change, that is a change to the standard: raise it before writing it.
-4. Run `node --test .github/scripts/test/ci-contract-standard.test.mjs .github/scripts/test/ci-trust-policy.test.mjs`, and run the target locally where the host allows: `pnpm exec nx run <project>:<target>:<leg>`.
+4. Run `node --test .github/scripts/test/ci-contract-standard.test.mjs .github/scripts/test/ci-trust-policy.test.mjs`, and run the target locally where the host allows: `pnpm exec nx run <project>:<target>:<configuration>`.
 
 Done when both test files pass and the target runs locally, or the change is confirmed in a `pr-build-test.yml` run on the branch.
 
@@ -34,7 +34,7 @@ Done when both test files pass and the target runs locally, or the change is con
 One pull request switches the package: before it merges only the old path runs, after it merges only the contract does, and reverting it restores the old path with no other edit. `main` is the source of truth: port its runners, flags, system packages, timeouts and dormant settings as they are.
 
 1. Tag the package `ci:contract` in its `project.json`.
-2. Map every step its current workflow runs (`options.ci` for `on-pr-nx.yml`, or its own `on-pr-<pkg>.yml` and `prebuilds-<pkg>.yml`) to a standard target, with a leg per platform on the runner the old job used.
+2. Map every step its current workflow runs (`options.ci` for `on-pr-nx.yml`, or its own `on-pr-<pkg>.yml` and `prebuilds-<pkg>.yml`) to a standard target, with a configuration per platform on the runner the old job used.
 3. Depend on each native dependency's `link:platform` by name. Give the dependency a `link:platform` target if it lacks one.
 4. Move scripts the targets call into the package's `ci/` directory, and models into its manifest.
 5. For mobile, set `metadata.mobile` and map the Device Farm project in `DEVICEFARM_PROJECTS` (`select-projects.mjs`) and `PROJECT_ARN` (`mobile-tests.yml`).

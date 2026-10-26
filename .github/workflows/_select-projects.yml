@@ -17,7 +17,7 @@ on:
         type: string
         default: ""
       configs:
-        description: Comma-separated leg configurations to keep, e.g. ios-arm64; empty keeps every leg
+        description: Comma-separated configurations to keep, e.g. ios-arm64; empty keeps every configuration
         type: string
         default: ""
     outputs:

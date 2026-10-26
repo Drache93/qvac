@@ -91,7 +91,7 @@ jobs:
     with:
       rows: ${{ toJSON(fromJSON(needs.select.outputs.matrices).build) }}
 
-  # Folds a package's legs into prebuilds-<slug>, taking its own prebuilds from each leg's artifact.
+  # Folds a package's build jobs into prebuilds-<slug>, taking its own prebuilds from each job's artifact.
   merge:
     needs: [select, build]
     name: merge ${{ matrix.project.slug }}
@@ -207,7 +207,7 @@ jobs:
         run: node .github/scripts/prebuild-status/publish.mjs
 
   # Not named qvac-merge-guard: that is the required check's job, and a second one would share its context.
-  # Reads this run's jobs, so the table shows each package, stage and failed leg, not only the reusable callers.
+  # Reads this run's jobs, so the table shows each package, stage and failed job, not only the reusable callers.
   summary:
     needs: [select, fork-approval, route, trust, build, merge, cpp-lint, cpp-tests, desktop, status]
     if: always()

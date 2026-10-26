@@ -31,14 +31,14 @@ export function prepare({ workdir, expectedDirs = [], source = '' }) {
   const missing = expectedDirs.filter((d) => !list(join(dir, d)).length)
   if (missing.length)
     throw new Error(
-      `${source || dir} has no ${missing.join(' ')}; its prebuild leg for this platform did not finish`
+      `${source || dir} has no ${missing.join(' ')}; its prebuild job for this platform did not finish`
     )
   for (const d of expectedDirs) {
     const foreign = foreignStem(list(join(dir, d)), basename(workdir), d)
     if (foreign)
       throw new Error(`${source || dir} contains ${foreign}, not a build of ${basename(workdir)}`)
   }
-  // Only an ABI nobody built: the simulator legs are real builds, and a device binary in their place breaks bare-link.
+  // Only an ABI nobody built: the simulator configurations are real builds, and a device binary in their place breaks bare-link.
   for (const [from, tos] of Object.entries(COPIES)) {
     if (!existsSync(join(dir, from))) continue
     for (const to of tos)

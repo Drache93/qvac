@@ -171,7 +171,7 @@ jobs:
         with:
           path: src
           persist-credentials: "false"
-      # The legs straight into place, which is what a merged bundle would hold.
+      # The build jobs' prebuilds straight into place, which is what a merged bundle would hold.
       - if: contains(matrix.row.targets, 'build')
         uses: tetherto/qvac-actions/download-artifact@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:

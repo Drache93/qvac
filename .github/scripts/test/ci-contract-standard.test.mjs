@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 import {
   TAG,
   TARGETS,
-  LEG_NAME,
-  legs,
+  CONFIG_NAME,
+  configurations,
   checkMetadata,
   parseRunnerLabels
 } from '../select-projects.mjs'
@@ -46,14 +46,18 @@ for (const project of contract) {
     )
   })
 
-  test(`${project.name}: legs and metadata follow the standard`, () => {
+  test(`${project.name}: configurations and metadata follow the standard`, () => {
     const runners = parseRunnerLabels(read('.github/workflows/reusable-runner-names.yml'))
     for (const target of targets) {
       checkMetadata(project, target)
       if (target === 'ci:system') {
-        // Its legs only mirror the build legs' names so `-c <leg>` reaches it; they never become jobs.
+        // Its configurations only mirror the build's names so `-c <configuration>` reaches it; they never become jobs.
         for (const [config, cfg] of Object.entries(project.targets[target].configurations ?? {})) {
-          assert.match(config, LEG_NAME, `${project.path} ${target} ${config}: leg name`)
+          assert.match(
+            config,
+            CONFIG_NAME,
+            `${project.path} ${target} ${config}: configuration name`
+          )
           assert.deepEqual(
             Object.keys(cfg),
             ['commands'],
@@ -62,10 +66,10 @@ for (const project of contract) {
         }
         continue
       }
-      for (const leg of legs(project, target))
+      for (const cfg of configurations(project, target))
         assert.ok(
-          runners[leg.runnerKey],
-          `${project.path} ${target} ${leg.config}: runner key ${leg.runnerKey} is not in reusable-runner-names.yml`
+          runners[cfg.runnerKey],
+          `${project.path} ${target} ${cfg.config}: runner key ${cfg.runnerKey} is not in reusable-runner-names.yml`
         )
     }
   })
@@ -79,13 +83,13 @@ for (const project of contract) {
       )
   })
 
-  test(`${project.name}: every leg that restores the build has a build leg to restore`, () => {
+  test(`${project.name}: every configuration that restores the build has a build configuration to restore`, () => {
     const built = new Set(Object.keys(project.targets.build?.configurations ?? {}))
     for (const target of RESTORE_BUILD.filter((t) => targets.includes(t)))
-      for (const leg of legs(project, target))
+      for (const cfg of configurations(project, target))
         assert.ok(
-          built.has(`${leg.platform}-${leg.arch}`),
-          `${project.path} ${target} ${leg.config}: no build leg ${leg.platform}-${leg.arch} produces its prebuild`
+          built.has(`${cfg.platform}-${cfg.arch}`),
+          `${project.path} ${target} ${cfg.config}: no build configuration ${cfg.platform}-${cfg.arch} produces its prebuild`
         )
   })
 }

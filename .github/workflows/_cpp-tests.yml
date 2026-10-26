@@ -1,6 +1,6 @@
 name: C++ tests
 
-# Each package's cpp:build and cpp:tests targets through Nx, on the runner each leg's configuration names: cpp:build
+# Each package's cpp:build and cpp:tests targets through Nx, on the runner each configuration names: cpp:build
 # builds the test binary against the build job's prebuilds for that platform, then cpp:tests runs it with its models.
 on:
   workflow_call:
@@ -76,7 +76,7 @@ jobs:
           key: cpp-tests-v6-${{ matrix.row.key || matrix.row.slug }}-${{ matrix.row.platform == 'win32' && 'windows' || matrix.row.platform }}-${{ matrix.row.arch }}-${{ hashFiles(format('{0}/vcpkg.json', env.WORKDIR), format('{0}/vcpkg-configuration.json', env.WORKDIR), 'src/vcpkg-overlays/triplets/**', 'src/vcpkg-overlays/toolchains/**') }}-${{ env.TOOLCHAIN_FINGERPRINT }}
           path: ${{ env.WORKDIR }}/vcpkg/cache
       - uses: ./.github/actions/setup-apple-clang
-      # The native dependencies come prebuilt, so only the toolkits the leg itself asks for.
+      # The native dependencies come prebuilt, so only the toolkits the configuration itself asks for.
       - if: contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:

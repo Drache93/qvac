@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// One table per run: a row per package, a column per stage, and every failed leg with its failing step and a link.
+// One table per run: a row per package, a column per stage, and every failed job with its failing step and a link.
 
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -7,14 +7,14 @@ import { pathToFileURL } from 'node:url'
 const ICON = { success: '✅', failure: '❌', cancelled: '🚫', skipped: '⏭️', pending: '⏳' }
 const FAILED = new Set(['failure', 'cancelled', 'timed_out', 'startup_failure'])
 
-// "build / vla-ggml win32-x64" or "status vla-ggml": the stage, then the package, then the leg.
+// "build / vla-ggml win32-x64" or "status vla-ggml": the stage, then the package, then the configuration.
 export function classify(name, slugs) {
   const stage = name.includes(' / ') ? name.split(' / ')[0] : name.split(' ')[0]
   const rest = name.slice(name.includes(' / ') ? stage.length + 3 : stage.length).trim()
   const pkg = [...slugs]
     .sort((a, b) => b.length - a.length)
     .find((s) => rest === s || rest.startsWith(`${s} `))
-  return { stage, pkg: pkg ?? '', leg: pkg ? rest.slice(pkg.length).trim() : rest }
+  return { stage, pkg: pkg ?? '', config: pkg ? rest.slice(pkg.length).trim() : rest }
 }
 
 const outcome = (job) => (job.status === 'completed' ? job.conclusion : 'pending')
@@ -54,11 +54,16 @@ export function summarize({ jobs, slugs, title, self = 'summary' }) {
   }
   const failed = rows.filter((r) => FAILED.has(outcome(r.job)))
   if (failed.length) {
-    lines.push('### Failed', '', '| Package | Stage | Leg | Step | Job |', '|---|---|---|---|---|')
+    lines.push(
+      '### Failed',
+      '',
+      '| Package | Stage | Configuration | Step | Job |',
+      '|---|---|---|---|---|'
+    )
     for (const r of failed) {
       const step = r.job.steps?.find((s) => FAILED.has(s.conclusion))?.name ?? ''
       lines.push(
-        `| ${r.pkg || '-'} | ${r.stage} | ${r.leg || '-'} | ${step} | [logs](${r.job.html_url}) |`
+        `| ${r.pkg || '-'} | ${r.stage} | ${r.config || '-'} | ${step} | [logs](${r.job.html_url}) |`
       )
     }
     lines.push('')

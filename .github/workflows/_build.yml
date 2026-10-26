@@ -96,7 +96,7 @@ jobs:
           KEY: ${{ steps.vulkan.outputs.upload-key }}
           BUCKET: ${{ secrets.MODEL_S3_BUCKET }}
         run: aws s3 cp "$ARCHIVE" "s3://$BUCKET/$KEY"
-      # The build compiles its native dependencies here, so it takes the host's toolkits plus any the leg asks for.
+      # The build compiles its native dependencies here, so it takes the host's toolkits plus any the configuration asks for.
       - if: contains(matrix.row.toolchain.hostSetup[format('{0}-{1}', matrix.row.platform, matrix.row.arch)], 'cuda') || contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:

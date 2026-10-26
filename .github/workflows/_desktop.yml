@@ -1,6 +1,6 @@
 name: Desktop tests
 
-# Each package's desktop targets (test:integration, test:backend) through Nx, one job per leg on the runner its
+# Each package's desktop targets (test:integration, test:backend) through Nx, one job per configuration on the runner its
 # configuration names, against the build job's prebuilds for that platform.
 on:
   workflow_call:
@@ -60,7 +60,7 @@ jobs:
         with:
           arch: ${{ matrix.row.arch }}
           cache-bucket: ${{ secrets.MODEL_S3_BUCKET }}
-      # The native dependencies come prebuilt, so only the toolkits the leg itself asks for.
+      # The native dependencies come prebuilt, so only the toolkits the configuration itself asks for.
       - if: contains(matrix.row.setup, 'cuda')
         uses: ./.github/actions/setup-cuda
         with:

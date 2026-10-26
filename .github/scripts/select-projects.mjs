@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The one selection pass. It resolves the commits a run compares, lets `nx show projects --affected` pick the packages
 // on the CI contract, checks their project.json against the standard (docs/ci/workflow-standard.md), and turns each
-// target's legs into job rows.
+// target's configurations into job rows.
 
 import { appendFileSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -32,12 +32,12 @@ export const TARGETS = [
   'publish'
 ]
 
-// A leg is one of a target's configurations, <platform>-<arch>[-<variant>], holding only args or commands and a ci
+// A configuration is named <platform>-<arch>[-<variant>] and holds only args or commands and a ci
 // object with its runner and any extra host setup it needs.
-export const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
-const LEG_KEYS = ['args', 'commands', 'ci']
+export const CONFIG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
+const CONFIG_KEYS = ['args', 'commands', 'ci']
 const CI_KEYS = ['runner', 'setup']
-// Host setup a leg may ask for; each is one workflow step, its version pinned in nx.json.
+// Host setup a configuration may ask for; each is one workflow step, its version pinned in nx.json.
 const SETUP = ['cuda', 'rocm']
 
 // The metadata a target may carry, and on which targets. toolchain is nx.json's, merged into every build target.
@@ -58,15 +58,15 @@ const MOBILE_KEYS = [
 // Each needs its secret named in mobile-tests.yml's PROJECT_ARN.
 export const DEVICEFARM_PROJECTS = ['LLAMACPP_EMBED']
 
-export function legs(project, target) {
+export function configurations(project, target) {
   return Object.entries(project.targets[target].configurations ?? {}).map(([config, cfg]) => {
     const where = `${project.name} ${target} configuration ${config}`
-    const m = config.match(LEG_NAME)
+    const m = config.match(CONFIG_NAME)
     if (!m) throw new Error(`${where}: the name must be <platform>-<arch>[-<variant>]`)
-    const extra = Object.keys(cfg).filter((k) => !LEG_KEYS.includes(k))
+    const extra = Object.keys(cfg).filter((k) => !CONFIG_KEYS.includes(k))
     if (extra.length)
       throw new Error(
-        `${where}: only ${LEG_KEYS.join(', ')} are allowed, found ${extra.join(', ')}`
+        `${where}: only ${CONFIG_KEYS.join(', ')} are allowed, found ${extra.join(', ')}`
       )
     const ciExtra = Object.keys(cfg.ci ?? {}).filter((k) => !CI_KEYS.includes(k))
     if (ciExtra.length)
@@ -110,7 +110,7 @@ export function checkMetadata(project, target) {
   return meta
 }
 
-// One row per leg; a target without legs is one job per package, on whatever runner the group picks.
+// One row per configuration; a target without any is one job per package, on whatever runner the group picks.
 export function rows(project, target, labels) {
   const meta = checkMetadata(project, target)
   const base = {
@@ -128,15 +128,15 @@ export function rows(project, target, labels) {
     setup: [],
     runner: ''
   }
-  // Nx gives every target a configurations object, empty when it has no legs.
+  // Nx gives every target a configurations object, empty when it has none.
   if (!Object.keys(project.targets[target]?.configurations ?? {}).length) return [base]
-  return legs(project, target).map((leg) => {
-    const runner = labels[leg.runnerKey]
+  return configurations(project, target).map((cfg) => {
+    const runner = labels[cfg.runnerKey]
     if (!runner)
       throw new Error(
-        `${project.name} ${target} configuration ${leg.config}: unknown runner key ${leg.runnerKey}`
+        `${project.name} ${target} configuration ${cfg.config}: unknown runner key ${cfg.runnerKey}`
       )
-    return { ...base, ...leg, runner }
+    return { ...base, ...cfg, runner }
   })
 }
 
@@ -165,7 +165,7 @@ export function gateKeys(gateYaml) {
   return keys
 }
 
-// configs, when set, keeps only those legs: a mobile dispatch runs its one platform.
+// configs, when set, keeps only those configurations: a mobile dispatch runs its one platform.
 export function select({ graph, affected, targets, labels, gate, configs = [] }) {
   const tagged = Object.values(graph.nodes).filter((n) => n.data.tags?.includes(TAG))
   const chosen = tagged.filter((n) => affected === null || affected.includes(n.name))
