@@ -51,7 +51,7 @@ jobs:
       run_desktop: ${{ steps.route.outputs.run_desktop }}
     steps:
       - name: Checkout actions
-        uses: tetherto/qvac-actions/checkout@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           sparse-checkout: .github/actions
           persist-credentials: false
@@ -70,7 +70,7 @@ jobs:
       allowed: ${{ steps.trust.outputs.allowed }}
     steps:
       - name: Checkout actions
-        uses: tetherto/qvac-actions/checkout@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           sparse-checkout: .github/actions
           persist-credentials: false
@@ -107,18 +107,18 @@ jobs:
       BUILT: ${{ contains(matrix.project.targets, 'build') }}
     steps:
       - name: Checkout actions
-        uses: tetherto/qvac-actions/checkout@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           sparse-checkout: .github/actions
           persist-credentials: false
       - if: env.BUILT == 'true'
-        uses: tetherto/qvac-actions/download-artifact@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/download-artifact@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           pattern: prebuild-${{ matrix.project.slug }}-*
           path: prebuilds
           merge-multiple: "true"
       - if: env.BUILT == 'true'
-        uses: tetherto/qvac-actions/upload-artifact@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/upload-artifact@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           name: prebuilds-${{ matrix.project.slug }}
           path: prebuilds/${{ matrix.project.dir }}/prebuilds
@@ -184,7 +184,7 @@ jobs:
       CI_ROUTER_RESULT: ${{ needs.route.result }}
     steps:
       - name: Checkout actions
-        uses: tetherto/qvac-actions/checkout@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           sparse-checkout: .github/scripts/prebuild-status
           persist-credentials: false
@@ -218,7 +218,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout actions
-        uses: tetherto/qvac-actions/checkout@56f083d185a861b7e830b6818f666dccb00682d3  # TEMP rehearsal: qvac-actions PR 18 head until it merges
+        uses: tetherto/qvac-actions/checkout@2b18a503c23b2bebf73019521bf0fe3be6432099  # TEMP rehearsal: qvac-actions PR 18 head until it merges
         with:
           sparse-checkout: .github/scripts
           persist-credentials: false

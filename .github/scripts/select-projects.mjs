@@ -12,9 +12,29 @@ import { CPP_TEST_KEYS, PREBUILD_KEYS } from './prebuild-status/lib.mjs'
 
 export const TAG = 'ci:contract'
 
+// The standard target names. The groups run only these, and a package on the contract declares only these.
+export const TARGETS = [
+  'lint',
+  'typecheck',
+  'test:unit',
+  'verify:generated',
+  'ci:setup',
+  'ci:system',
+  'build',
+  'link:platform',
+  'cpp:lint',
+  'cpp:build',
+  'cpp:tests',
+  'test:integration',
+  'test:backend',
+  'test:mobile',
+  'cache:models',
+  'publish'
+]
+
 // A leg is one of a target's configurations, <platform>-<arch>[-<variant>], holding only args or commands and a ci
 // object with its runner and any extra host setup it needs.
-const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
+export const LEG_NAME = /^(linux|android|ios|darwin|win32)-(x64|arm64)(-[a-z0-9]+)?$/
 const LEG_KEYS = ['args', 'commands', 'ci']
 const CI_KEYS = ['runner', 'setup']
 // Host setup a leg may ask for; each is one workflow step, its version pinned in nx.json.
@@ -266,6 +286,8 @@ export function shas(range, run = git) {
 function main(env) {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'))
   const targets = env.TARGETS.split(/[\s,]+/).filter(Boolean)
+  const unknown = targets.filter((t) => !TARGETS.includes(t))
+  if (unknown.length) throw new Error(`not standard targets: ${unknown.join(', ')}`)
   const nx = (args, opts = {}) =>
     execFileSync('pnpm', ['exec', 'nx', ...args], {
       encoding: 'utf8',
