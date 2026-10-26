@@ -14,25 +14,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The compiled profile stays resident across generations. Native generation
   keeps its existing behavior when these options are absent.
 
+### Changed
+
+- Align the shared native `speech-cpp` source to `2026-10-26` across the speech addons.
+
+## [0.9.0] - 2026-10-23
+
+### Added
+
 - Bounded FuzzTest coverage for the JS-adapter number parsers
-  (`parseInteger`, `parseFloat`, `checkedInteger`, `checkedFloat`). Linux C++
-  CI runs the suite after the native build's caches are saved; this addon has
-  no addon-level C++ unit tests yet. The parsers compile without audiogen-cpp,
-  so ASan and LeakSanitizer stay at full strength. No public addon API changes.
+  (`parseInteger`, `parseFloat`, `checkedInteger`, `checkedFloat`)
+  ([#4606](https://github.com/tetherto/qvac/pull/4606)). Linux C++ CI runs the
+  suite after the native build's caches are saved; this addon has no
+  addon-level C++ unit tests yet. The parsers compile without audiogen-cpp, so
+  ASan and LeakSanitizer stay at full strength. No public addon API changes.
 
 ### Changed
 
 - Align the shared native `speech-cpp` source pin to `2026-10-20#1` across
-  the speech addons so they use the same source revision.
+  the speech addons so they use the same source revision
+  ([#5062](https://github.com/tetherto/qvac/pull/5062),
+  [#5194](https://github.com/tetherto/qvac/pull/5194),
+  [#5245](https://github.com/tetherto/qvac/pull/5245)).
 - Move the shared native `speech-cpp` source pin to `2026-10-23#2` across
-  the speech addons so they use the same source revision.
+  the speech addons so they use the same source revision
+  ([#5326](https://github.com/tetherto/qvac/pull/5326)).
 
 ### Fixed
 
 - Adreno GPUs (Android, OpenCL): q8_0 matrix products whose sums exceed
   the fp16 range no longer come back as infinity, and attention over 32 or
   more tokens with unpadded lengths is computed correctly. The shared native
-  `ggml-speech` moves to `2026-10-23` across the speech addons.
+  `ggml-speech` moves to `2026-10-23` across the speech addons
+  ([#5326](https://github.com/tetherto/qvac/pull/5326)).
 
 ## [0.8.0] - 2026-10-14
 
@@ -236,12 +250,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Mobile platform packages (`@qvac/audiogen-ggml-android-arm64`,
-  `@qvac/audiogen-ggml-ios`) are no longer `os`-filtered `optionalDependencies`
-  of the meta package. No build host ever reports a mobile `os`, so installers
-  could never select them during a cross-build and mobile bundles failed
-  verification with missing prebuilds. They now publish without install filters;
-  mobile applications declare the target's platform package as a direct
-  dependency pinned to the exact meta package version.
+`@qvac/audiogen-ggml-ios`) are no longer `os`-filtered `optionalDependencies`
+of the meta package. No build host ever reports a mobile `os`, so installers
+could never select them during a cross-build and mobile bundles failed
+verification with missing prebuilds. They now publish without install filters;
+mobile applications declare the target's platform package as a direct
+dependency pinned to the exact meta package version.
+
 
 ## [0.4.0] - 2026-09-11
 
@@ -253,7 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CUDA stays a runtime-loaded module — the engine prefers it over Vulkan only
   where the NVIDIA driver and the CUDA 13 runtime libraries (cudart, cuBLAS)
   resolve at load time; every other host keeps Vulkan or CPU. `npm run
-build:cuda` builds the same configuration from source.
+  build:cuda` builds the same configuration from source.
 
 - Extend opt-in CUDA builds (`ENABLE_CUDA=ON`) from linux-x64 to linux-arm64
   and win32-x64. CUDA, Vulkan, and CPU variants ship as runtime-loaded modules
@@ -629,7 +644,7 @@ build:cuda` builds the same configuration from source.
   progress ticks + the interleaved-Int16 PCM chunk and resolves with the run
   stats (`audioDurationMs`, `totalTimeMs`, `realTimeFactor`), plus `cancel()` /
   `unload()` / `destroy()`.
-- Run stats report the _resolved_ backend via `backendDevice` (0 = CPU, 1 = GPU)
+- Run stats report the *resolved* backend via `backendDevice` (0 = CPU, 1 = GPU)
   and `backendId` (0 = CPU, 1 = Metal, 2 = CUDA, 3 = Vulkan, 4 = OpenCL,
   99 = other), matching `@qvac/tts-ggml`. The GPU integration smoke asserts on
   them, so a `useGPU: true` run that silently falls back to the CPU now fails
@@ -652,4 +667,4 @@ build:cuda` builds the same configuration from source.
   (every encoder/muxer verified present in the vendored build). MP3 is not
   offered — that build ships no MP3 encoder. Accepts a single format or an array
   (one file per format, input order); each result carries `{ format, data,
-extension, mimeType }`. `OUTPUT_FORMATS` exports the allowed list.
+  extension, mimeType }`. `OUTPUT_FORMATS` exports the allowed list.

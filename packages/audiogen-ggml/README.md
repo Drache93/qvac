@@ -167,8 +167,8 @@ the song ended on its own. See
 
 ### MiniMax full Core ML on macOS
 
-On macOS 15+, use the full Core ML build (`speech-cpp[minimax-coreml]`)
-with the original F16 GGUF pair and its matching compiled profile:
+On macOS 15+, `speech-cpp[audiogen]` includes the full Core ML runtime. Use
+the original F16 GGUF pair and its matching compiled profile:
 
 ```js
 const generator = new AudioGen({

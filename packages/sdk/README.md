@@ -290,7 +290,7 @@ together; no device policy is selected implicitly. Allowed values are
 Core ML may use, not measured ANE placement. The directory is on the machine
 running inference and contains the matching F16 profile's manifest and compiled
 programs; it is not downloaded from `coremlProfileDir`. The macOS addon must be
-built with the separate `speech-cpp[minimax-coreml]` feature.
+built with `speech-cpp[audiogen]`, which includes the full Core ML runtime on macOS.
 
 Generation and cancellation use the normal SDK APIs. Models remain loaded until
 `unloadModel()`. An explicit Core ML load error is reported without native
@@ -369,10 +369,10 @@ npm i path/to/qvac-sdk-0.21.0.tgz
 
 The SDK test suite is organized into two buckets by runtime:
 
-| Bucket            | Runtime   | Location | Command                                |
-| ----------------- | --------- | -------- | -------------------------------------- |
-| Unit              | Node      | `test/`  | `npm run test:unit`                    |
-| Client (consumer) | Node / RN | `e2e/`   | See [`e2e/README.md`](./e2e/README.md) |
+| Bucket            | Runtime   | Location      | Command                                            |
+| ----------------- | --------- | ------------- | -------------------------------------------------- |
+| Unit              | Node      | `test/`       | `npm run test:unit`                                |
+| Client (consumer) | Node / RN | `../sdk-e2e/` | See [`../sdk-e2e/README.md`](../sdk-e2e/README.md) |
 
 See [`TESTING.md`](./TESTING.md) for the full decision tree on where new tests should land.
 

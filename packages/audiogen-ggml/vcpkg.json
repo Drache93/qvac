@@ -1,10 +1,6 @@
 {
   "dependencies": [
     {
-      "name": "ggml-speech",
-      "default-features": false
-    },
-    {
       "name": "qvac-lib-inference-addon-cpp",
       "version>=": "1.5.0"
     },
@@ -13,31 +9,25 @@
       "version>=": "1.4.4#3"
     },
     {
+      "name": "ggml-speech",
+      "default-features": false
+    },
+    {
       "name": "speech-cpp",
       "default-features": false,
       "features": [
         "audiogen",
         "metal"
       ],
-      "platform": "ios"
+      "platform": "osx | ios"
     },
     {
       "name": "speech-cpp",
       "default-features": false,
       "features": [
         "audiogen",
-        "metal",
-        "minimax-coreml"
-      ],
-      "platform": "osx"
-    },
-    {
-      "name": "speech-cpp",
-      "default-features": false,
-      "features": [
-        "audiogen",
-        "opencl",
-        "vulkan"
+        "vulkan",
+        "opencl"
       ],
       "platform": "android"
     },
@@ -71,26 +61,26 @@
       "dependencies": [
         {
           "name": "abseil",
+          "version>=": "20260526.0",
           "features": [
             "asan"
-          ],
-          "version>=": "20260526.0"
+          ]
         },
         "antlr4",
         {
           "name": "fuzztest",
+          "version>=": "2026-06-29",
           "features": [
             "asan"
-          ],
-          "version>=": "2026-06-29"
+          ]
         },
         "gtest",
         {
           "name": "re2",
+          "version>=": "2025-11-05",
           "features": [
             "asan"
-          ],
-          "version>=": "2025-11-05"
+          ]
         }
       ]
     },
@@ -121,7 +111,8 @@
     },
     {
       "name": "speech-cpp",
-      "version": "2026-10-23#3"
+      "version": "2026-10-26",
+      "port-version": 0
     }
   ]
 }
