@@ -1101,6 +1101,31 @@ TEST_F(LlamaModelTest, CalcTokenCountsTools) {
       withTools);
 }
 
+TEST_F(LlamaModelTest, CalcTokenWithToolsMatchesPromptTokensOfAFreshRun) {
+  if (!fs::exists(getValidModelPath())) {
+    FAIL() << "Test model not found at: " << getValidModelPath();
+  }
+
+  LlamaModel model = createModel();
+  model.waitForLoadInitialization();
+  ASSERT_TRUE(model.isLoaded());
+
+  const std::string input = R"([
+    {"role": "user", "content": "Weather in Paris?"},
+    {"type": "function", "name": "get_weather",
+     "description": "Get the weather for a city",
+     "parameters": {"type": "object", "properties":
+       {"city": {"type": "string"}}, "required": ["city"]}}])";
+  const size_t count = model.calcToken({.history = input});
+
+  LlamaModel::Prompt prompt;
+  prompt.input = input;
+  (void)model.processPrompt(prompt);
+  EXPECT_EQ(
+      static_cast<double>(count),
+      getStatValue(model.runtimeStats(), "promptTokens"));
+}
+
 TEST_F(LlamaModelTest, CalcTokenRejectsInvalidRequests) {
   if (!fs::exists(getValidModelPath())) {
     FAIL() << "Test model not found at: " << getValidModelPath();
