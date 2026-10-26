@@ -19,7 +19,11 @@ import {
 } from '../utils/process-manager.js'
 import { ensureBroker, type BrokerHandle } from '../utils/local-broker.js'
 import { writeLocalMobileEnv } from '../utils/env-writer.js'
-import { externalRunEnv, runExternalPrepare } from '../utils/external-consumer.js'
+import {
+  externalRunEnv,
+  findExternalConsumer,
+  runExternalPrepare
+} from '../utils/external-consumer.js'
 import {
   detectAndroidDevices,
   installAndroidApk,
@@ -164,7 +168,11 @@ function assertSnapNotInstalled(snapName: string): void {
   }
 }
 
-async function setupLocal(opts: LocalOptions): Promise<{
+async function setupLocal(
+  opts: LocalOptions,
+  /** Checks the loaded config before anything is started. */
+  check?: (config: Awaited<ReturnType<typeof loadConfig>>) => void
+): Promise<{
   runId: string
   configDir: string
   reportDir: string
@@ -188,6 +196,7 @@ async function setupLocal(opts: LocalOptions): Promise<{
   console.log(`🔑 Run ID: ${runId}\n`)
 
   const config = await loadConfig(configDir)
+  check?.(config)
   const mqttConfig = buildMqttConnectionConfig(config)
   const brokerUrl = mqttConfig.brokerUrl
 
@@ -300,14 +309,16 @@ export async function runLocalExternal(opts: ExternalOptions) {
   try {
     console.log(`🔌 run:local:external (${opts.name})\n`)
 
-    const { runId, configDir, reportDir, brokerHandle } = await setupLocal(opts)
+    const { runId, configDir, reportDir, brokerHandle } = await setupLocal(opts, (config) => {
+      findExternalConsumer(config.consumers.external, opts.name)
+    })
     const cliPath = resolveCliPath()
     const tracked: TrackedProcess[] = []
 
     // Before the producer: it gives consumers a fixed window to register, and a build is longer.
     const config = await loadConfig(configDir)
-    const entry = config.consumers.external?.find((c) => c.name === opts.name)
-    if (entry?.prepare) {
+    const entry = findExternalConsumer(config.consumers.external, opts.name)
+    if (entry.prepare) {
       if (opts.skipBuild) {
         console.log('⏭️  Skipping the prepare step (--skip-build)\n')
       } else {

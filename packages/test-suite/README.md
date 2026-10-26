@@ -230,8 +230,8 @@ qvac-test run:local:electron
 qvac-test run:local:snap
 qvac-test run:local:android
 qvac-test run:local:ios
-qvac-test run:local:python          # any consumers.external entry named "python"
-qvac-test run:local:external --name=<name>
+qvac-test run:local:<name>          # the consumers.external entry of that name
+qvac-test run:local:external --name=<name>   # the same, spelled out
 
 # Separate producer / consumer (advanced)
 qvac-test run:producer

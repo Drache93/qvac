@@ -11,6 +11,33 @@ interface ExternalCommand {
   env?: Record<string, string>
 }
 
+const RUN_LOCAL = 'run:local:'
+
+/**
+ * `run:local:<name>` for an external consumer, as `run:local:external --name=<name>`, so every
+ * client in `consumers.external` is run the way the built-in platforms are. A command the CLI
+ * defines itself (`run:local:python` among them) is left alone.
+ */
+export function routeRunLocal(argv: string[], commands: readonly string[]): string[] {
+  const command = argv[2]
+  if (!command?.startsWith(RUN_LOCAL) || commands.includes(command)) return argv
+  const name = command.slice(RUN_LOCAL.length)
+  if (!name) return argv
+  // Last, so the name in the command wins over a stray --name.
+  return [...argv.slice(0, 2), `${RUN_LOCAL}external`, ...argv.slice(3), `--name=${name}`]
+}
+
+/** The entry `--name` refers to; a typo fails here, before a broker and producer are started. */
+export function findExternalConsumer(
+  external: ExternalConsumerConfig[] | undefined,
+  name: string
+): ExternalConsumerConfig {
+  const entry = external?.find((candidate) => candidate.name === name)
+  if (entry) return entry
+  const available = external?.map((candidate) => candidate.name).join(', ') || 'none'
+  throw new Error(`No external consumer named "${name}" (configured: ${available})`)
+}
+
 /**
  * What an external client is told about the run. A bridge client never needs it; an mqtt-mode
  * client, or a prepare step that bakes the run into an app, reads it from here.

@@ -3,7 +3,12 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { externalRunEnv, runExternalPrepare } from '../../dist/cli/utils/external-consumer.js'
+import {
+  externalRunEnv,
+  findExternalConsumer,
+  routeRunLocal,
+  runExternalPrepare
+} from '../../dist/cli/utils/external-consumer.js'
 
 const entry = (extra = {}) => ({
   name: 'device',
@@ -66,4 +71,35 @@ test('a failing prepare step throws with its exit code', () => {
 
 test('an entry without prepare is a no-op', () => {
   assert.doesNotThrow(() => runExternalPrepare(tmpdir(), entry(), {}))
+})
+
+const commands = ['run:local:desktop', 'run:local:external', 'run:local:python', 'run:producer']
+const argv = (...args) => ['node', 'qvac-test', ...args]
+
+test('run:local:<name> runs the external consumer of that name', () => {
+  assert.deepEqual(
+    routeRunLocal(argv('run:local:kotlin-android', '--suite=smoke'), commands),
+    argv('run:local:external', '--suite=smoke', '--name=kotlin-android')
+  )
+})
+
+test('a command the CLI defines is left alone, run:local:python included', () => {
+  for (const command of ['run:local:python', 'run:local:desktop', 'run:producer']) {
+    assert.deepEqual(
+      routeRunLocal(argv(command, '--suite=smoke'), commands),
+      argv(command, '--suite=smoke')
+    )
+  }
+  assert.deepEqual(routeRunLocal(argv('run:local:'), commands), argv('run:local:'))
+  assert.deepEqual(routeRunLocal(argv(), commands), argv())
+})
+
+test('an unknown external consumer is named with the ones configured', () => {
+  const external = [entry({ name: 'python' }), entry({ name: 'kotlin-android' })]
+  assert.equal(findExternalConsumer(external, 'kotlin-android').name, 'kotlin-android')
+  assert.throws(
+    () => findExternalConsumer(external, 'andriod'),
+    /No external consumer named "andriod" \(configured: python, kotlin-android\)/
+  )
+  assert.throws(() => findExternalConsumer(undefined, 'python'), /configured: none/)
 })

@@ -42,7 +42,7 @@ npx qvac-test run:local:snap --filter snap-
 npx qvac-test run:local:android
 npx qvac-test run:local:ios
 npx qvac-test run:local:python
-npx qvac-test run:local:external --name=kotlin-android
+npx qvac-test run:local:kotlin-android
 ```
 
 **MQTT broker.** `run:local:*` requires a broker serving WebSockets on port 8080 and MQTT/TCP on 1883.
