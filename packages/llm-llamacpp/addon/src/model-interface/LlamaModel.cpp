@@ -1931,9 +1931,11 @@ ParsedPromptPayload parsePromptPayload(
     const std::optional<qvac_lib_inference_addon_llama::utils::ReasoningTags>&
         reasoningTags,
     const std::function<void()>& resetMedia) {
+  // Errors keep the prefix `run()` callers have always seen.
+  constexpr const char* kParseTag = "formatPrompt";
   if (input.empty()) {
     resetMedia();
-    std::string errorMsg = string_format("%s: empty prompt\n", __func__);
+    std::string errorMsg = string_format("%s: empty prompt\n", kParseTag);
     throw qvac_errors::StatusError(ADDON_ID, toString(EmptyPrompt), errorMsg);
   }
   ParsedPromptPayload parsed;
@@ -2002,7 +2004,7 @@ ParsedPromptPayload parsePromptPayload(
         }
         if (!contentMissing && !contentIt->second.is<std::string>()) {
           std::string errorMsg =
-              string_format("%s: content must be a string\n", __func__);
+              string_format("%s: content must be a string\n", kParseTag);
           throw qvac_errors::StatusError(
               ADDON_ID, toString(InvalidInputFormat), errorMsg);
         }
@@ -2040,7 +2042,7 @@ ParsedPromptPayload parsePromptPayload(
           std::string errorMsg = string_format(
               "%s: Must append a user question after loading "
               "media\n",
-              __func__);
+              kParseTag);
           throw qvac_errors::StatusError(
               ADDON_ID, toString(UserMessageNotProvided), errorMsg);
         }
@@ -2065,7 +2067,7 @@ ParsedPromptPayload parsePromptPayload(
     if (addMediaPlaceholder > 0) {
       resetMedia();
       std::string errorMsg =
-          string_format("%s: No request for media was made\n", __func__);
+          string_format("%s: No request for media was made\n", kParseTag);
       throw qvac_errors::StatusError(
           ADDON_ID, toString(MediaRequestNotProvided), errorMsg);
     }
@@ -2073,7 +2075,7 @@ ParsedPromptPayload parsePromptPayload(
   if (!err.empty()) {
     resetMedia();
     std::string errorMsg =
-        string_format("%s: Invalid input format: %s\n", __func__, err.c_str());
+        string_format("%s: Invalid input format: %s\n", kParseTag, err.c_str());
     throw qvac_errors::StatusError(
         ADDON_ID, toString(InvalidInputFormat), errorMsg);
   }
