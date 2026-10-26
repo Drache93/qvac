@@ -23,7 +23,7 @@ restarts at `0.1.0`; the two pre-merge histories are preserved verbatim as
 
 ### Changed
 
-- Update the shared `speech-cpp` runtime alongside the speech addons.
+- Use fused CPU encoder attention for MOSS-Transcribe-Diarize.
 
 ## [0.11.1] - 2026-10-23
 
