@@ -2011,13 +2011,17 @@ ParsedPromptPayload parsePromptPayload(
         picojson::object jsonObj = subObj.get<picojson::object>();
         const common_json* orderedEntry = orderedChild(ordered, i);
 
-        if (jsonObj.find("type") != jsonObj.end() &&
-            jsonObj["type"].get<std::string>() == "function") {
+        const std::string type =
+            optionalString(jsonObj, "type", "type must be a string");
+        if (type == "function") {
           common_chat_tool tool;
-          tool.name = jsonObj["name"].get<std::string>();
-          if (jsonObj.find("description") != jsonObj.end()) {
-            tool.description = jsonObj["description"].get<std::string>();
+          tool.name =
+              optionalString(jsonObj, "name", "tool name must be a string");
+          if (tool.name.empty()) {
+            throwInvalidToolTurn("each function tool needs a top-level name");
           }
+          tool.description = optionalString(
+              jsonObj, "description", "tool description must be a string");
           if (jsonObj.find("parameters") != jsonObj.end()) {
             tool.parameters = serializeInCallerOrder(
                 jsonObj["parameters"],
@@ -2033,7 +2037,7 @@ ParsedPromptPayload parsePromptPayload(
           throw qvac_errors::StatusError(
               ADDON_ID, toString(NoRoleProvided), errorMsg);
         }
-        newMsg.role = jsonObj["role"].get<std::string>();
+        newMsg.role = optionalString(jsonObj, "role", "role must be a string");
 
         // OpenAI-shaped history leaves `content` null or absent on an
         // assistant turn that only carries `tool_calls`.
@@ -2055,8 +2059,7 @@ ParsedPromptPayload parsePromptPayload(
                                   ? std::string()
                                   : contentIt->second.get<std::string>();
 
-        if (jsonObj.find("type") != jsonObj.end() &&
-            jsonObj["type"].get<std::string>() == "media") {
+        if (type == "media") {
           if (isTextLlm) {
             const char* errorMsg = "Media not supported by text-only models";
             throw qvac_errors::StatusError(

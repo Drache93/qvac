@@ -778,6 +778,28 @@ TEST_F(ToolGrammarModelTest, PromptParserRejectsMalformedToolTurns) {
   }
 }
 
+// Same contract for tool definitions and the fields every entry shares,
+// including the OpenAI shape that nests the tool under `function`.
+TEST_F(ToolGrammarModelTest, PromptParserRejectsMalformedToolDefinitions) {
+  if (!hasQwen3Model()) {
+    GTEST_SKIP() << qwen3Model_.missingMessage();
+  }
+  auto model = createModel();
+  for (const char* input : {
+           R"([{"type":"function","function":{"name":"f"}}])",
+           R"([{"type":"function"}])",
+           R"([{"type":"function","name":7}])",
+           R"([{"type":"function","name":"f","description":7}])",
+           R"([{"type":7,"role":"user","content":"hi"}])",
+           R"([{"role":7,"content":"hi"}])",
+       }) {
+    EXPECT_THROW(
+        LlamaModelTestPeer::formatPrompt(*model, input),
+        qvac_errors::StatusError)
+        << input;
+  }
+}
+
 // Nesting past the parser's limit is rejected before picojson recurses into
 // it; brackets inside strings do not count.
 TEST_F(ToolGrammarModelTest, PromptParserRejectsDeepNesting) {
