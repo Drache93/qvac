@@ -1822,6 +1822,39 @@ std::string optionalString(
   return it->second.get<std::string>();
 }
 
+// picojson recurses once per nesting level with no limit, so deep enough input
+// overflows a worker thread's stack. Real requests and tool schemas nest far
+// less.
+constexpr size_t kMaxJsonDepth = 128;
+
+// Whether arrays and objects in @p json nest deeper than kMaxJsonDepth.
+// Brackets inside strings are skipped.
+bool nestsTooDeep(const std::string& json) {
+  size_t depth = 0;
+  bool inString = false;
+  bool escaped = false;
+  for (const char c : json) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (c == '\\') {
+        escaped = true;
+      } else if (c == '"') {
+        inString = false;
+      }
+    } else if (c == '"') {
+      inString = true;
+    } else if (c == '[' || c == '{') {
+      if (++depth > kMaxJsonDepth) {
+        return true;
+      }
+    } else if ((c == ']' || c == '}') && depth > 0) {
+      --depth;
+    }
+  }
+  return false;
+}
+
 // The same value in an order-preserving parse of the request, or null when
 // that parse failed or lacks it.
 const common_json* orderedChild(const common_json* parent, const char* key) {
@@ -1888,6 +1921,9 @@ void readToolTurnFields(
         // back to a render without tools. The iterator overload catches
         // trailing text.
         const std::string& text = args->second.get<std::string>();
+        if (nestsTooDeep(text)) {
+          throwInvalidToolTurn("tool_calls arguments nest too deep");
+        }
         picojson::value parsedArgs;
         std::string parseErr;
         const auto stop =
@@ -1928,6 +1964,13 @@ ParsedPromptPayload LlamaModel::formatPrompt(const std::string& input) {
     state_->llmContext_->resetMedia();
     std::string errorMsg = string_format("%s: empty prompt\n", __func__);
     throw qvac_errors::StatusError(ADDON_ID, toString(EmptyPrompt), errorMsg);
+  }
+  if (nestsTooDeep(input)) {
+    state_->llmContext_->resetMedia();
+    std::string errorMsg = string_format(
+        "%s: input nests deeper than %zu levels\n", __func__, kMaxJsonDepth);
+    throw qvac_errors::StatusError(
+        ADDON_ID, toString(InvalidInputFormat), errorMsg);
   }
   ParsedPromptPayload parsed;
   std::vector<common_chat_msg>& chatMsgs = parsed.chatMsgs;
