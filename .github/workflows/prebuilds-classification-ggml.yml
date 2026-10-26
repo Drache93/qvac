@@ -4,6 +4,10 @@ name: Prebuilds (GGML Classification)
 on:
   workflow_dispatch:
     inputs:
+      replay_controls:
+        description: "Schedule four diagnostic controls using the first S25 APK"
+        type: boolean
+        default: false
       devicefarm_run_contains:
         description: "Read-only Device Farm status for this GitHub mobile run ID"
         type: string
@@ -46,7 +50,7 @@ permissions:
 
 jobs:
   prebuild:
-    if: inputs.assets_only != true && inputs.devicefarm_run_contains == ''
+    if: inputs.assets_only != true && inputs.devicefarm_run_contains == '' && inputs.replay_controls != true
     permissions:
       contents: write
       pull-requests: write
@@ -68,7 +72,7 @@ jobs:
     secrets: inherit
 
   diagnostic-device-inventory:
-    if: inputs.assets_only != true && inputs.devicefarm_run_contains == ''
+    if: inputs.assets_only != true && inputs.devicefarm_run_contains == '' && inputs.replay_controls != true
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -132,3 +136,38 @@ jobs:
           name: devicefarm-diagnostic-status
           path: devicefarm-diagnostic-status
           retention-days: 7
+
+  diagnostic-controls:
+    if: inputs.replay_controls == true
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Reuse the diagnostic app on four control devices
+        id: schedule
+        env:
+          PROJECT_ARN: ${{ secrets.LLM_DEVICE_FARM_PROJECT_ARN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/megaloc-replay-controls.py
+      - name: Monitor the four controls
+        uses: ./.github/actions/run-mobile-integration-tests/monitor-test-run
+        with:
+          run-arns: ${{ steps.schedule.outputs.run_arns }}
+          max-wait-time-seconds: '6000'
+      - name: Collect diagnostic evidence
+        if: always()
+        uses: ./.github/actions/run-mobile-integration-tests/collect-and-upload-logs
+        with:
+          platform: Android
+          addon-npm-name: qvac-classification-ggml-controls
+          aws-role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          run-arns: ${{ steps.schedule.outputs.run_arns }}
