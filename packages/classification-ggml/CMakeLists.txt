@@ -58,6 +58,9 @@ if(NOT BUILD_FUZZING)
   )
 
   qvac_addon_link_fabric(${classification-ggml} ${qvac_fabric_target})
+  if(ANDROID)
+    target_link_libraries(${classification-ggml} PRIVATE log)
+  endif()
 
   qvac_addon_finalize(${classification-ggml})
 endif()

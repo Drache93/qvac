@@ -15,6 +15,8 @@
 #include <inference-addon-cpp/Errors.hpp>
 #include <qvac-fabric.h>
 
+#include "MegaLocDiagnostics.hpp"
+
 namespace classification_ggml::megaloc {
 namespace {
 
@@ -67,6 +69,7 @@ struct MegaLocModel::Impl {
   std::array<float, PATCH_COUNT> b{};
   std::array<float, PATCH_COUNT> zeros{};
   int fallbackNodes = 0;
+  diagnostics::Trace trace;
 
   ~Impl() {
     if (scheduler)
@@ -292,6 +295,13 @@ struct MegaLocModel::Impl {
               gguf_get_tensor_offset(
                   gguf.get(), gguf_find_tensor(gguf.get(), name.c_str()))));
       const size_t size = ggml_nbytes(destination);
+      const bool wholeQuant = ggml_is_quantized(destination->type) &&
+          diagnostics::env("QVAC_MEGALOC_UPLOAD") != "chunked";
+      if (wholeQuant) chunk.resize(size);
+      if (ggml_is_quantized(destination->type))
+        diagnostics::log("UPLOAD backend=%s tensor=%s type=%s full_bytes=%zu supplied_bytes=%zu mode=%s",
+            ggml_backend_name(device), name.c_str(), ggml_type_name(destination->type),
+            size, std::min(chunk.size(), size), wholeQuant ? "whole" : "chunked");
       for (size_t offset = 0; offset < size;) {
         const size_t count = std::min(chunk.size(), size - offset);
         stream.read(chunk.data(), static_cast<std::streamsize>(count));
@@ -299,6 +309,7 @@ struct MegaLocModel::Impl {
         ggml_backend_tensor_set(destination, chunk.data(), offset, count);
         offset += count;
       }
+      if (wholeQuant) std::vector<char>(8 * 1024 * 1024).swap(chunk);
     }
   }
 
@@ -317,6 +328,7 @@ struct MegaLocModel::Impl {
     auto* x = linear(input, "backbone.patch_embed.proj");
     auto* cls = ggml_reshape_2d(ctx(), weight("backbone.cls_token"), 768, 1);
     x = ggml_add(ctx(), ggml_concat(ctx(), cls, x, 1), positions);
+    ggml_set_name(x, "checkpoint_embedding");
     for (int i = 0; i < 12; ++i) {
       const auto block = "backbone.blocks." + std::to_string(i);
       auto* attentionOutput =
@@ -331,8 +343,10 @@ struct MegaLocModel::Impl {
           block + ".mlp.fc2");
       x = ggml_add(
           ctx(), x, ggml_mul(ctx(), mlp, weight(block + ".ls2.gamma")));
+      ggml_format_name(x, "checkpoint_block_%d", i);
     }
     x = norm(x, "backbone.norm");
+    ggml_set_name(x, "checkpoint_backbone");
     auto* token = ggml_cont(ctx(), ggml_view_2d(ctx(), x, 768, 1, x->nb[1], 0));
     auto* features = ggml_cont(
         ctx(),
@@ -347,6 +361,9 @@ struct MegaLocModel::Impl {
         agg + "cluster_features.3");
     auto* scores = linear(
         ggml_relu(ctx(), linear(features, agg + "score.0")), agg + "score.3");
+    ggml_set_name(token, "checkpoint_token");
+    ggml_set_name(local, "checkpoint_local");
+    ggml_set_name(scores, "checkpoint_scores");
     auto* dustbin = ggml_repeat(
         ctx(),
         weight(agg + "dust_bin"),
@@ -382,12 +399,33 @@ struct MegaLocModel::Impl {
     aggregated = ggml_reshape_2d(ctx(), transpose(l2(aggregated)), 16384, 1);
     auto* descriptor = l2(ggml_concat(ctx(), l2(token), aggregated, 0));
     output = l2(linear(descriptor, "aggregator.linear"));
+    ggml_set_name(output, "checkpoint_output");
     ggml_set_output(output);
     graph = ggml_new_graph_custom(ctx(), 8192, false);
     ggml_build_forward_expand(graph, output);
     ggml_backend_t backends[] = {device, cpu};
     scheduler = ggml_backend_sched_new(
         backends, nullptr, device == cpu ? 1 : 2, 8192, false, true);
+    trace.mode = diagnostics::env("QVAC_MEGALOC_TRACE");
+    trace.directory = diagnostics::env("QVAC_MEGALOC_TRACE_DIR");
+    const auto forced = diagnostics::env("QVAC_MEGALOC_CPU_OPS");
+    const auto forceRange = diagnostics::env("QVAC_MEGALOC_CPU_RANGE");
+    int forceStart = -1, forceEnd = -1;
+    if (!forceRange.empty()) std::sscanf(forceRange.c_str(), "%d:%d", &forceStart, &forceEnd);
+    for (int i = 0; i < ggml_graph_n_nodes(graph); ++i) {
+      auto* node = ggml_graph_node(graph, i);
+      const std::string previous = ggml_get_name(node);
+      ggml_format_name(node, "diag_%04d_%s_%s", i, ggml_op_desc(node), previous.c_str());
+      if (diagnostics::contains(forced, ggml_op_desc(node)) ||
+          diagnostics::contains(forced, ggml_op_name(node->op)) ||
+          (forceStart >= 0 && i >= forceStart && i <= forceEnd))
+        ggml_backend_sched_set_tensor_backend(scheduler, node, cpu);
+    }
+    if (!trace.mode.empty()) {
+      ggml_backend_sched_set_eval_callback(scheduler, diagnostics::Trace::callback, &trace);
+      diagnostics::log("TRACE_START backend=%s mode=%s nodes=%d", ggml_backend_name(device),
+          trace.mode.c_str(), ggml_graph_n_nodes(graph));
+    }
     if (!scheduler || !ggml_backend_sched_alloc_graph(scheduler, graph)) {
       throw StatusError(InternalError, "MegaLoc graph allocation failed");
     }
@@ -413,6 +451,10 @@ struct MegaLocModel::Impl {
     if (ggml_backend_sched_graph_compute(scheduler, graph) !=
         GGML_STATUS_SUCCESS) {
       throw StatusError(InternalError, "MegaLoc graph computation failed");
+    }
+    if (!trace.mode.empty() && !trace.done) {
+      trace.done = true;
+      diagnostics::log("TRACE_END backend=%s captured=%zu", ggml_backend_name(device), trace.count);
     }
     std::vector<float> result(DESCRIPTOR_LENGTH);
     ggml_backend_tensor_get(
@@ -452,6 +494,23 @@ void MegaLocModel::load() {
   auto* selected = config_.backend.empty()
                        ? ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU)
                        : ggml_backend_dev_by_name(config_.backend.c_str());
+  if (config_.backend == "DIAG_OPENCL" || config_.backend == "DIAG_VULKAN") {
+    const int wanted = config_.backend == "DIAG_OPENCL" ? 4 : 3;
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+      auto* candidate = ggml_backend_dev_get(i);
+      if (backendId(ggml_backend_dev_name(candidate)) == wanted) {
+        selected = candidate;
+        break;
+      }
+    }
+  }
+  if (diagnostics::env("QVAC_MEGALOC_DEVICES") == "1") {
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+      auto* candidate = ggml_backend_dev_get(i);
+      diagnostics::log("DEVICE index=%zu name=%s description=%s", i,
+          ggml_backend_dev_name(candidate), ggml_backend_dev_description(candidate));
+    }
+  }
   if (!selected && config_.backend.starts_with("Metal")) {
     const auto name = "MTL" + config_.backend.substr(5);
     selected = ggml_backend_dev_by_name(name == "MTL" ? "MTL0" : name.c_str());
@@ -480,6 +539,8 @@ void MegaLocModel::load() {
           registry, "ggml_backend_set_n_threads"));
   if (setThreads)
     setThreads(state->cpu, config_.threads);
+  if (diagnostics::env("QVAC_MEGALOC_PROBES") == "1")
+    diagnostics::probes(state->cpu, state->device);
   state->loadWeights(config_.modelPath);
   state->build();
   impl_ = std::move(state);

@@ -55,4 +55,23 @@ jobs:
       # 8828.0.2#5, but the fabric's own Vulkan backend build still needs it.
       include-vulkan-sdk: true
       fabric-overlay-artifact: ${{ inputs.fabric-overlay-artifact }}
+      matrix-include: '[{"os":"ubuntu-24.04","runner_key":"ubuntu_2404","platform":"android","arch":"arm64"}]'
     secrets: inherit
+
+  diagnostic-device-inventory:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # 6.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: List Android diagnostic candidates
+        run: >-
+          aws devicefarm list-devices
+          --filters '[{"attribute":"PLATFORM","operator":"EQUALS","values":["ANDROID"]}]'
+          --query 'devices[?contains(model, `Galaxy S2`) || contains(model, `Pixel 9 Pro`)].{model:model,os:os,availability:availability,cpu:cpu.model}'
+          --output json
