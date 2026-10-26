@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { useModelServer } from '../helpers/server.js'
 import { assertStatusAndError, multipart } from '../helpers/http.js'
-import { tinyJpeg, tinyPng } from '../helpers/fixtures.js'
+import { blackPng, tinyJpeg, tinyPng } from '../helpers/fixtures.js'
 
 const ALIAS = 'test-upscaler'
 
@@ -75,6 +75,16 @@ describe('qvac images upscale: real ESRGAN model', () => {
       payload: { model: ALIAS, image: `data:image/png;base64,${truncated.toString('base64')}` }
     })
     assertStatusAndError(res, 400, 'invalid_image')
+  })
+
+  it('an output over the 16,384-pixel edge returns 400 image_too_large', async () => {
+    const wide = blackPng(4097, 1)
+    const res = await server().inject({
+      method: 'POST',
+      url: '/qvac/v1/images/upscale',
+      payload: { model: ALIAS, image: `data:image/png;base64,${wide.toString('base64')}` }
+    })
+    assertStatusAndError(res, 400, 'image_too_large')
   })
 
   it('runs repeats passes on a multipart upload', async () => {

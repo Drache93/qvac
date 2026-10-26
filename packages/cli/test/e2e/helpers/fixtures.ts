@@ -1,11 +1,38 @@
 // Test fixtures for the e2e suite.
 
+import { crc32, deflateSync } from 'node:zlib'
+
 // 1x1 transparent PNG, for multipart image tests.
 export function tinyPng(): Buffer {
   return Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64'
   )
+}
+
+// A black RGB PNG of any size, for tests that depend on the image dimensions.
+export function blackPng(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+    const out = Buffer.alloc(body.length + 8)
+    out.writeUInt32BE(data.length, 0)
+    body.copy(out, 4)
+    out.writeUInt32BE(crc32(body), body.length + 4)
+    return out
+  }
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header[8] = 8 // bit depth
+  header[9] = 2 // RGB
+  // Each row is a filter byte followed by its pixels.
+  const pixels = Buffer.alloc((width * 3 + 1) * height)
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(pixels)),
+    chunk('IEND', Buffer.alloc(0))
+  ])
 }
 
 // 1x1 baseline JPEG, for image tests that need the JPEG decoder.

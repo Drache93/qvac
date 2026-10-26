@@ -1,9 +1,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyRequest } from 'fastify'
 import { upscale } from '@qvac/sdk'
 import { HttpError } from '@/serve/lib/http-error'
 import { multipartToBodyOptional } from '@/serve/lib/multipart'
-import { resolveBinaryInput } from '@/serve/lib/binary-input'
+import { JPEG, PNG, imageInput } from '@/serve/lib/image-input'
 import { errorResponses } from '@/serve/lib/error-responses'
 import {
   IMAGE_OUTPUT_FORMAT,
@@ -14,20 +13,13 @@ import {
 import { requireModel } from '@/serve/core/plugins/require-model'
 import { MAX_UPSCALE_REPEATS, upscaleBody } from '@/serve/extensions/default/schemas/upscale'
 
-type UpscaleParams = Parameters<typeof upscale>[0]
-
 // The formats the ESRGAN upscaler decodes.
-const IMAGE_SIGNATURES: readonly (readonly number[])[] = [
-  [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-  [0xff, 0xd8, 0xff]
-]
+const image = imageInput([PNG, JPEG])
 
-// The addon's message when a PNG or JPEG header is followed by data it cannot
-// decode; the SDK passes it through with no error code.
+// The addon's messages for an image it refuses; the SDK passes them through
+// with no error code. Some decode failures are size limits, so TOO_LARGE is tested first.
+const TOO_LARGE = /Failed to decode input image: .*exceeds|ESRGAN output exceeds/
 const DECODE_FAILURE = /Failed to decode input image/
-
-// Filled before the model is required, so a bad image is refused without loading it.
-const images = new WeakMap<FastifyRequest, Buffer>()
 
 const description = `
 Upscale an image with a configured ESRGAN model, backed by the SDK's \`upscale()\`.
@@ -67,6 +59,8 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
               file_not_found: '`image` is neither a data URL nor an uploaded file id',
               unsupported_image_format: '`image` is not a PNG or JPEG',
               invalid_image: '`image` has a PNG or JPEG header but cannot be decoded',
+              image_too_large:
+                '`image`, or its upscaled output, exceeds the 16,384-pixel edge or pixel-count limit',
               invalid_repeats: `\`repeats\` is not an integer from 1 to ${MAX_UPSCALE_REPEATS}`,
               invalid_request: 'The body carries an unknown field',
               invalid_model_type: 'The alias is not an `upscale` model'
@@ -86,18 +80,12 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
         consumes: ['application/json', 'multipart/form-data']
       },
       preValidation: multipartToBodyOptional,
-      preHandler: [
-        // lunte-disable-next-line require-await
-        async function (req) {
-          images.set(req, imageBytes(req, req.body.image))
-        },
-        requireModel('upscale')
-      ]
+      preHandler: [image.read, requireModel('upscale')]
     },
     async (req) => {
       const { repeats } = req.body
       const { sdkModelId, alias } = req.qvacModel!
-      const bytes = images.get(req)!
+      const bytes = image.bytes(req)
 
       app.qvac.logger.info(
         `  image_upscale model=${alias} bytes=${bytes.length} repeats=${repeats ?? 1}`
@@ -105,16 +93,12 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
 
       const result = upscale({
         modelId: sdkModelId,
-        // Typed as bare-buffer's Buffer; the SDK only base64-encodes it.
-        image: bytes as unknown as UpscaleParams['image'],
+        image: bytes,
         ...(repeats !== undefined ? { repeats } : {})
       })
       const [buffers, stats] = await Promise.all([result.outputs, result.stats]).catch(
         (err: unknown) => {
-          if (err instanceof Error && DECODE_FAILURE.test(err.message)) {
-            throw new HttpError(400, 'invalid_image', `image: ${err.message}`)
-          }
-          throw err
+          throw toHttpError(err)
         }
       )
       app.qvac.logger.info(`  image_upscale done ms=${stats?.upscaleMs ?? 0}`)
@@ -130,12 +114,15 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
   )
 }
 
-function imageBytes(req: FastifyRequest, value: Buffer | string): Buffer {
-  const { bytes } = resolveBinaryInput(req, 'image', value)
-  if (!IMAGE_SIGNATURES.some((sig) => sig.every((byte, i) => bytes[i] === byte))) {
-    throw new HttpError(400, 'unsupported_image_format', 'image: expected a PNG or JPEG image.')
+function toHttpError(err: unknown): unknown {
+  if (!(err instanceof Error)) return err
+  if (TOO_LARGE.test(err.message)) {
+    return new HttpError(400, 'image_too_large', `image: ${err.message}`)
   }
-  return bytes
+  if (DECODE_FAILURE.test(err.message)) {
+    return new HttpError(400, 'invalid_image', `image: ${err.message}`)
+  }
+  return err
 }
 
 export default plugin
