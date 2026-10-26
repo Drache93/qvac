@@ -13,7 +13,7 @@
 // The run comes from the framework's environment (QVAC_RUN_ID, QVAC_MQTT_BROKER_URL, ...); the
 // device from ANDROID_SERIAL when there is more than one.
 
-import { spawn, spawnSync } from 'node:child_process'
+import { execFile, spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
@@ -254,11 +254,111 @@ function run() {
       return
     }
     const crash = lines.filter((line) => /Fatal signal|Uncaught|F DEBUG|abort/i.test(line))
+    // A process the system killed (low memory, an OEM memory policy) leaves no crash in its own
+    // log; the system's says so, and with how much memory it held.
+    const killed = adb(['-s', serial, 'logcat', '-d', '-b', 'main,system,events', '-v', 'brief'], {
+      check: false
+    })
+      .split('\n')
+      .filter(
+        (line) =>
+          (line.includes(`pid ${pid}`) && line.includes('has died')) ||
+          line.includes(`Process ${pid} exited due to signal`) ||
+          (line.includes(appPackage) && /memUsage|lowmemorykiller|am_kill/i.test(line))
+      )
     console.error(`❌ The app died (pid ${pid})`)
-    for (const line of crash.slice(-10)) console.error(`   ${line}`)
+    for (const line of [...crash.slice(-10), ...killed.slice(-5)]) console.error(`   ${line}`)
     exit(1)
   }, 5000)
   undo.push(() => clearInterval(watch))
+
+  sampleMemory(serial, pid).catch((error) => {
+    console.error(`⚠️  Memory samples are not published: ${error.message}`)
+  })
+}
+
+/**
+ * The app's memory over the run, published as the JS mobile consumer publishes it
+ * (`qvac/app-memory`): the producer writes it to app-mem.ndjson and charts it per test. Sampled
+ * from outside through adb, since the app's /proc/self is not readable here. Off with
+ * QVAC_ANDROID_MEM_DISABLED=1; QVAC_ANDROID_MEM_INTERVAL_MS sets the period.
+ */
+async function sampleMemory(serial, pid) {
+  if (process.env.QVAC_ANDROID_MEM_DISABLED === '1') return
+  // Loaded here: building the APK (CI's `build`) needs no MQTT client.
+  const { default: mqtt } = await import('mqtt')
+  const intervalMs = Number(process.env.QVAC_ANDROID_MEM_INTERVAL_MS) || 5000
+  // The broker as this machine reaches it, not the device's reversed view.
+  const client = mqtt.connect(process.env.QVAC_MQTT_BROKER_URL, {
+    username: process.env.QVAC_MQTT_USERNAME,
+    password: process.env.QVAC_MQTT_PASSWORD,
+    clientId: `kotlin-android-mem-${process.env.QVAC_RUN_ID}`,
+    reconnectPeriod: 3000
+  })
+  let warned = false
+  client.on('error', (error) => {
+    if (warned) return
+    warned = true
+    console.error(`⚠️  Memory samples are not published: ${error.message}`)
+  })
+
+  let busy = false
+  const sample = () => {
+    if (busy) return
+    busy = true
+    execFile(
+      adbPath(),
+      ['-s', serial, 'shell', `cat /proc/${pid}/status; dumpsys meminfo ${pid}`],
+      { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
+      (error, stdout) => {
+        busy = false
+        if (error || !client.connected) return
+        const ts = Date.now()
+        for (const { metric, kb, peakKb } of memoryReadings(stdout)) {
+          const record = {
+            runId: process.env.QVAC_RUN_ID,
+            ts,
+            pid: Number(pid),
+            memoryKb: kb,
+            peakKb,
+            metric,
+            unit: 'kb',
+            platform: process.env.QVAC_TEST_PLATFORM ?? 'kotlin-android'
+          }
+          client.publish('qvac/app-memory', JSON.stringify(record), { qos: 0 })
+        }
+      }
+    )
+  }
+  sample()
+  const timer = setInterval(sample, intervalMs)
+  undo.push(() => {
+    clearInterval(timer)
+    client.end(true)
+  })
+  console.log(`📈 Sampling the app's memory every ${intervalMs}ms (qvac/app-memory)`)
+}
+
+/**
+ * Resident memory from /proc/<pid>/status, and from `dumpsys meminfo` the proportional set the
+ * system's memory killers weigh, split into what is most likely to grow under inference.
+ */
+function memoryReadings(text) {
+  const kb = (pattern) => {
+    const match = text.match(pattern)
+    return match ? Number(match[1]) : null
+  }
+  const readings = [
+    { metric: 'status.VmRSS', kb: kb(/^VmRSS:\s+(\d+)/m), peakKb: kb(/^VmHWM:\s+(\d+)/m) },
+    { metric: 'meminfo.totalPss', kb: kb(/TOTAL PSS:\s+(\d+)/) },
+    { metric: 'meminfo.swapPss', kb: kb(/TOTAL SWAP PSS:\s+(\d+)/) },
+    // The App Summary rows ("Native Heap:" with a colon), whose first column is PSS.
+    { metric: 'meminfo.nativeHeap', kb: kb(/^\s*Native Heap:\s+(\d+)/m) },
+    { metric: 'meminfo.graphics', kb: kb(/^\s*Graphics:\s+(\d+)/m) }
+  ]
+  return readings
+    .filter((reading) => reading.kb !== null)
+    .map((reading) => ({ ...reading, peakKb: reading.peakKb ?? null }))
 }
 
 const command = process.argv[2]

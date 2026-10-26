@@ -24,12 +24,15 @@ Locally, against the device on USB:
 
 ```bash
 cd packages/sdk-e2e
-npx qvac-test run:local:external --name=kotlin-android --suite=smoke
+npx qvac-test run:local:kotlin-android --suite=smoke
 ```
 
 The entry's `prepare` step builds the APK and installs it before the producer starts; `--skip-build`
 reuses what is installed. Its `run` step reverses the broker port onto the device, starts the app with
 the run in intent extras and follows its log, which is tagged `QvacE2E`.
+It also samples the app's memory through adb every 5 s (`/proc/<pid>/status` and `dumpsys meminfo`)
+and publishes it as the JS mobile app does, so the report charts memory per test. Set
+`QVAC_ANDROID_MEM_INTERVAL_MS` to change the period, or `QVAC_ANDROID_MEM_DISABLED=1` to turn it off.
 
 In CI, `test-android-sdk.yml` with `app: kotlin` builds the same APK with the run and broker baked in
 and runs it on Device Farm under the same test spec as the React Native app. Dispatch it from
