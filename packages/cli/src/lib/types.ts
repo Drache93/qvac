@@ -2,7 +2,6 @@ import type { AccessPolicy } from '@qvac/harness'
 import type { AgentTargetConfig } from '@qvac/harness/plugins/external-agents'
 import type { Client, Capabilities } from '@qvac/core/client'
 import type { HarnessPlugin } from '@qvac/harness/plugins'
-import type { CommandIO } from '../cli/io.js'
 
 export type Agent = NonNullable<Awaited<ReturnType<Capabilities['listAgents']>>['agents']>[number]
 export type AgentProfile = Partial<
@@ -174,9 +173,4 @@ export interface RuntimeOptions extends LaunchOptions {
   words: string[]
   config: WorkbenchConfig
 }
-export type CoreRunner = (
-  host: CoreHost,
-  options: RuntimeOptions,
-  io: CommandIO
-) => Promise<number | void> | number | void
 export type LauncherRunner = (parsed: ParsedCommand, kit: LauncherKit) => Promise<void> | void
