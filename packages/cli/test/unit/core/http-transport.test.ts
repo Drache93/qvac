@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { request, get } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { Readable } from 'node:stream'
 import { z } from 'zod'
 import createHttpServer from '@/lib/http'
@@ -104,6 +105,16 @@ describe('HTTP transport lifecycle', () => {
     const app = createHttpServer()
     assert.equal(app.server.keepAliveTimeout, 72_000)
     assert.equal(app.server.requestTimeout, 0)
+  })
+
+  it('refuses a fixed port once inject has bound an ephemeral one', async (t) => {
+    const app = createHttpServer()
+    t.after(() => app.close())
+    app.get('/', () => ({}))
+    assert.equal((await app.inject('/')).statusCode, 200)
+    const { port } = app.server.address() as AddressInfo
+    await assert.rejects(app.listen({ port: port + 1 }), /already listening/)
+    assert.equal(await app.listen({ port }), `http://127.0.0.1:${port}`)
   })
 
   it('isolates child hooks while inheriting root hooks', async (t) => {

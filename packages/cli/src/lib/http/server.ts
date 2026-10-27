@@ -479,7 +479,7 @@ class Scope {
     root.readyPromise ??= Promise.resolve()
     return root.readyPromise
   }
-  listen(options: { port: number; host?: string }): Promise<string> {
+  async listen(options: { port: number; host?: string }): Promise<string> {
     const root = this.root()
     root.listenPromise ??= (async () => {
       if (root.closing) throw new Error('Server is closed')
@@ -500,7 +500,12 @@ class Scope {
       const address = root.server.address() as AddressInfo
       return `http://${address.family === 'IPv6' ? `[${address.address}]` : address.address}:${address.port}`
     })()
-    return root.listenPromise
+    const url = await root.listenPromise
+    // inject() listens on an ephemeral port; a later fixed port must not quietly get that one.
+    if (options.port && !url.endsWith(`:${options.port}`)) {
+      throw new Error(`Server is already listening on ${url}`)
+    }
+    return url
   }
   close(): Promise<void> {
     const root = this.root()
