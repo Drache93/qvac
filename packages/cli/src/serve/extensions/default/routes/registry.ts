@@ -1,5 +1,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import {
+  ModelRegistryModelNotFoundError,
+  modelRegistryGetModel,
   modelRegistrySearch,
   type ModelRegistryEntry,
   type ModelRegistrySearchParams
@@ -28,7 +30,8 @@ take several seconds.
 `.trim(),
   lookup: `
 Fetch one registry entry by the \`registrySource\` and \`registryPath\` a list
-row carries. Same shape as a list row.
+row carries, backed by the SDK's \`modelRegistryGetModel()\`. Same shape as a
+list row.
 `.trim()
 }
 
@@ -36,20 +39,30 @@ const registryFailed = {
   registry_query_failed: 'The registry could not be reached or queried'
 }
 
-type RegistrySearch = (params: ModelRegistrySearchParams) => Promise<ModelRegistryEntry[]>
+export interface RegistryQueries {
+  search: (params: ModelRegistrySearchParams) => Promise<ModelRegistryEntry[]>
+  getModel: (registryPath: string, registrySource: string) => Promise<ModelRegistryEntry>
+}
 
-export function registryRoutes(
-  registrySearch: RegistrySearch = modelRegistrySearch
-): FastifyPluginAsyncZod {
+const SDK_QUERIES: RegistryQueries = {
+  search: modelRegistrySearch,
+  getModel: modelRegistryGetModel
+}
+
+export function registryRoutes(queries: RegistryQueries = SDK_QUERIES): FastifyPluginAsyncZod {
   // lunte-disable-next-line require-await
   return async (app) => {
+    function queryFailed(err: unknown): HttpError {
+      const message = err instanceof Error ? err.message : String(err)
+      app.qvac.logger.error(`  registry query failed: ${message}`)
+      return new HttpError(502, 'registry_query_failed', 'Failed to query the model registry.')
+    }
+
     async function search(params: ModelRegistrySearchParams): Promise<ModelRegistryEntry[]> {
       try {
-        return await registrySearch(params)
+        return await queries.search(params)
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        app.qvac.logger.error(`  registry query failed: ${message}`)
-        throw new HttpError(502, 'registry_query_failed', 'Failed to query the model registry.')
+        throw queryFailed(err)
       }
     }
 
@@ -108,22 +121,20 @@ export function registryRoutes(
           description: descriptions.lookup
         }
       },
-      // The SDK's modelRegistryGetModel() reports "not found" and "registry
-      // unreachable" with the same error, so look the entry up through search.
       async (req) => {
         const { registrySource, registryPath } = req.query
-        const candidates = await search({ filter: registryPath })
-        const entry = candidates.find(
-          (m) => m.registrySource === registrySource && m.registryPath === registryPath
-        )
-        if (!entry) {
-          throw new HttpError(
-            404,
-            'model_not_found',
-            `No registry model at ${registrySource}/${registryPath}.`
-          )
+        try {
+          return await queries.getModel(registryPath, registrySource)
+        } catch (err) {
+          if (err instanceof ModelRegistryModelNotFoundError) {
+            throw new HttpError(
+              404,
+              'model_not_found',
+              `No registry model at ${registrySource}/${registryPath}.`
+            )
+          }
+          throw queryFailed(err)
         }
-        return entry
       }
     )
   }

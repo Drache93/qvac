@@ -2,7 +2,11 @@ import { after, before, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { tmpdir } from 'node:os'
 import type { FastifyInstance } from 'fastify'
-import type { ModelRegistryEntry, ModelRegistrySearchParams } from '@qvac/sdk'
+import {
+  ModelRegistryModelNotFoundError,
+  type ModelRegistryEntry,
+  type ModelRegistrySearchParams
+} from '@qvac/sdk'
 import { buildServer } from '@/serve/index'
 import { registryRoutes } from '@/serve/extensions/default/routes/registry'
 import {
@@ -82,11 +86,22 @@ describe('registry routes', () => {
       extensions: []
     })
     await app.register(
-      // lunte-disable-next-line require-await
-      registryRoutes(async (params) => {
-        calls.push(params)
-        if (fail) throw new Error('registry offline')
-        return ENTRIES
+      registryRoutes({
+        // lunte-disable-next-line require-await
+        search: async (params) => {
+          calls.push(params)
+          if (fail) throw new Error('registry offline')
+          return ENTRIES
+        },
+        // lunte-disable-next-line require-await
+        getModel: async (registryPath, registrySource) => {
+          if (fail) throw new Error('registry offline')
+          const entry = ENTRIES.find(
+            (m) => m.registrySource === registrySource && m.registryPath === registryPath
+          )
+          if (!entry) throw new ModelRegistryModelNotFoundError(registrySource, registryPath)
+          return entry
+        }
       })
     )
     await app.ready()
@@ -140,7 +155,7 @@ describe('registry routes', () => {
     assert.equal((res.json() as ModelRegistryEntry).modelId, 'b.gguf')
   })
 
-  it('returns 404 for a source or path that only partly matches', async () => {
+  it('returns 404 when the SDK reports the model missing', async () => {
     for (const query of [
       'registrySource=other&registryPath=org/a/blob/1/a.gguf',
       'registrySource=hf&registryPath=org/a'
