@@ -60,7 +60,6 @@ export async function loadConfig({
     harness: { ...merged.harness },
     tui: { ...merged.tui }
   }
-  config.tui = { ...merged.tui }
   if (config.core.model) {
     config.core.model = resolveModel(config.core.model, totalMemoryBytes)
   }
