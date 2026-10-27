@@ -261,7 +261,8 @@ class Scope {
     this.routes = parent?.routes ?? []
     this.server =
       parent?.server ??
-      nodeServer((req, res) => {
+      // Fastify's timeouts: keep-alive outlasts common client pools, and long uploads are not cut off.
+      nodeServer({ keepAliveTimeout: 72_000, requestTimeout: 0 }, (req, res) => {
         void this.dispatch(req, res)
       })
     if (parent) Object.setPrototypeOf(this, parent)

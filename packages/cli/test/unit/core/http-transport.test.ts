@@ -100,6 +100,12 @@ describe('HTTP multipart transport', () => {
 })
 
 describe('HTTP transport lifecycle', () => {
+  it('keeps connections and long requests open as Fastify did', () => {
+    const app = createHttpServer()
+    assert.equal(app.server.keepAliveTimeout, 72_000)
+    assert.equal(app.server.requestTimeout, 0)
+  })
+
   it('isolates child hooks while inheriting root hooks', async (t) => {
     const app = createHttpServer()
     t.after(() => app.close())
