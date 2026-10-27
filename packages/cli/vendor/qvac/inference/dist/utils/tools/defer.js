@@ -1,0 +1,299 @@
+import { validateTools } from '../tool-helpers.js';
+/**
+ * Reserved name of the built-in search tool. A caller cannot register a tool
+ * under this name, and it is never itself deferred — the model needs one
+ * callable entry point to reach everything else.
+ */
+export const TOOL_SEARCH_NAME = 'tool_search';
+const DEFAULT_SEARCH_LIMIT = 3;
+const MAX_SEARCH_LIMIT = 8;
+// Ceiling on the definitions one search may declare. A query matching a dozen
+// large schemas would otherwise undo the saving the catalog just made.
+const MAX_DEFINITION_BYTES = 8 * 1024;
+// Fixed text, so a repeated no-match search stays byte-identical and cannot
+// move the KV divergence point.
+const NO_MATCH_HINT = 'No tool matched. Search again with a different capability word, or answer without a tool.';
+export function isDeferred(tool) {
+    return tool.deferLoading === true;
+}
+export function partitionTools(tools) {
+    const alwaysLoaded = [];
+    const deferred = [];
+    for (const tool of tools) {
+        if (isDeferred(tool))
+            deferred.push(tool);
+        else
+            alwaysLoaded.push(tool);
+    }
+    return { alwaysLoaded, deferred };
+}
+/** Strip the registration-only fields so what reaches the model is a plain definition. */
+export function toWireTool(tool) {
+    const { deferLoading: _deferLoading, group: _group, ...wire } = tool;
+    return wire;
+}
+/**
+ * Compact listing of the deferred inventory: one line per tool, name and
+ * description only, grouped by `group` where present.
+ *
+ * Caller order is preserved and groups appear in first-use order, because this
+ * text sits in the prompt prefix — a reordering between turns would move the
+ * divergence point and cost a re-prefill.
+ */
+export function buildCatalog(deferred) {
+    const ungrouped = [];
+    const groups = new Map();
+    for (const tool of deferred) {
+        if (tool.group === undefined) {
+            ungrouped.push(tool);
+            continue;
+        }
+        const existing = groups.get(tool.group);
+        if (existing)
+            existing.push(tool);
+        else
+            groups.set(tool.group, [tool]);
+    }
+    const lines = [];
+    const describe = (tool) => `- ${tool.name}: ${tool.description}`;
+    for (const tool of ungrouped)
+        lines.push(describe(tool));
+    for (const [group, tools] of groups) {
+        lines.push(`[${group}]`);
+        for (const tool of tools)
+            lines.push(describe(tool));
+    }
+    return lines.join('\n');
+}
+/**
+ * The built-in search tool, carrying the catalog in its description.
+ *
+ * The catalog is deliberately not a set of parameterless tool entries: those
+ * render into the same native block and the grammar would accept a call to a
+ * tool whose schema the model has never seen. Description text cannot be
+ * called, which is the whole point.
+ */
+export function buildToolSearchTool(deferred) {
+    return {
+        type: 'function',
+        name: TOOL_SEARCH_NAME,
+        description: 'Find tools by capability and load their full definitions into the conversation. ' +
+            'The tools below are registered but their parameter schemas are not here yet — search ' +
+            'for one by capability or by exact name, then call it on your next step.\n\n' +
+            `Available tools:\n${buildCatalog(deferred)}`,
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'A capability to search for, or the exact name of a tool to load.'
+                },
+                limit: {
+                    type: 'integer',
+                    description: `Maximum definitions to load (default ${DEFAULT_SEARCH_LIMIT}, max ${MAX_SEARCH_LIMIT}).`
+                }
+            },
+            required: ['query']
+        }
+    };
+}
+function tokenize(text) {
+    return text
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((token) => token.length > 1);
+}
+/**
+ * Whether a query word matches a haystack word. A prefix so "repo" finds
+ * "repository", but anchored at a word start: a bare substring test scores
+ * "at" against "create_issue" and every query ends up matching everything.
+ */
+function matchesWord(words, token) {
+    return words.some((word) => word.startsWith(token));
+}
+function scoreTool(tool, query, tokens) {
+    const name = tool.name.toLowerCase();
+    const normalizedQuery = query.trim().toLowerCase();
+    // Exact name wins outright: the model asking for a tool by name is not a
+    // capability search and must not be outranked by a wordier description.
+    if (name === normalizedQuery)
+        return 1000;
+    let score = 0;
+    if (normalizedQuery.length > 2 && name.includes(normalizedQuery))
+        score += 100;
+    const nameWords = tokenize(tool.name);
+    const descriptionWords = tokenize(tool.description);
+    const groupWords = tokenize(tool.group ?? '');
+    for (const token of tokens) {
+        if (matchesWord(nameWords, token))
+            score += 50;
+        if (matchesWord(descriptionWords, token))
+            score += 10;
+        if (matchesWord(groupWords, token))
+            score += 5;
+    }
+    return score;
+}
+/**
+ * Rank the deferred inventory against a query. Exact name first, then text
+ * match. Ties keep registration order so repeated searches are deterministic.
+ */
+export function searchDeferredTools(deferred, query, limit) {
+    const tokens = tokenize(query);
+    const scored = deferred
+        .map((tool, index) => ({ tool, index, score: scoreTool(tool, query, tokens) }))
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score || a.index - b.index);
+    const cap = Math.min(Math.max(Math.trunc(limit ?? DEFAULT_SEARCH_LIMIT), 1), MAX_SEARCH_LIMIT);
+    const picked = [];
+    let bytes = 0;
+    for (const { tool } of scored) {
+        if (picked.length >= cap)
+            break;
+        const size = JSON.stringify(toWireTool(tool)).length;
+        // Always let the top match through, however large; past that, stop rather
+        // than truncate, so what the model receives is always a complete schema.
+        if (picked.length > 0 && bytes + size > MAX_DEFINITION_BYTES)
+            break;
+        picked.push(tool);
+        bytes += size;
+    }
+    return picked;
+}
+export function buildToolSearchResult(query, matches, alreadyLoaded) {
+    const loaded = matches.map((tool) => tool.name);
+    const result = {
+        tool_search: {
+            query,
+            loaded,
+            already_loaded: [...alreadyLoaded],
+            // Without this the model reads an empty result as "try again" and burns
+            // rounds rephrasing the same query.
+            ...(loaded.length === 0 && alreadyLoaded.length === 0 ? { hint: NO_MATCH_HINT } : {})
+        }
+    };
+    return JSON.stringify(result);
+}
+function readSearchResult(content) {
+    if (!content.includes(`"${TOOL_SEARCH_NAME}"`))
+        return null;
+    try {
+        const parsed = JSON.parse(content);
+        if (typeof parsed !== 'object' || parsed === null)
+            return null;
+        const envelope = parsed[TOOL_SEARCH_NAME];
+        if (typeof envelope !== 'object' || envelope === null)
+            return null;
+        const loaded = envelope['loaded'];
+        if (!Array.isArray(loaded))
+            return null;
+        return {
+            query: '',
+            loaded: loaded.filter((name) => typeof name === 'string'),
+            already_loaded: []
+        };
+    }
+    catch {
+        // A tool result that isn't ours, or isn't JSON at all.
+        return null;
+    }
+}
+/**
+ * Which deferred definitions this conversation already carries.
+ *
+ * Read back from the history rather than held in the session, so `completion()`
+ * stays stateless: a reopened chat replaying the same messages resolves the
+ * same loaded set, and two concurrent conversations cannot see each other's.
+ */
+export function loadedToolNames(history) {
+    const loaded = new Set();
+    for (const message of history) {
+        if (message.role !== 'tool')
+            continue;
+        const envelope = readSearchResult(message.content);
+        if (!envelope)
+            continue;
+        for (const name of envelope.loaded)
+            loaded.add(name);
+    }
+    return loaded;
+}
+// `tool_choice` mode words and the empty name: the addon rejects a prompt that
+// declares a tool under one of these, since it could never be selected by name.
+const UNSELECTABLE_NAMES = new Set(['', 'auto', 'none', 'required']);
+// The rule name a tool's call grammar is built under: fabric's `rule_name()`
+// turns every run of characters outside [A-Za-z0-9-] into one '-'.
+function grammarRuleName(name) {
+    return name.replace(/[^A-Za-z0-9-]+/g, '-');
+}
+/**
+ * The deferred tools the prompt could declare once loaded. The addon rejects a
+ * prompt whose tool names it cannot select or whose names fold to one grammar
+ * rule, so a deferred tool with such a name, or one whose rule an always-loaded
+ * tool, `tool_search` or an earlier deferred tool already holds, is left out of
+ * the catalog and the search: the model is never pointed at a tool it cannot
+ * call, and the block does not depend on the order tools were loaded in.
+ */
+function declarableDeferred(alwaysLoaded, deferred) {
+    const taken = new Set([...alwaysLoaded.map((tool) => tool.name), TOOL_SEARCH_NAME].map(grammarRuleName));
+    return deferred.filter((tool) => {
+        const rule = grammarRuleName(tool.name);
+        if (UNSELECTABLE_NAMES.has(tool.name) || taken.has(rule))
+            return false;
+        taken.add(rule);
+        return true;
+    });
+}
+/**
+ * Split a registered tool list into what the prompt carries and what
+ * `tool_search` searches over.
+ *
+ * A loaded definition is declared in the tools block like any other tool, in
+ * registration order. A schema that sits only in a `tool` result, outside the
+ * block and the tool-call grammar, is not reliably called by small models: they
+ * search for it again instead. Declaring it changes the block at the front of
+ * the prompt, so the turn after a search re-prefills from there.
+ *
+ * Returns `null` when nothing defers, so the existing path is untouched.
+ */
+export function resolveDeferredTools(tools, history) {
+    if (!tools || tools.length === 0)
+        return null;
+    const partitioned = partitionTools(tools);
+    if (partitioned.deferred.length === 0)
+        return null;
+    const { alwaysLoaded } = partitioned;
+    const deferred = declarableDeferred(alwaysLoaded, partitioned.deferred);
+    const loaded = loadedToolNames(history);
+    return {
+        toolsToRender: [
+            ...alwaysLoaded.map(toWireTool),
+            buildToolSearchTool(deferred),
+            ...deferred.filter((tool) => loaded.has(tool.name)).map(toWireTool)
+        ],
+        deferred
+    };
+}
+/**
+ * Run a `tool_search` call and produce the `tool` message that carries its
+ * result. Pure over the history it is given; the caller appends the message.
+ *
+ * Takes either wire `Tool`s or the Zod-schema `ToolInput` form, because what a
+ * caller holds is whatever they passed to `completion()`. Both are converted
+ * to wire form first, so the size cap measures the JSON schemas the prompt
+ * will declare, not Zod objects.
+ */
+export function executeToolSearch(tools, args, history) {
+    const { tools: wire } = validateTools([...tools]);
+    const { alwaysLoaded, deferred: registered } = partitionTools(wire);
+    const deferred = declarableDeferred(alwaysLoaded, registered);
+    const query = typeof args['query'] === 'string' ? args['query'] : '';
+    const limit = typeof args['limit'] === 'number' ? args['limit'] : undefined;
+    const loaded = loadedToolNames(history);
+    const matches = searchDeferredTools(deferred, query, limit);
+    // A tool the history already loaded is not reported as loaded again; naming
+    // it back tells the model it can call the tool without searching again.
+    const alreadyLoaded = matches.filter((tool) => loaded.has(tool.name)).map((tool) => tool.name);
+    const fresh = matches.filter((tool) => !loaded.has(tool.name));
+    return buildToolSearchResult(query, fresh, alreadyLoaded);
+}

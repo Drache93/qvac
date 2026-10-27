@@ -1,0 +1,20 @@
+import type RPC from 'bare-rpc';
+import { type AbortableRPCOptions, type Request, type Response, type RPCOptions } from '@qvac/inference/surface';
+export declare function send<T extends Request>(request: T, options?: RPCOptions, rpc?: RPC): Promise<Response>;
+/** `options.signal` ends the stream; only `endsOnAbort` handlers stop on the worker. */
+export declare function stream<T extends Request>(request: T, options?: AbortableRPCOptions, rpc?: RPC): AsyncGenerator<Response>;
+export interface DuplexWritable {
+    write(chunk: Uint8Array): void;
+    end(): void;
+    destroy(): void;
+}
+export interface DuplexReadable extends AsyncIterable<Buffer | string> {
+    destroy(): void;
+}
+export interface DuplexSession {
+    requestStream: DuplexWritable;
+    responseStream: DuplexReadable;
+}
+export declare function duplex<T extends Request>(request: T, options?: RPCOptions): Promise<DuplexSession>;
+export declare function close(): Promise<void>;
+//# sourceMappingURL=rpc-client.d.ts.map

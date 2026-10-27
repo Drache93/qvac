@@ -1,0 +1,17 @@
+import type { Tool, ToolDialect } from '../schemas/index.js';
+interface HistoryMessage {
+    role: string;
+    content: string;
+    attachments?: {
+        path: string;
+    }[] | undefined;
+}
+/**
+ * Prepend tools right after the system message (or at the very start when no
+ * system message is present). The tool block stays in the kv-cache for the
+ * whole chat session.
+ */
+export declare function prependToolsToHistory(history: HistoryMessage[], tools: Tool[]): Array<HistoryMessage | Tool>;
+/** The tool-call dialect resolved when the model loaded. */
+export declare function detectToolDialect(modelId: string): ToolDialect;
+export {};

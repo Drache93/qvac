@@ -1,0 +1,48 @@
+import path from 'bare-path';
+import { PathTraversalError } from '../errors/index.js';
+import { sanitizePathComponent } from './path-sanitize.js';
+/**
+ * Check whether a resolved target path is contained within a base directory.
+ * Portable — caller provides the resolve function and separator for their runtime.
+ */
+export function checkPathWithinBase(basePath, targetPath, resolveFn, sep) {
+    const resolvedBase = resolveFn(basePath);
+    const resolvedTarget = resolveFn(targetPath);
+    if (resolvedTarget === resolvedBase)
+        return true;
+    return resolvedTarget.startsWith(resolvedBase + sep);
+}
+/**
+ * Check whether a target path is contained within a base directory.
+ * Both paths are resolved to absolute before comparison.
+ */
+export function isPathWithinBase(basePath, targetPath) {
+    return checkPathWithinBase(basePath, targetPath, (...args) => path.resolve(...args), path.sep || '/');
+}
+/**
+ * Sanitize components, join them to a base path, and verify the result
+ * stays within the base directory. Throws PathTraversalError on escape.
+ */
+export function validateAndJoinPath(basePath, ...components) {
+    const sanitized = components.map((c) => sanitizePathComponent(c));
+    const joined = path.join(basePath, ...sanitized);
+    const resolved = path.resolve(joined);
+    if (!isPathWithinBase(basePath, resolved)) {
+        throw new PathTraversalError(components.join('/'), basePath);
+    }
+    return resolved;
+}
+/**
+ * Joins `name` under `basePath` without sanitizing it, so cache filenames stay
+ * byte-stable. Throws PathTraversalError on a null byte or a `..` segment.
+ */
+export function joinWithinBase(basePath, name) {
+    if (name.includes('\0') || name.split(/[\\/]/).includes('..')) {
+        throw new PathTraversalError(name, basePath);
+    }
+    const joined = path.join(basePath, name);
+    if (!isPathWithinBase(basePath, joined)) {
+        throw new PathTraversalError(name, basePath);
+    }
+    return joined;
+}

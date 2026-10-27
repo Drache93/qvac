@@ -1,0 +1,454 @@
+import { z } from 'zod';
+import { modelSrcInputSchema } from './model-src-utils.js';
+/**
+ * Upper bound for `reasoning_budget`. Mirrors the llm-llamacpp addon, which
+ * stores the budget as a 32-bit `int` and rejects values above
+ * `std::numeric_limits<int>::max()`.
+ */
+export const REASONING_BUDGET_MAX = 2147483647;
+export const VERBOSITY = {
+    ERROR: 0,
+    WARN: 1,
+    INFO: 2,
+    DEBUG: 3
+};
+const verbositySchema = z.enum(VERBOSITY);
+// Base schema - validates types, all fields optional (for input validation)
+export const llmConfigBaseSchema = z.object({
+    backend: z
+        .array(z.enum(['cuda', 'vulkan', 'metal', 'opencl', 'auto']))
+        .min(1)
+        .optional()
+        .describe("Ordered GPU backend names, such as ['cuda', 'vulkan']. " +
+        'Accepted names: cuda, vulkan, metal, opencl, and auto for no preference. ' +
+        'If unset, uses the native default order. ' +
+        'If none of the specified names has a corresponding available device, selection falls back to the native default order. ' +
+        "Use device: 'cpu' for CPU. " +
+        "A GPU override cannot be combined with a split-mode other than 'none' or with devices."),
+    ctx_size: z
+        .number()
+        .optional()
+        .describe("Context window size in tokens; `0` uses the model's trained context length. Default 1024."),
+    temp: z.number().min(0).max(2).optional().describe('Sampling temperature (0–2). Default 0.8.'),
+    top_p: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .describe('Top-p (nucleus) sampling cutoff (0–1). Default 0.9.'),
+    top_k: z
+        .number()
+        .int()
+        .min(0)
+        .max(128)
+        .optional()
+        .describe('Top-k sampling — keep only the top K tokens (0–128). Default 40.'),
+    seed: z.number().optional().describe('Sampling RNG seed; `-1` (default) picks a random seed.'),
+    gpu_layers: z
+        .number()
+        .optional()
+        .describe('Number of model layers to offload to the GPU. Unset by default, which lets the runtime fit the placement to free device memory (offloading every layer when it fits). Setting it pins the layer count and disables that fit.'),
+    lora: z
+        .string()
+        .optional()
+        .describe('Path to a LoRA adapter file to apply on top of the base model.'),
+    device: z
+        .string()
+        .optional()
+        .describe("Device to run inference on: `'gpu'` or `'cpu'`. Default `'gpu'`."),
+    predict: z
+        .union([
+        z.literal(-1), // special: until stop token
+        z.literal(-2), // special: until context filled
+        z.number().int().min(1) // positive integer: fixed token count
+    ])
+        .optional()
+        .describe('Max tokens to predict. `-1` = until stop token, `-2` = until context filled.'),
+    system_prompt: z
+        .string()
+        .optional()
+        .describe("Seeds conversation history on the JS side only; never forwarded to the addon. Default `'You are a helpful assistant.'`"),
+    load_mode: z
+        .enum(['none', 'mmap', 'mlock', 'mmap+mlock', 'dio'])
+        .optional()
+        .describe("Model loading mode: `'none'`, `'mmap'`, `'mlock'`, `'mmap+mlock'`, or `'dio'`. Unset uses the addon's default (`'mmap'`)."),
+    verbosity: verbositySchema
+        .optional()
+        .describe('Native log verbosity: `0`=ERROR, `1`=WARN, `2`=INFO, `3`=DEBUG. Default 0.'),
+    presence_penalty: z
+        .number()
+        .optional()
+        .describe('Presence penalty applied to tokens that have already appeared. Default 0.'),
+    frequency_penalty: z
+        .number()
+        .optional()
+        .describe('Frequency penalty applied to tokens by their frequency so far. Default 0.'),
+    repeat_penalty: z
+        .number()
+        .optional()
+        .describe('Repetition penalty applied to repeated tokens. Default 1.1.'),
+    stop_sequences: z
+        .array(z.string())
+        .optional()
+        .describe('Strings that stop generation when produced (forwarded to the addon as `reverse_prompt`).'),
+    parallel: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Concurrent sequence slots for continuous batching (1–256). Default 1 (sequential, batching off); `>= 2` enables batched decoding and splits the KV cache evenly across slots.'),
+    tools: z
+        .boolean()
+        .optional()
+        .describe("Enable tool calling via the model's jinja chat template. Default false."),
+    cache_checkpoints: z
+        .number()
+        .int()
+        .min(0)
+        .max(1024)
+        .optional()
+        .describe("Prompt-cache checkpoints kept per sequence on hybrid / recurrent models (Qwen3.5, Jamba, DeepSeek V4) and on sliding-window models (Gemma 3/4, gpt-oss) whose context exceeds the window, one per cached request at the end of its history (0–1024). Default 1, which serves the next turn and a regenerate; editing the user message k-th from the end without reprocessing the whole conversation needs `k + 1`. Regenerates and edits restore a checkpoint only under a caller-managed string `kvCache` key. `0` disables them. Each checkpoint holds a copy of the recurrent or sliding-window state of its sequence in host RAM (on disk with `cache_checkpoint_storage: 'disk'`), up to hundreds of MiB on larger models, so memory grows with this value and with `parallel` unless `cache_checkpoints_max_bytes` caps it. Model fit checks do not count it. The newest one is also saved in the `cacheKey` file, so a conversation reloaded in a new process continues from it. Ignored by other models."),
+    cache_checkpoints_max_bytes: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe('Byte budget for the checkpoints kept per sequence; the oldest are dropped until the rest fit. `0` (default) is unlimited. The load fails when the budget cannot hold `cache_checkpoints` checkpoints of the largest size the context allows (on a sliding-window model, a full window).'),
+    cache_checkpoint_storage: z
+        .enum(['memory', 'disk'])
+        .optional()
+        .describe("Where checkpoints and the per-request rollback snapshot are kept: `'memory'` (default) in host RAM, `'disk'` in files under `cache_checkpoint_dir`, which it requires."),
+    cache_checkpoint_dir: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Writable directory for checkpoint files, required with `cache_checkpoint_storage: 'disk'` and rejected without it. The addon writes in a private directory it creates inside it (on Windows, in the directory itself). On mobile, pass the app's cache directory."),
+    cache_ram_mib: z
+        .number()
+        .int()
+        .min(0)
+        .max(1048576)
+        .optional()
+        .describe('Host-RAM budget, in MiB, for cached conversations that are not running (0–1048576). Default 0 (off). A conversation the model switches away from (another `kvCache` key, or a slot eviction with `parallel >= 2`) is kept in RAM, so returning to its caller-managed string `kvCache` key skips reading its `cacheKey` file. Model fit checks do not count this memory.'),
+    'cache-type-k': z
+        .string()
+        .optional()
+        .describe('KV-cache key quantization type (`f16`, `f32`, `bf16`, `q8_0`, `q4_0`, …). Unset selects a backend-safe default.'),
+    'cache-type-v': z
+        .string()
+        .optional()
+        .describe('KV-cache value quantization type; quantizing the value cache requires flash attention. Unset selects a backend-safe default.'),
+    'main-gpu': z
+        .union([z.number().int().min(0), z.enum(['integrated', 'dedicated'])])
+        .optional()
+        .describe("GPU to use on multi-GPU systems: a device index, or `'integrated'`/`'dedicated'` to restrict selection to that class."),
+    'rpc-servers': z
+        .string()
+        .min(1)
+        .refine((value) => {
+        const endpoints = value.split(',').map((endpoint) => endpoint.trim());
+        return new Set(endpoints).size === endpoints.length;
+    }, 'RPC server endpoints must be unique')
+        .optional()
+        .describe('Comma-separated unique native RPC host:port endpoints in device registration order for this load. Requires compatible RPC addon builds and a trusted private network; native traffic is unencrypted and unauthenticated.'),
+    devices: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Explicit ordered native device names, for example RPC0,RPC1. RPC indices enumerate every device in this load's rpc-servers endpoint order, starting at RPC0 for each load. Pass exactly those endpoints in that order to getRpcDeviceMap, including on reused workers. tensor-split weights follow the selected devices order."),
+    'split-mode': z
+        .enum(['none', 'layer', 'tensor'])
+        .optional()
+        .describe("How to split the model across GPUs: `'none'` (default, single GPU), `'layer'` (pipeline parallelism), or `'tensor'` (EXPERIMENTAL tensor parallelism across selected local or RPC GPUs; requires flash attention, and disables auto-fit, so set `ctx_size` explicitly)."),
+    'flash-attn': z
+        .enum(['on', 'off', 'auto'])
+        .optional()
+        .describe("Flash attention: `'on'`, `'off'`, or `'auto'`. With `'auto'`, the backend decides. When unset, the addon defaults to `'off'` for BitNet models and `'on'` for other inference workloads. An explicit value overrides the BitNet default. Finetuning enforces its own setting. `'off'` is incompatible with `'split-mode': 'tensor'`."),
+    'tensor-split': z
+        .string()
+        .optional()
+        .describe("Proportions for distributing layers/rows across GPUs, e.g. `'1,1'` (equal) or `'3,1'` (75/25)."),
+    'batch-size': z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Logical maximum batch size, the tokens submitted per decode call. Default 2048.'),
+    'ubatch-size': z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Physical maximum batch size, the tokens computed in one pass. Default 512.'),
+    'cpu-moe': z
+        .boolean()
+        .optional()
+        .describe('Keep all Mixture-of-Experts weights on the CPU, freeing accelerator memory for the rest of the model. Mixture-of-Experts models only. Default false.'),
+    'n-cpu-moe': z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe('Keep the Mixture-of-Experts weights of the first N layers on the CPU. Mixture-of-Experts models only, and a finer-grained alternative to `cpu-moe`.'),
+    'kv-offload': z
+        .boolean()
+        .optional()
+        .describe('Whether to hold the KV cache in accelerator memory. Default true. Set false to keep it in system memory, which frees accelerator memory at the cost of decode speed.'),
+    'image-max-tokens': z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Upper bound on the tokens one image may occupy. Vision models only. Unset uses the model default.'),
+    'image-min-tokens': z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Lower bound on the tokens one image may occupy. Vision models only. Unset uses the model default.'),
+    'image-max-megapixels': z
+        .number()
+        .int()
+        .min(1)
+        .max(18_446_744_073_709)
+        .optional()
+        .describe('Largest image a vision model accepts, in millions of pixels (width × height). Checked against the image header before decoding; larger images are rejected. Vision models only. Default 50.'),
+    poll: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe('CPU polling level, from 0 to 100. If omitted, uses the default native behavior. Higher values may reduce wake latency but consume more CPU during GPU work.'),
+    pollBatch: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe('CPU polling level for batch processing, from 0 to 100. If omitted, uses the default native behavior.'),
+    threads: z
+        .number()
+        .int()
+        .optional()
+        .describe('CPU threads to use during generation. Unset uses one thread per physical core; a value of 0 or below uses every logical CPU, which is a different and usually larger count.'),
+    'threads-batch': z
+        .number()
+        .int()
+        .optional()
+        .describe('CPU threads to use during batch and prompt processing. Applies to steps processing several tokens, including parallel decoding and speculative verification. Single-sequence generation uses `threads`.'),
+    'cpu-mask': z
+        .string()
+        .optional()
+        .describe("CPU affinity mask as an arbitrarily long hex string, e.g. `'ff'`. Applies to generation. Unset applies no affinity."),
+    'cpu-mask-batch': z
+        .string()
+        .optional()
+        .describe('CPU affinity mask for batch and prompt processing, in the same form as `cpu-mask`. Unset inherits `cpu-mask` when the batch thread count is also unset.'),
+    'override-tensor': z
+        .string()
+        .optional()
+        .describe("Buffer type overrides for tensors matching a pattern, as comma-separated `<tensor name pattern>=<buffer type>` entries, e.g. `'blk\\.(1[0-9])\\.ffn_(up|down|gate)_exps=CPU'` to keep those experts in system memory."),
+    'n-cpu-ffn': z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe('Keep the dense FFN weights of the first N layers on the CPU.'),
+    'moe-cache-mib': z
+        .union([z.number().int().min(0), z.literal('auto')])
+        .optional()
+        .describe("Persistent accelerator cache for Mixture-of-Experts weights, in MiB. Default `'auto'`, which sizes it during `fit`."),
+    'prefetch-weights': z
+        .union([z.boolean(), z.literal('auto')])
+        .optional()
+        .describe("Overlap host-to-accelerator weight copies with compute. Default `'auto'`, which enables it for fitted dense models."),
+    'tensor-read-lazy': z
+        .enum(['on', 'auto', 'off'])
+        .optional()
+        .describe("On-demand reading of large tensors such as per-layer embeddings, which requires mmap: `'on'` reads their rows from disk instead of keeping them resident, `'off'` always keeps them resident, `'auto'` (default) applies `'on'` above 4 GiB."),
+    fit: z
+        .boolean()
+        .optional()
+        .describe('Adjust the arguments left unset so the model fits device memory. Default true. It chooses layer offload, tensor split and tensor buffer overrides, and the context size only when `ctx_size` is 0. Setting `gpu_layers` pins the layer count and makes fit abort, leaving every argument unchanged. Incompatible with `split-mode: tensor`, which disables it.'),
+    'fit-target': z
+        .union([z.number().int().min(0), z.string().regex(/^\d+(,\d+)*$/)])
+        .optional()
+        .describe("Free margin `fit` aims to leave per device, in MiB. A single value is broadcast across devices; a comma-separated list such as `'1024,512'` sets them individually. Default 1024."),
+    'fit-ctx': z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe('Smallest context size `fit` may settle on. Default 4096.'),
+    openclCacheDir: z
+        .string()
+        .optional()
+        .describe('Writable directory for the OpenCL kernel binary cache; required on Android for fast GPU startup.'),
+    reasoning_budget: z
+        .number()
+        .int()
+        .min(-1)
+        .max(REASONING_BUDGET_MAX)
+        .optional()
+        .describe('Reasoning-channel token budget. `-1` (default) unrestricted, `0` disables it, any positive integer caps the reasoning channel at that many tokens (the closing think tag is force-emitted once the budget is spent).'),
+    spec_type: z
+        .enum(['none', 'draft-mtp', 'draft-dflash'])
+        .optional()
+        .describe("Speculative decoding, as llama-server's `--spec-type`. `'draft-mtp'` drafts with the model's own multi-token-prediction head, or with an external MTP head given as `draftModelSrc`; the head, when given, otherwise the model, must ship MTP layers, and a head must match the model, or the load fails. `'draft-dflash'` drafts with the DFlash model given as `draftModelSrc`, which it requires. The model verifies every draft, so output keeps the distribution of plain decoding. `'none'` (default) decodes one token per step. Works with multimodal prompts, `parallel` and `kvCache`. Completion stats then report `draftTokens` and `draftAcceptedTokens`."),
+    spec_draft_n_max: z
+        .number()
+        .int()
+        .min(1)
+        .max(64)
+        .optional()
+        .describe("Longest draft per step (1–64, default 3). Lowered at load, with a warning, to fit one `ubatch-size` and each sequence’s share of `batch-size`. Requires `spec_type` `'draft-mtp'` or `'draft-dflash'`."),
+    spec_draft_n_min: z
+        .number()
+        .int()
+        .min(0)
+        .max(64)
+        .optional()
+        .describe("Shortest draft worth verifying (0–64, default 0, at most `spec_draft_n_max`); shorter drafts are dropped. Requires `spec_type` `'draft-mtp'` or `'draft-dflash'`."),
+    spec_draft_p_min: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .describe("Minimum draft-head probability for a token to extend the draft (0–1, default 0). Requires `spec_type` `'draft-mtp'` or `'draft-dflash'`."),
+    projectionModelSrc: modelSrcInputSchema
+        .optional()
+        .describe('Multimodal projection (mmproj / vision encoder) model source; multimodal models only.'),
+    draftModelSrc: modelSrcInputSchema
+        .optional()
+        .describe("Draft model source, as llama-server's `--spec-draft-model`: the DFlash model, required by `spec_type: 'draft-dflash'`, or an external MTP head for `spec_type: 'draft-mtp'`, such as the MTP quantization of the same model or a Gemma 4 assistant for its Gemma 4 model. Placed like the model (`device`, `gpu_layers`). Model fit checks count an MTP head's memory but not a DFlash model's or a Gemma 4 assistant's, so leave room for those."),
+    image_tile_mode: z
+        .enum(['disabled', 'batched', 'sequential'])
+        .optional()
+        .describe("Qwen3.5-VL multi-tile image encoding mode (multimodal models only): `'sequential'` (default) encodes image tiles one at a time, `'batched'` encodes all tiles in a single batched pass, `'disabled'` does no multi-tile encoding (single tile). Ignored by text-only models."),
+    image_no_upscale: z
+        .enum(['on', 'off'])
+        .optional()
+        .describe("idefics3-style image preprocessing rule (multimodal models only): `'on'` rounds the image's long side up to a whole number of slices and caps it, so an image smaller than the cap keeps its own resolution and becomes far fewer slices; `'off'` always stretches the long side to the cap. When unset, the model's own GGUF value is used; ignored with a warning by models that do not use idefics3-style preprocessing. Changes the number of image tokens (and therefore both accuracy and encode time), so a checkpoint whose GGUF omits the key needs this set to preprocess correctly."),
+    'mmproj-use-gpu': z
+        .boolean()
+        .optional()
+        .describe('Run the multimodal projector (mmproj / vision encoder) on the GPU (multimodal models only). `true` forces GPU, `false` forces CPU. When unset, the backend is auto-selected per device class: GPU on desktop/iOS and Android Adreno 800+; CPU on every other Android GPU (Arm Mali, Adreno <800, and undetectable Adreno tiers), with the LLM layers still on the GPU. Only honoured when the model itself runs on a GPU backend — ignored with a warning on CPU.')
+});
+// Default values - typed as partial of the config
+//
+// gpu_layers carries no default: any value reads as user intent to qvac-fabric,
+// which then aborts its fit instead of placing layers to free device memory.
+// Absent emits no `--gpu-layers`, so the addon keeps fabric's own -1 — already
+// "every layer" whenever the fit does not run.
+export const LLM_CONFIG_DEFAULTS = {
+    ctx_size: 1024,
+    device: 'gpu',
+    system_prompt: 'You are a helpful assistant.',
+    image_tile_mode: 'sequential'
+};
+// Full schema - applies defaults via transform (no duplication)
+// Checked on the config merged with device defaults, before the draft model is downloaded.
+export const llmConfigSchema = llmConfigBaseSchema
+    .superRefine((data, ctx) => {
+    if (data.draftModelSrc !== undefined && (data.spec_type ?? 'none') === 'none') {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['draftModelSrc'],
+            message: "draftModelSrc requires spec_type 'draft-mtp' or 'draft-dflash'."
+        });
+    }
+})
+    .transform((data) => ({
+    ...LLM_CONFIG_DEFAULTS,
+    ...data
+}));
+// Base schema - validates types, all fields optional (for input validation)
+export const embedConfigBaseSchema = z.object({
+    poll: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe('CPU polling level, from 0 to 100. If omitted, uses the default native behavior. Higher values may reduce wake latency but consume more CPU during GPU work.'),
+    pollBatch: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe('CPU polling level for batch processing, from 0 to 100. If omitted, uses the default native behavior.'),
+    backend: z
+        .array(z.enum(['cuda', 'vulkan', 'metal', 'opencl', 'auto']))
+        .min(1)
+        .optional()
+        .describe("Ordered GPU backend names, such as ['cuda', 'vulkan']. " +
+        'Accepted names: cuda, vulkan, metal, opencl, and auto for no preference. ' +
+        'If unset, uses the native default order. ' +
+        'If none of the specified names has a corresponding available device, selection falls back to the native default order. ' +
+        "Use device: 'cpu' for CPU. " +
+        "A GPU override cannot be combined with splitMode: 'layer'."),
+    gpuLayers: z
+        .number()
+        .int()
+        .optional()
+        .describe('Number of model layers to offload to the GPU. Default 99 (offload all).'),
+    device: z
+        .enum(['gpu', 'cpu'])
+        .optional()
+        .describe("Device to run inference on: `'gpu'` or `'cpu'`. Default `'gpu'`."),
+    batchSize: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Tokens processed per batch (input throughput). Default 1024.'),
+    pooling: z
+        .enum(['none', 'mean', 'cls', 'last'])
+        .optional()
+        .describe("Pooling strategy collapsing token embeddings into one sequence vector: `'none'`, `'mean'`, `'cls'`, or `'last'`. Unset uses the model default."),
+    attention: z
+        .enum(['causal', 'non-causal'])
+        .optional()
+        .describe("Attention type: `'causal'` or `'non-causal'`. Unset uses the model default."),
+    embdNormalize: z
+        .number()
+        .int()
+        .optional()
+        .describe('Embedding normalization: `-1` none, `0` max-abs int16, `1` taxicab, `2` euclidean, `>2` p-norm. Default 2 (euclidean).'),
+    flashAttention: z
+        .enum(['on', 'off', 'auto'])
+        .optional()
+        .describe("Flash attention: `'on'`, `'off'`, or `'auto'`. Default `'auto'`."),
+    mainGpu: z
+        .union([z.number().int().min(0), z.enum(['integrated', 'dedicated'])])
+        .optional()
+        .describe("GPU to use on multi-GPU systems: a device index, or `'integrated'`/`'dedicated'` to restrict selection to that class."),
+    splitMode: z
+        .enum(['none', 'layer'])
+        .optional()
+        .describe("How to split the model across GPUs: `'none'` (default, single GPU) or `'layer'` (pipeline parallelism)."),
+    tensorSplit: z
+        .string()
+        .optional()
+        .describe("Proportions for distributing layers/rows across GPUs, e.g. `'1,1'` (equal) or `'3,1'` (75/25)."),
+    verbosity: verbositySchema
+        .optional()
+        .describe('Native log verbosity: `0`=ERROR, `1`=WARN, `2`=INFO, `3`=DEBUG. Default 0.'),
+    openclCacheDir: z
+        .string()
+        .optional()
+        .describe('Writable directory for the OpenCL kernel binary cache; required on Android for fast GPU startup.')
+});
+// Default values - typed as partial of the config
+export const EMBED_CONFIG_DEFAULTS = {
+    gpuLayers: 99,
+    device: 'gpu',
+    batchSize: 1024
+};
+// Full schema - validates then applies defaults via transform
+export const embedConfigSchema = embedConfigBaseSchema.transform((data) => ({
+    ...EMBED_CONFIG_DEFAULTS,
+    ...data
+}));

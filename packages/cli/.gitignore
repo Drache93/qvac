@@ -1,7 +1,7 @@
 node_modules
 dist
-!vendor/bundlebee/dist/
-!vendor/bundlebee-import/dist/
+# Snapshot dist/ folders are the vendored code itself, so they are tracked
+!/vendor/**/dist/
 .DS_Store
 package-lock.json
 bun.lock

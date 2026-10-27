@@ -1,0 +1,4 @@
+import type { CacheMessage } from './types.js';
+export declare function normalizeCacheMessage(message: CacheMessage): CacheMessage;
+export declare function getAutoCacheLookupHistory(currentHistory: CacheMessage[]): CacheMessage[];
+export declare function buildAutoCacheSaveHistory(currentHistory: CacheMessage[], assistantResponse: string): CacheMessage[];
