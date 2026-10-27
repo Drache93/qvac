@@ -6,7 +6,7 @@ import {
   MAX_BATCH_INPUTS,
   TRANSLATE_FIELD_CODES,
   translateBody
-} from '@/serve/extensions/default/schemas/translate'
+} from '@/lib/api/extensions/default/schemas/translate'
 
 function issuePaths(input: unknown): string[] {
   const result = translateBody.safeParse(input)

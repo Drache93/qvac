@@ -3,9 +3,9 @@ import { before, after, type TestContext } from 'node:test'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildServer, type StartServerOptions } from '@/serve/index'
-import { preloadModels } from '@/serve/core/lifecycle'
-import type { OpenAIExtensionOptions } from '@/serve/extensions/openai/state'
+import { buildServer, type StartServerOptions } from '@/lib/api/index'
+import { preloadModels } from '@/lib/api/core/lifecycle'
+import type { OpenAIExtensionOptions } from '@/lib/api/extensions/openai/state'
 import { MODELLESS_CONFIG, writeConfigDir } from './config.js'
 
 export interface CreateServerOptions {

@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import type { FastifyInstance } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { buildServer } from '@/serve/index'
-import { binaryInput, resolveBinaryInput } from '@/serve/lib/binary-input'
-import { multipartToBodyOptional } from '@/serve/lib/multipart'
+import { buildServer } from '@/lib/api/index'
+import { binaryInput, resolveBinaryInput } from '@/lib/api/lib/binary-input'
+import { multipartToBodyOptional } from '@/lib/api/lib/multipart'
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 

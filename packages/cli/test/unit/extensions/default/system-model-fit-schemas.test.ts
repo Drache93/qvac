@@ -7,10 +7,10 @@ import {
   MODEL_FIT_FIELD_CODES,
   modelFitBody,
   modelFitResult
-} from '@/serve/extensions/default/schemas/model-fit'
-import { systemQuery, systemResult } from '@/serve/extensions/default/schemas/system'
-import { mergeConfig } from '@/serve/extensions/default/routes/model-fit'
-import { errorResponses } from '@/serve/lib/error-responses'
+} from '@/lib/api/extensions/default/schemas/model-fit'
+import { systemQuery, systemResult } from '@/lib/api/extensions/default/schemas/system'
+import { mergeConfig } from '@/lib/api/extensions/default/routes/model-fit'
+import { errorResponses } from '@/lib/api/lib/error-responses'
 
 function issuePaths(input: unknown): string[] {
   const result = modelFitBody.safeParse(input)
