@@ -41,7 +41,7 @@ function resolvePaths(entries: LaunchOptions['entries']) {
     // asset, not resolve: Bare loads anything import.meta.resolve names as a module
     skillsDir: skillsRoot(import.meta.asset('@qvac/skills/skills/weather/SKILL.md')),
     cliSkillsDir: skillsRoot(import.meta.asset('../../../skills/qvac-plugins/SKILL.md')),
-    harnessEntry: fileURLToPath(import.meta.resolve('./harness-worker.js')),
+    harnessEntry: new URL(import.meta.resolve('@qvac/harness/worker/stow-entry.mjs')).pathname,
     sidecarEntry
   }
 }

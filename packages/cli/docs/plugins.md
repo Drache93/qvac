@@ -23,6 +23,7 @@ Always loaded; nothing to turn on.
 
 | Plugin      | Gives the model                                      |
 | ----------- | ---------------------------------------------------- |
+| Python      | `exec` with `language: "python"` (Pyodide)           |
 | Obsidian    | `exec` routes for an Obsidian vault                  |
 | Speech      | transcription and speech                             |
 | Translation | on-device translation                                |
@@ -34,21 +35,20 @@ Always loaded; nothing to turn on.
 
 ## Optional plugins
 
-| id                | What it adds                                                                                               | Platforms           | Needs, and what comes with it                        | Options                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------- | -------------------------------------------------------------- |
-| `coding`          | `shell` and `shell_jobs`: a persistent shell with background jobs for real coding work                     | macOS, Linux        | a sandbox: brings `sandbox-macos` or `sandbox-linux` | —                                                              |
-| `sandbox-macos`   | Runs every shell line under Seatbelt with the run's file and network policy                                | macOS               | uses `egress-proxy` if it is on                      | —                                                              |
-| `sandbox-linux`   | Runs every shell line under bubblewrap and seccomp                                                         | Linux               | `/usr/bin/bwrap`                                     | —                                                              |
-| `sandbox-windows` | Runs `exec` shell lines in an AppContainer. Confines `exec` only; `coding` cannot use it                   | Windows             | —                                                    | —                                                              |
-| `sandbox-vm`      | Runs `exec` shell lines in a barevisor VM with no network, disk or host mounts                             | macOS, Linux        | a prebuilt guest                                     | `image: { kernel, initrd }` (required)                         |
-| `egress-proxy`    | A per-session loopback proxy: sandboxed lines reach only the hosts the policy allows                       | all                 | —                                                    | —                                                              |
-| `lsp`             | `lsp`: definitions, references, symbols, hover and diagnostics from local language servers                 | all                 | a language server on `PATH`                          | `servers: [{ language, command, args, extensions }]`           |
-| `python`          | `exec` with `language: "python"` (Pyodide)                                                                 | provider’s platform | prepared Python provider                             | `provider: { pin }`                                            |
-| `quickjs`         | `exec` with `language: "javascript"`: in-process, no files, network or modules                             | provider’s platform | prepared QuickJS provider                            | `provider: { pin }`                                            |
-| `code-mode`       | `run_code`: one JavaScript body that calls the other tools as functions, each call still approved          | all                 | prepared `quickjs` provider                          | —                                                              |
-| `command-hooks`   | Runs the command hooks of a Claude Code `settings.json` (PreToolUse, PostToolUse, Stop, …)                 | all                 | —                                                    | `settings` (default `~/.claude/settings.json`), `hooks`, `cwd` |
-| `language-hint`   | Tells the model a non-English prompt's language, with the prompt in English                                | all                 | built-in translation                                 | —                                                              |
-| `walkie-talkie`   | `ask_team`, `team_send`, `team_wait`: messages between agents and people on other machines over Hyperswarm | all                 | —                                                    | `team` (64 hex chars, shared with the team), `name` (required) |
+| id                | What it adds                                                                                               | Platforms    | Needs, and what comes with it                        | Options                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------- | -------------------------------------------------------------- |
+| `coding`          | `shell` and `shell_jobs`: a persistent shell with background jobs for real coding work                     | macOS, Linux | a sandbox: brings `sandbox-macos` or `sandbox-linux` | —                                                              |
+| `sandbox-macos`   | Runs every shell line under Seatbelt with the run's file and network policy                                | macOS        | uses `egress-proxy` if it is on                      | —                                                              |
+| `sandbox-linux`   | Runs every shell line under bubblewrap and seccomp                                                         | Linux        | `/usr/bin/bwrap`                                     | —                                                              |
+| `sandbox-windows` | Runs `exec` shell lines in an AppContainer. Confines `exec` only; `coding` cannot use it                   | Windows      | —                                                    | —                                                              |
+| `sandbox-vm`      | Runs `exec` shell lines in a barevisor VM with no network, disk or host mounts                             | macOS, Linux | a prebuilt guest                                     | `image: { kernel, initrd }` (required)                         |
+| `egress-proxy`    | A per-session loopback proxy: sandboxed lines reach only the hosts the policy allows                       | all          | —                                                    | —                                                              |
+| `lsp`             | `lsp`: definitions, references, symbols, hover and diagnostics from local language servers                 | all          | a language server on `PATH`                          | `servers: [{ language, command, args, extensions }]`           |
+| `quickjs`         | `exec` with `language: "javascript"`: in-process, no files, network or modules                             | all          | —                                                    | —                                                              |
+| `code-mode`       | `run_code`: one JavaScript body that calls the other tools as functions, each call still approved          | all          | brings `quickjs`                                     | —                                                              |
+| `command-hooks`   | Runs the command hooks of a Claude Code `settings.json` (PreToolUse, PostToolUse, Stop, …)                 | all          | —                                                    | `settings` (default `~/.claude/settings.json`), `hooks`, `cwd` |
+| `language-hint`   | Tells the model a non-English prompt's language, with the prompt in English                                | all          | built-in translation                                 | —                                                              |
+| `walkie-talkie`   | `ask_team`, `team_send`, `team_wait`: messages between agents and people on other machines over Hyperswarm | all          | —                                                    | `team` (64 hex chars, shared with the team), `name` (required) |
 
 `lsp` looks for `typescript-language-server`, `pyright-langserver`, `gopls`, `rust-analyzer` and
 `clangd` on `PATH`. A Mac app launched from the Dock has a short `PATH`, so list servers yourself
@@ -73,62 +73,6 @@ when it reports none found:
 
 `command-hooks` runs commands from a settings file on your machine at each hook phase. Read that
 file before you turn it on.
-
-## Optional language providers
-
-Python and QuickJS are optional runtime releases. The default chat does not load their external
-runtimes. Code mode requires QuickJS. Enabling either language without a prepared pin reports a
-plugin failure with setup instructions; it never downloads code during a completion.
-
-A provider pin fixes its publisher key, exact snapshot length, package version, entry and release
-generation (`abi`). Trust the publisher before preparing and enabling its code. A prepared release
-contains individual files for the plugin, workers, WASM, native addons and Python wheels, and works
-offline on the platform for which it was built. The provider contract declares Harness API 1;
-the CLI rejects another language contract or an entry outside that exact pinned asset cache.
-
-Prepare a supplied pin explicitly:
-
-```sh
-qvac provider prepare quickjs-pin.json --data-dir ~/.qvac/cli
-```
-
-The file can contain the pin directly, or `{ "pin": { ... }, "blindPeers": ["<mirror public key>"],
-"fallback": true }`. Mirror keys are dialed first; swarm discovery is the bounded fallback.
-Preparation only downloads data. Providers execute when enabled on the next Core start.
-
-Put the complete pin into `plugins.json` (replace the ellipsis with its JSON fields):
-
-```json
-{
-  "enabled": ["python", "code-mode"],
-  "options": {
-    "python": { "provider": { "pin": { "...": "complete Python pin" } } },
-    "quickjs": { "provider": { "pin": { "...": "complete QuickJS pin" } } }
-  }
-}
-```
-
-To build a local provider from this repository, install development dependencies and run the
-normal first-party dependency patches, then:
-
-```sh
-npm run build
-node scripts/build-provider.mjs quickjs /tmp/my-quickjs-provider
-qvac provider publish /tmp/my-quickjs-provider --data-dir ~/.qvac/cli > quickjs-pin.json
-# Use python instead of quickjs for the Python runtime.
-```
-
-The Python builder applies the pinned Harness Pyodide compatibility patch in memory
-before collecting its runtime files. Both pristine npm and already patched pnpm
-installations work; installed dependencies remain unchanged. A different Pyodide
-version or incompatible patch input fails the build before writing the release.
-
-The build reads the installed dependency graph without network access, includes its licenses, and
-refuses an existing output directory. Publishing writes an immutable release into this device's
-provider Corestore, so it is already available offline. Rebuilding changed bytes requires a new
-version and generation in the staged `provider.json`; published versions cannot be overwritten.
-This local command does not start a mirror. Distributing the pin to another device also requires
-serving its publisher Corestore through the bundlebee replication or blind-peer deployment.
 
 ## Turn plugins on
 

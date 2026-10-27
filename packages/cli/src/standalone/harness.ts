@@ -1,6 +1,6 @@
 import process from 'bare-process'
 import { fileURLToPath } from 'bare-url'
-import start from '../lib/runtime/harness-entry.js'
+import start from '@qvac/harness/worker/harness-sidecar.mjs'
 
 // Resolve a literal so stow includes the extension and its plugins in this bundle.
 // The sidecar imports this bundle-local URL through its existing host-module hook.

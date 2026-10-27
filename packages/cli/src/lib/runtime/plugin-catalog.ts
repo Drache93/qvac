@@ -80,21 +80,15 @@ export const PLUGIN_CATALOG = [
     tools: ['lsp'],
     recommended: true
   }),
-  plugin('python', 'Python', {
-    name: 'Python',
-    description: 'Python for exec through an explicitly prepared Pyodide provider.',
-    setup: 'options.provider names an immutable prepared provider pin'
-  }),
   plugin('quickjs', 'QuickJs', {
     name: 'QuickJS',
     description:
-      'In-process JavaScript for exec through an explicitly prepared QuickJS provider: no files, network or modules.',
-    setup: 'options.provider names an immutable prepared provider pin'
+      'In-process JavaScript for exec (language: "javascript"): no files, network or modules.'
   }),
   plugin('code-mode', 'CodeMode', {
     name: 'Code mode',
     description:
-      'run_code: one JavaScript body that calls the other tools as functions, each call approved as if made directly. Requires a prepared QuickJS provider.',
+      'run_code: one JavaScript body that calls the other tools as functions, each call approved as if made directly. Brings QuickJS with it.',
     needs: ['quickjs'],
     inject: { quickjs: 'quickjs' },
     read: ['run_code'],
@@ -124,6 +118,13 @@ export const PLUGIN_CATALOG = [
 
 // Loaded by the harness sidecar on every start; listed only to show what is already there.
 export const BUILT_IN_PLUGINS = [
+  {
+    id: 'python',
+    name: 'Python',
+    builtIn: true,
+    description: 'Python in Pyodide for exec (language: "python").',
+    tools: []
+  },
   {
     id: 'obsidian',
     name: 'Obsidian',
