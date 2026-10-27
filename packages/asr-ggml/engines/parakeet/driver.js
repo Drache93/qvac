@@ -189,6 +189,7 @@ class ParakeetDriver {
     async createStreamingSession(audio, opts = {}) {
         const streamingOpts = this._validateStreamingOptions(opts);
         const addon = this._requireAddon();
+        this._assertNemotronChunkMs(streamingOpts.chunkMs ?? this.params.streamingChunkMs);
         const response = this.ctx.job.start();
         let closing = false;
         const markClosing = () => {
@@ -216,6 +217,24 @@ class ParakeetDriver {
                 return closing;
             },
         };
+    }
+    /**
+     * Nemotron's cache-aware encoder only runs at its trained chunk cadences;
+     * the engine rejects any other `chunkMs` when the session opens. Reject it
+     * here first, before a response is started, so the run settles with a
+     * configuration error instead of a failed session start.
+     */
+    _assertNemotronChunkMs(chunkMs) {
+        if (chunkMs === undefined)
+            return;
+        if (this.getBackendInfo()?.modelType !== "nemotron")
+            return;
+        if (constants_1.NEMOTRON_STREAMING_CHUNK_MS.includes(chunkMs))
+            return;
+        throw new error_1.QvacErrorAddonASRGgml({
+            code: error_1.ERR_CODES_PARAKEET.INVALID_CONFIG,
+            adds: `chunkMs ${chunkMs} is not supported by Nemotron streaming; use one of ${constants_1.NEMOTRON_STREAMING_CHUNK_MS.join(", ")} ms`,
+        });
     }
     _validateStreamingOptions(opts) {
         for (const key of Object.keys(opts)) {

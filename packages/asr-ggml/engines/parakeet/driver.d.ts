@@ -156,6 +156,13 @@ export declare class ParakeetDriver implements AsrDriver {
     getBackendInfo(): BackendInfo | null;
     run(audio: NormalizedAudioStream, options?: ASRRunOptions): Promise<QvacResponse<ASRRunOutput>>;
     createStreamingSession(audio: NormalizedAudioStream, opts?: ASRStreamingOptions): Promise<StreamingSession>;
+    /**
+     * Nemotron's cache-aware encoder only runs at its trained chunk cadences;
+     * the engine rejects any other `chunkMs` when the session opens. Reject it
+     * here first, before a response is started, so the run settles with a
+     * configuration error instead of a failed session start.
+     */
+    _assertNemotronChunkMs(chunkMs: number | undefined): void;
     _validateStreamingOptions(opts: ASRStreamingOptions): ParakeetStreamingRunConfig;
     _pumpBatchAudio(audio: NormalizedAudioStream): Promise<void>;
     _pumpStreamingAudio(audio: NormalizedAudioStream, markClosing: () => void): Promise<void>;

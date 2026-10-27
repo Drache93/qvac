@@ -24346,7 +24346,13 @@ class TranscribeResponse(GeneratedBaseModel):
 
 class TranscribeStreamRequestParakeetStreamingConfig(GeneratedBaseModel):
     chunk_ms: Annotated[
-        int | None, Field(alias="chunkMs", gt=0, le=9007199254740991)
+        int | None,
+        Field(
+            alias="chunkMs",
+            description="Streaming chunk cadence in ms for this run. Nemotron accepts only 80, 160, 320, 560 or 1120 (any other value is rejected as INVALID_CONFIG); Unified RNN-T snaps to 80, 160, 560 or 1040; other models take any value.",
+            gt=0,
+            le=9007199254740991,
+        ),
     ] = None
     history_ms: Annotated[
         int | None, Field(alias="historyMs", gt=0, le=9007199254740991)

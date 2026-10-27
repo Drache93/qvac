@@ -292,7 +292,14 @@ export type TranscribeResponse = z.infer<typeof transcribeResponseSchema>
  * to the load-time value.
  */
 export const parakeetStreamingRunConfigSchema = z.object({
-  chunkMs: z.number().int().positive().optional(),
+  chunkMs: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'Streaming chunk cadence in ms for this run. Nemotron accepts only 80, 160, 320, 560 or 1120 (any other value is rejected as INVALID_CONFIG); Unified RNN-T snaps to 80, 160, 560 or 1040; other models take any value.'
+    ),
   historyMs: z.number().int().positive().optional(),
   leftContextMs: z.number().int().nonnegative().optional(),
   rightLookaheadMs: z.number().int().nonnegative().optional(),
