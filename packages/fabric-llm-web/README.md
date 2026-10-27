@@ -203,6 +203,76 @@ Cancel is cooperative between bounded GPU operations; Close
 terminates the Worker and discards the loaded model while retaining its HTTP
 cache. No settings can turn a native `.bare` addon into a browser artifact.
 
+## Test on macOS
+
+PR #5376 is stacked on PR #5375, so its head contains the complete SDK and
+runtime PoC. From an existing monorepo checkout:
+
+```sh
+git fetch upstream feature-QVAC-26838-browser-poc
+git switch --track upstream/feature-QVAC-26838-browser-poc
+```
+
+If the local branch already exists, switch to it and run `git pull --ff-only`.
+Install CMake, Ninja, Python and Node.js, then activate the exact Emscripten
+toolchain used by the source lock:
+
+```sh
+brew install cmake ninja python node
+corepack enable
+corepack prepare pnpm@11.28.2 --activate
+git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+cd ~/emsdk
+./emsdk install 4.0.23
+./emsdk activate 4.0.23
+source ./emsdk_env.sh
+```
+
+Return to the monorepo root and build, verify and serve the browser package:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter @qvac/fabric-llm-web run build
+pnpm --filter @qvac/fabric-llm-web run package:browser
+pnpm --filter @qvac/fabric-llm-web run verify:browser-package
+pnpm --filter @qvac/fabric-llm-web run demo
+```
+
+Open `http://127.0.0.1:8787/demo/` in Chrome 144 or newer without command-line
+flags. Chrome has shipped WebGPU on macOS since version 113 and maps it to
+Metal. Keep Chrome's **Use graphics acceleration when available** setting on.
+A successful run reports `backend: WebGPU`, `backendDevice: gpu`,
+`modelFilesystem: workerfs`, Flash Attention in the engine configuration and
+nonzero prompt/decode throughput. Save the evidence from the demo for review.
+
+For a local model route that does not depend on a long Hugging Face response:
+
+```sh
+pnpm --filter @qvac/fabric-llm-web run download:model
+pnpm --filter @qvac/fabric-llm-web run demo
+```
+
+Open
+`http://127.0.0.1:8787/demo/?model=http://127.0.0.1:8787/artifacts/models/Qwen3.5-2B-Q4_K_M.gguf`.
+The downloader verifies the model checksum. On a 16 GB machine, set
+`QVAC_BUILD_JOBS=2` on the build command if compilation causes memory pressure.
+
+## Fabric revision and prior WebGPU work
+
+The source lock pins Fabric commit `0c93153f`, a merge commit on the current
+`temp-11259` line. It includes merged Fabric PR #400, which superseded the
+closed exploratory PRs #247-#250 and #259 by adding opt-in dynamic discovery,
+high-performance adapter preference, repeated-registry safety, missing-feature
+diagnostics, the browser benchmark and corresponding tests/documentation.
+The older instruction to retarget those exploratory PRs to `temp-10549` is no
+longer applicable; `temp-10549` and the pinned revision have since diverged.
+
+The remaining local patch is narrower: if the high-performance adapter is
+present but lacks the required features, it retries the low-power adapter and
+reuses the validated adapter for device creation. This should be proposed as a
+focused follow-up to Fabric and removed here once a released Fabric revision
+contains it.
+
 The SDK runtime is injected explicitly:
 
 ```js

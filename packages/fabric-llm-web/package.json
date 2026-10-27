@@ -24,6 +24,7 @@
     "build": "node scripts/build.mjs --compat",
     "test": "node --test test/*.test.js",
     "demo": "node demo/server.mjs",
+    "download:model": "node scripts/download-model.mjs",
     "package:browser": "node scripts/package-browser-sdk.mjs",
     "verify:browser-package": "node scripts/package-browser-sdk.mjs --verify"
   },
