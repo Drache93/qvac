@@ -1,7 +1,7 @@
 // The app under test with a fake engine: shared by the product, extension and chaos tests.
 import { productApp } from '../../../dist/product/app.js'
 import { plain } from '../../../dist/product/theme.js'
-import { cellWidth } from '../../../dist/product/text.js'
+import { cellWidth } from '../../../dist/lib/terminal/text.js'
 
 const chordAliases = { esc: 'escape', return: 'enter' }
 

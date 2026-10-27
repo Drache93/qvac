@@ -10,7 +10,7 @@ import {
   renderApprovalPreview
 } from '../../dist/product/tool-view.js'
 import { plain } from '../../dist/product/theme.js'
-import { cellWidth } from '../../dist/product/text.js'
+import { cellWidth } from '../../dist/lib/terminal/text.js'
 
 const ops = (a, b) => diffLines(a, b).map((l) => l.op + l.text)
 const fits = (rows, width) =>

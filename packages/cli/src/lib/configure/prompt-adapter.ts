@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { Editor } from '../../product/editor.js'
-import { wrap } from '../../product/text.js'
+import { Editor } from '../terminal/editor.js'
+import { wrap } from '../terminal/text.js'
 
 interface Context {
   signal?: AbortSignal

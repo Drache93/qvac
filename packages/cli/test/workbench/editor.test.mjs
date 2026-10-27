@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Editor } from '../../dist/product/editor.js'
-import { cellWidth } from '../../dist/product/text.js'
+import { Editor } from '../../dist/lib/terminal/editor.js'
+import { cellWidth } from '../../dist/lib/terminal/text.js'
 
 const { KeyMsg } = await import(new URL('./messages.js', import.meta.resolve('bare-tui')))
 

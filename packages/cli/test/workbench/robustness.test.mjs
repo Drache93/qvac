@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderApprovalPreview, renderToolBody, toolSummary } from '../../dist/product/tool-view.js'
 import { canvas, plain } from '../../dist/product/theme.js'
-import { cellWidth } from '../../dist/product/text.js'
+import { cellWidth } from '../../dist/lib/terminal/text.js'
 import { App, KeyMsg, boot, chunk, fakeEngine, press, screen, settle } from './helpers/app.mjs'
 
 const leaks = (rows) => rows.map(plain).filter((r) => /undefined|NaN|\[object Object\]/.test(r))

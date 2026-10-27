@@ -27,7 +27,7 @@ interface View {
   streaming?: boolean
 }
 import { paint, palette, strong, plain } from './theme.js'
-import { wrap, cellWidth, fit } from './text.js'
+import { wrap, cellWidth, fit } from '../lib/terminal/text.js'
 import { settled } from './transcript.js'
 import { toolSummary, renderToolBody, renderApprovalPreview } from './tool-view.js'
 import { languageOf, paintCode } from './highlight.js'

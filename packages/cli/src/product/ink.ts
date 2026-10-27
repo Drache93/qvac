@@ -1,5 +1,5 @@
 import { paint, palette } from './theme.js'
-import { wrap, cellWidth } from './text.js'
+import { wrap, cellWidth } from '../lib/terminal/text.js'
 
 export { strong } from './theme.js'
 

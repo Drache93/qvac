@@ -73,7 +73,7 @@ const argsOf = (value: unknown): ToolArguments =>
   value !== null && typeof value === 'object' ? (value as ToolArguments) : {}
 import { paint, palette } from './theme.js'
 import { languageOf, paintCode } from './highlight.js'
-import { wrap, cellWidth, clean } from './text.js'
+import { wrap, cellWidth, clean } from '../lib/terminal/text.js'
 
 const MINUS = '−'
 const OMITTED = /\n?…\[(\d+) chars omitted[^\]]*\]…\n?/g

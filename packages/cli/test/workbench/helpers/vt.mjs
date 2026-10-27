@@ -1,5 +1,5 @@
 // For the pty tests: reads the escapes bare-tui and the app send as a terminal would, drops the rest.
-import { cellWidth } from '../../../dist/product/text.js'
+import { cellWidth } from '../../../dist/lib/terminal/text.js'
 
 const FULL_REPAINT = '\x1b[H' // bare-tui starts every full repaint at home with no row given
 

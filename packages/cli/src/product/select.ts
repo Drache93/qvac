@@ -1,5 +1,5 @@
 type Point = { x: number; y: number }
-import { clean, cellWidth } from './text.js'
+import { clean, cellWidth } from '../lib/terminal/text.js'
 
 // Splits plain text at terminal columns, so a wide glyph is never cut in half.
 function split(text: string, from: number, to: number) {

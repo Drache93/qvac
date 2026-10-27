@@ -3,7 +3,7 @@ import b4a from 'b4a'
 import { App, KeyMsg, chunk, fakeEngine, settle } from './app.mjs'
 import { commands } from '../../../dist/product/commands.js'
 import { plain } from '../../../dist/product/theme.js'
-import { cellWidth } from '../../../dist/product/text.js'
+import { cellWidth } from '../../../dist/lib/terminal/text.js'
 
 // mulberry32: small, fast, and the same sequence for the same seed on every machine
 export function random(seed) {
