@@ -55,7 +55,7 @@ const hotwords = z.preprocess(
 export const transcriptionsBody = z
   .object({
     model: z.string().min(1),
-    file: z.instanceof(Buffer),
+    file: z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }),
     response_format: z.string().optional(),
     prompt: z.string().optional(),
     hotwords,
@@ -86,7 +86,7 @@ export function assertTranscriptionOptionsSupported(
 export const translationsBody = z
   .object({
     model: z.string().min(1),
-    file: z.instanceof(Buffer),
+    file: z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }),
     response_format: z.string().optional(),
     prompt: z.string().optional(),
     language: z.string().optional(),

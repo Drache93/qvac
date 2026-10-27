@@ -1,13 +1,13 @@
 import { HttpError } from '@/lib/api/lib/http-error'
 import { decide } from '@qvac/sdk'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { requireModel } from '@/lib/api/core/plugins/require-model'
 import { decisionsBody, decisionsResult } from '@/lib/api/extensions/openai/schemas/decisions'
 import { openaiState } from '@/lib/api/extensions/openai/state'
 import { toDecideParams, toDecisionsResult } from '@/lib/api/extensions/openai/adapters/decisions'
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/decisions',
     {

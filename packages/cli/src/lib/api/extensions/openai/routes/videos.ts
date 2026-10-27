@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply } from '@/lib/http'
 import { video, cancel } from '@qvac/sdk'
 import type { VideoClientParams } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -309,7 +309,7 @@ async function runVideoJob(
 }
 
 async function serveContent(
-  reply: FastifyReply,
+  reply: HttpReply,
   ctx: QvacContext,
   job: VideoJob,
   formatOverride: 'mp4' | 'avi' | undefined
@@ -427,7 +427,7 @@ async function serveContent(
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   const openai = openaiState(app.qvac)
 
   app.post(

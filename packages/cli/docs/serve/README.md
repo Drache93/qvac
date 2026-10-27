@@ -18,7 +18,7 @@ qvac sdk serve --openai --no-default    # OpenAI-compatible only
 `qvac sdk serve openai` is a deprecated alias for `qvac sdk serve --openai --no-default`.
 
 The OpenAPI document describes whatever is mounted. It is always at `/openapi.json`;
-`--docs` additionally serves Swagger UI at `/docs`.
+`--docs` additionally serves the API explorer at `/docs`.
 
 Configuration lives under `serve` in `qvac.config.*`. `serve.models`, `serve.load` and
 `serve.cors` are server-wide and documented here; each extension reads its own
@@ -49,7 +49,7 @@ qvac sdk serve --openai \
 
 The legacy `--cors` flag is only a compatibility validation switch: it does not enable CORS and fails unless at least one explicit CLI/config origin is supplied. `--cors --docs` also fails without one because docs defaults are added after that validation.
 
-Independently, `--docs` adds same-port `localhost`, `127.0.0.1`, and `[::1]` origins for Swagger UI, plus the bound host's same-port origin when that host is itself loopback. Add any non-loopback or forwarded browser origin explicitly.
+Independently, `--docs` adds same-port `localhost`, `127.0.0.1`, and `[::1]` origins for the API explorer, plus the bound host's same-port origin when that host is itself loopback. Add any non-loopback or forwarded browser origin explicitly.
 
 `/openapi.json`, `/docs`, and `/docs/*` are exempt from bearer authentication. `/openapi.json` is always public; the docs routes exist only with `--docs`. Do not enable docs on a non-loopback bind unless public introspection is acceptable.
 

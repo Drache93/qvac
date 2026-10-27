@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify'
+import type { HttpServer } from '@/lib/http'
 import type { QvacContext } from '@/lib/api/core/context'
 
 /**
@@ -23,7 +23,7 @@ export interface ServeExtension {
   parseConfig?(raw: unknown): unknown
   /** Builds the state this extension's routes read, before any route is mounted. */
   setup?(ctx: QvacContext, options: unknown): Promise<unknown>
-  register(app: FastifyInstance): Promise<void>
+  register(app: HttpServer): Promise<void>
   /** Startup warnings, logged once the server is ready. */
   banners?(state: unknown): string[]
 }
@@ -85,10 +85,10 @@ export function extensionBanners(
   return extensions.flatMap((extension) => extension.banners?.(slots[extension.name]) ?? [])
 }
 
-// Each extension gets its own Fastify scope, so its hooks, body limits and
+// Each extension gets its own HTTP scope, so its hooks, body limits and
 // content-type parsers stay local to its routes.
 export async function mountExtensions(
-  app: FastifyInstance,
+  app: HttpServer,
   extensions: readonly ServeExtension[]
 ): Promise<void> {
   for (const extension of extensions) {

@@ -1,4 +1,4 @@
-import type { FastifyRequest } from 'fastify'
+import type { HttpRequest } from '@/lib/http'
 import { z } from 'zod'
 import { HttpError } from '@/lib/api/lib/http-error'
 
@@ -14,7 +14,7 @@ const OCTET_STREAM = 'application/octet-stream'
  */
 export function binaryInput(description: string) {
   return z
-    .union([z.instanceof(Buffer), z.string().min(1)])
+    .union([z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }), z.string().min(1)])
     .describe(
       `${description} Send a multipart file part, a base64 data URL ` +
         '(`data:<type>;base64,...`), or the `id` of a file uploaded with `POST /v1/files`.'
@@ -29,7 +29,7 @@ export interface BinaryInput {
 }
 
 export function resolveBinaryInput(
-  req: FastifyRequest,
+  req: HttpRequest,
   field: string,
   value: Buffer | string
 ): BinaryInput {
@@ -45,7 +45,7 @@ export function resolveBinaryInput(
   return input
 }
 
-function fromUpload(req: FastifyRequest, field: string, bytes: Buffer): BinaryInput {
+function fromUpload(req: HttpRequest, field: string, bytes: Buffer): BinaryInput {
   const part = req.multipartFiles?.find((file) => file.fieldname === field)
   return {
     bytes,
@@ -75,7 +75,7 @@ function fromDataUrl(field: string, url: string): BinaryInput {
   }
 }
 
-function fromFileId(req: FastifyRequest, field: string, id: string): BinaryInput {
+function fromFileId(req: HttpRequest, field: string, id: string): BinaryInput {
   const record = req.server.qvac.files.get(id)
   if (record === null) {
     throw new HttpError(

@@ -1,5 +1,5 @@
-import type { FastifyReply } from 'fastify'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpReply } from '@/lib/http'
+import type { HttpPlugin } from '@/lib/http'
 import {
   ragListWorkspaces,
   ragSearch,
@@ -98,7 +98,7 @@ Same embedding-model resolution + mismatch rules as
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   const openai = openaiState(app.qvac)
 
   app.get(
@@ -637,7 +637,7 @@ interface EmbeddingResolutionErr {
 
 async function resolveEmbeddingModel(
   ctx: QvacContext,
-  reply: FastifyReply
+  reply: HttpReply
 ): Promise<EmbeddingResolutionOk | EmbeddingResolutionErr> {
   const picked = pickDefaultEmbedding(ctx.serveConfig)
   if (picked.kind === 'none') {

@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest, preHandlerAsyncHookHandler } from 'fastify'
+import type { HttpReply, HttpRequest, preHandlerAsyncHookHandler } from '@/lib/http'
 import { WorkerStartupError } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { resolveModelAlias } from '@/lib/api/core/config/models'
@@ -17,8 +17,8 @@ export function requireModel(category: string): preHandlerAsyncHookHandler {
 }
 
 export async function resolveAndCheckModel(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   modelName: string,
   category: string
 ): Promise<QvacRequestModel> {
@@ -66,7 +66,7 @@ export async function ensureReady(
   alias: string,
   configEntry: ResolvedModelEntry | ModelEntry,
   modelName: string,
-  reply?: FastifyReply
+  reply?: HttpReply
 ): Promise<ModelEntry> {
   let entry = ctx.registry.getEntry(alias)
   if (!entry) {
@@ -123,7 +123,7 @@ function modelLoadFailureMessage(err: unknown): string {
 // Aborts if the client disconnects before the load finishes: `reply.raw` closes
 // when the connection drops. Disposed after the load, so a completed response
 // never trips it.
-function disconnectSignal(reply: FastifyReply): { signal: AbortSignal; dispose: () => void } {
+function disconnectSignal(reply: HttpReply): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController()
   const onClose = (): void => controller.abort()
   reply.raw.once('close', onClose)

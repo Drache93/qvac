@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply, HttpRequest } from '@/lib/http'
 import type { z } from 'zod'
 import { translate } from '@qvac/sdk'
 import { randomBytes } from 'node:crypto'
@@ -20,7 +20,7 @@ function nmtModelType(sdkType: string): NmtModelType {
 type TranslationResult = z.infer<typeof translationResult>
 
 interface TranslateCall {
-  req: FastifyRequest
+  req: HttpRequest
   modelId: string
   modelType: NmtModelType
   model: string
@@ -50,7 +50,7 @@ A client disconnect cancels the request and its result is dropped.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/qvac/v1/translate',
     {
@@ -108,7 +108,7 @@ async function translateText(
 
 async function streamTranslation(
   call: TranslateCall,
-  reply: FastifyReply,
+  reply: HttpReply,
   text: string | string[]
 ): Promise<void> {
   const { model } = call

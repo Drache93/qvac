@@ -424,7 +424,7 @@ See [Decisions API](serve/openai.md#post-v1decisions) for setup and request exam
 | `--allowed-host <host>`          | Accept this `Host` header besides loopback names, IP addresses and the bind host; `.example.com` covers subdomains (repeatable).    |
 | `--allow-any-host`               | Accept any `Host` header, turning off DNS-rebinding protection.                                                                     |
 | `--public-base-url <url>`        | Externally reachable origin required for image `response_format=url`.                                                               |
-| `--docs`                         | Mount Swagger UI at `/docs` and add same-port loopback CORS origins.                                                                |
+| `--docs`                         | Mount the API explorer at `/docs` and add same-port loopback CORS origins.                                                          |
 | `--no-lazy-load`                 | Disable lazy loading; a request for an unloaded model returns `503 model_not_loaded`.                                               |
 | `--load-concurrency <n>`         | Max simultaneous model loads (default: `1`).                                                                                        |
 | `--load-timeout <ms>`            | Per-load timeout in milliseconds (default: unbounded).                                                                              |

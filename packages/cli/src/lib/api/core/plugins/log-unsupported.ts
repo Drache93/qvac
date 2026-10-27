@@ -1,4 +1,4 @@
-import type { preHandlerAsyncHookHandler } from 'fastify'
+import type { preHandlerAsyncHookHandler } from '@/lib/http'
 
 // lunte-disable-next-line require-await
 export const logUnsupported: preHandlerAsyncHookHandler = async function (req) {

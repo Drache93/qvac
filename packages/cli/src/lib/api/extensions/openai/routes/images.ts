@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply } from '@/lib/http'
 import { diffusion } from '@qvac/sdk'
 import type { DiffusionClientParams } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -105,7 +105,7 @@ function buildSizeString(
 }
 
 function sendStreamingResponse(
-  reply: FastifyReply,
+  reply: HttpReply,
   buffers: Uint8Array[],
   sizeStr: string | null
 ): void {
@@ -133,11 +133,7 @@ interface RunOptions {
   wantsStream: boolean
 }
 
-async function runAndRespond(
-  reply: FastifyReply,
-  ctx: QvacContext,
-  opts: RunOptions
-): Promise<void> {
+async function runAndRespond(reply: HttpReply, ctx: QvacContext, opts: RunOptions): Promise<void> {
   const { logLabel, alias, params, responseFormat, wantsStream } = opts
   const dims = params.width && params.height ? `${params.width}x${params.height}` : 'default'
   ctx.logger.info(
@@ -235,7 +231,7 @@ Same output / \`response_format=url\` / streaming caveats as
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/images/generations',
     {

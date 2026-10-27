@@ -1,9 +1,5 @@
-import fp from 'fastify-plugin'
-import type { FastifyError, FastifyPluginAsync } from 'fastify'
-import {
-  hasZodFastifySchemaValidationErrors,
-  isResponseSerializationError
-} from 'fastify-type-provider-zod'
+import type { HttpErrorShape, HttpPlugin } from '@/lib/http'
+import { hasSchemaValidationErrors, isResponseSerializationError } from '@/lib/http'
 import { HttpError, errorType } from '@/lib/api/lib/http-error'
 import { sendSSE, endSSE } from '@/lib/api/lib/sse'
 import { RequestRejectedByPolicyError } from '@qvac/sdk'
@@ -24,10 +20,10 @@ const CORE_FIELD_CODES: Record<string, string> = {
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsync<ErrorHandlerOptions> = async (app, opts) => {
+const plugin: HttpPlugin<ErrorHandlerOptions> = async (app, opts) => {
   const fieldCodes = { ...CORE_FIELD_CODES, ...opts.fieldCodes }
 
-  app.setErrorHandler((err: FastifyError, req, reply) => {
+  app.setErrorHandler((err: HttpErrorShape, req, reply) => {
     const sseSentinel = req.routeOptions?.config?.sseSentinel ?? true
     const message = err.message ?? 'An internal error occurred.'
 
@@ -58,7 +54,7 @@ const plugin: FastifyPluginAsync<ErrorHandlerOptions> = async (app, opts) => {
       return
     }
 
-    if (hasZodFastifySchemaValidationErrors(err)) {
+    if (hasSchemaValidationErrors(err)) {
       const issue = err.validation[0] as
         { instancePath?: string; message?: string; keyword?: string } | undefined
       const head = headFromInstancePath(issue?.instancePath)
@@ -74,10 +70,7 @@ const plugin: FastifyPluginAsync<ErrorHandlerOptions> = async (app, opts) => {
       return
     }
 
-    if (
-      err.code === 'FST_ERR_CTP_INVALID_JSON_BODY' ||
-      err.code === 'FST_ERR_CTP_EMPTY_JSON_BODY'
-    ) {
+    if (err.code === 'HTTP_INVALID_JSON_BODY' || err.code === 'HTTP_EMPTY_JSON_BODY') {
       reply.code(400).send({
         error: {
           message: 'Request body must be valid JSON.',
@@ -127,7 +120,7 @@ const plugin: FastifyPluginAsync<ErrorHandlerOptions> = async (app, opts) => {
   })
 
   app.setNotFoundHandler((req, reply) => {
-    // Bare OPTIONS (no `--cors`, so @fastify/cors didn't claim it) must still
+    // Bare OPTIONS (without CORS handling) must still
     // return 204 to match the legacy node:http server's behavior — browsers
     // and HTTP clients rely on it as a preflight no-op even when CORS is off.
     if (req.method === 'OPTIONS') {
@@ -144,7 +137,12 @@ const plugin: FastifyPluginAsync<ErrorHandlerOptions> = async (app, opts) => {
   })
 }
 
-function formatServerError(label: string, method: string, url: string, err: FastifyError): string {
+function formatServerError(
+  label: string,
+  method: string,
+  url: string,
+  err: HttpErrorShape
+): string {
   const stack = err.stack ?? `${err.name}: ${err.message}`
   return `${label} ${method} ${url}\n${stack}`
 }
@@ -168,4 +166,4 @@ function headFromInstancePath(instancePath: string | undefined): string {
   return slash >= 0 ? trimmed.slice(0, slash) : trimmed
 }
 
-export default fp(plugin, { name: 'qvac-error-handler' })
+export default plugin

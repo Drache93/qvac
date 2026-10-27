@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const filesUploadBody = z
   .object({
-    file: z.instanceof(Buffer),
+    file: z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }),
     purpose: z.string().optional()
   })
   .passthrough()

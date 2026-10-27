@@ -1,6 +1,6 @@
 import { unlink } from 'node:fs/promises'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyRequest } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpRequest } from '@/lib/http'
 import type { z } from 'zod'
 import { batchCompletion, SDK_SERVER_ERROR_CODES, type CompletionFinal, type Tool } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -59,7 +59,7 @@ finishes, and a client disconnect cancels it.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/qvac/v1/chat/batch',
     {
@@ -114,7 +114,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
 }
 
 // lunte-disable-next-line require-await
-async function rejectDuplicateIds(req: FastifyRequest): Promise<void> {
+async function rejectDuplicateIds(req: HttpRequest): Promise<void> {
   const { prompts } = req.body as { prompts: BatchPromptBody[] }
   const seen = new Set<string>()
   for (const { id } of prompts) {
@@ -127,7 +127,7 @@ async function rejectDuplicateIds(req: FastifyRequest): Promise<void> {
 }
 
 // lunte-disable-next-line require-await
-async function rejectSingleSlot(req: FastifyRequest): Promise<void> {
+async function rejectSingleSlot(req: HttpRequest): Promise<void> {
   const { model } = req.body as { model: string }
   const alias = resolveModelAlias(req.server.qvac.serveConfig, model.trim())
   // Anything else is left to `requireModel`, which reports it.
@@ -145,7 +145,7 @@ function assertBatchEnabled(config: Record<string, unknown>, alias: string): voi
   )
 }
 
-function prepare(req: FastifyRequest, prompt: BatchPromptBody, index: number): SdkChatArgs {
+function prepare(req: HttpRequest, prompt: BatchPromptBody, index: number): SdkChatArgs {
   const where = `prompts[${index}]`
   const { id: _id, ...fields } = prompt
   let sdk: SdkChatArgs
@@ -188,7 +188,7 @@ function prepare(req: FastifyRequest, prompt: BatchPromptBody, index: number): S
 }
 
 async function runBatch(
-  req: FastifyRequest,
+  req: HttpRequest,
   modelId: string,
   model: string,
   prompts: BatchPromptBody[],

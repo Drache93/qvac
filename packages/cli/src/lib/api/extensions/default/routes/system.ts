@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { getSystemResources } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { errorResponses } from '@/lib/api/lib/error-responses'
@@ -20,7 +20,7 @@ The figures describe the machine the server runs on, not the caller's.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.get(
     '/qvac/v1/system',
     {

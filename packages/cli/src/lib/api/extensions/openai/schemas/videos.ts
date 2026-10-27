@@ -105,7 +105,7 @@ export const videosCreateBody = z
       ),
     input_reference: z
       .union([
-        z.instanceof(Buffer),
+        z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }),
         z
           .object({
             image_url: z

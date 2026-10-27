@@ -23,8 +23,8 @@ export const imagesEditsBody = z
     // Require uploaded bytes so text values such as `curl -F "image[]=junk-text"`
     // fail validation. The error handler maps failures for either field to
     // `missing_image`.
-    image: z.instanceof(Buffer).optional(),
-    'image[]': z.instanceof(Buffer).optional(),
+    image: z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }).optional(),
+    'image[]': z.instanceof(Buffer).meta({ type: 'string', format: 'binary' }).optional(),
     size: z.string().optional(),
     response_format: z.string().optional(),
     n: z.union([z.string(), z.number()]).optional(),

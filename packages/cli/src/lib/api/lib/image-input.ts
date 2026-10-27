@@ -1,4 +1,4 @@
-import type { FastifyRequest } from 'fastify'
+import type { HttpRequest } from '@/lib/http'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { resolveBinaryInput } from '@/lib/api/lib/binary-input'
 
@@ -20,10 +20,10 @@ export const BMP: ImageFormat = { name: 'BMP', signature: [0x42, 0x4d] }
  * loading the model; the handler then takes the bytes with `get`.
  */
 export function createImageInput(formats: readonly ImageFormat[]) {
-  const images = new WeakMap<FastifyRequest, Buffer>()
+  const images = new WeakMap<HttpRequest, Buffer>()
   const expected = listNames(formats.map((format) => format.name))
 
-  function read(req: FastifyRequest, value: Buffer | string): void {
+  function read(req: HttpRequest, value: Buffer | string): void {
     const { bytes } = resolveBinaryInput(req, 'image', value)
     if (!formats.some(({ signature }) => signature.every((byte, i) => bytes[i] === byte))) {
       throw new HttpError(400, 'unsupported_image_format', `image: expected a ${expected} image.`)
@@ -31,7 +31,7 @@ export function createImageInput(formats: readonly ImageFormat[]) {
     images.set(req, bytes)
   }
 
-  function get(req: FastifyRequest): Buffer {
+  function get(req: HttpRequest): Buffer {
     const bytes = images.get(req)
     if (bytes === undefined) throw new Error('image: read() did not run for this request')
     return bytes

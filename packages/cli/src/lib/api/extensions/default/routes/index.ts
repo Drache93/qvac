@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import chatBatch from '@/lib/api/extensions/default/routes/chat-batch'
 import classifications from '@/lib/api/extensions/default/routes/classifications'
 import kvCache from '@/lib/api/extensions/default/routes/kv-cache'
@@ -8,7 +8,7 @@ import system from '@/lib/api/extensions/default/routes/system'
 import translate from '@/lib/api/extensions/default/routes/translate'
 
 // Mount order determines the order of paths in the OpenAPI document.
-export const routes: readonly FastifyPluginAsyncZod[] = [
+export const routes: readonly HttpPlugin[] = [
   chatBatch,
   kvCache,
   system,

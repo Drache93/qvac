@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { writeFile, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join } from 'node:path'
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpServer, HttpReply, HttpRequest } from '@/lib/http'
+import type { HttpPlugin } from '@/lib/http'
 import { transcribe, textToSpeech, textToSpeechStream } from '@qvac/sdk'
 import type { TextToSpeechStreamResponse, TranscribeSegment } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -161,7 +161,7 @@ models whose endpoint category is \`speech\`.
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   const openai = openaiState(app.qvac)
 
   app.post(
@@ -607,7 +607,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
 }
 
 function toModelObject(
-  app: FastifyInstance,
+  app: HttpServer,
   alias: string
 ): {
   id: string
@@ -635,8 +635,8 @@ interface StreamSpeechOptions {
 }
 
 async function streamSpeech(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   opts: StreamSpeechOptions
 ): Promise<void> {
   const logger = req.server.qvac.logger
@@ -676,7 +676,7 @@ async function streamSpeech(
       : firstPcm
   sendSSE(raw, { type: 'speech.audio.delta', audio: firstChunk.toString('base64') })
 
-  // Fastify drops errors thrown after hijack, so a failure here has to end
+  // The route owns a hijacked response, so a failure here has to end
   // the stream itself or the client would hang.
   try {
     for (let frame = await nextAudioFrame(frames); frame; frame = await nextAudioFrame(frames)) {
@@ -729,7 +729,7 @@ interface TranscriptionInvocationResult {
 }
 
 async function invokeTranscription(
-  req: FastifyRequest,
+  req: HttpRequest,
   transcribeOverride: OpenAIState['transcribeOverride'],
   options: TranscriptionInvocationOptions,
   timed: boolean,

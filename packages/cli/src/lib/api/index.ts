@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net'
-import type { FastifyInstance } from 'fastify'
+import type { HttpServer } from '@/lib/http'
 import closeWithGrace from 'close-with-grace'
 
 import { createLogger } from '@/lib/logger'
@@ -59,13 +59,13 @@ export interface StartServerOptions {
   readyFd?: number | undefined
 }
 
-export async function buildServer(options: StartServerOptions): Promise<FastifyInstance> {
+export async function buildServer(options: StartServerOptions): Promise<HttpServer> {
   return (await buildServerParts(options)).app
 }
 
 async function buildServerParts(
   options: StartServerOptions
-): Promise<{ app: FastifyInstance; extensions: ServeExtension[] }> {
+): Promise<{ app: HttpServer; extensions: ServeExtension[] }> {
   const logger = createLogger(options.quiet ? 'silent' : options.verbose ? 'debug' : 'info')
   const extensions = resolveExtensions(options.extensions)
 
@@ -137,12 +137,12 @@ async function buildServerParts(
   return { app, extensions }
 }
 
-export async function startServer(options: StartServerOptions): Promise<FastifyInstance> {
+export async function startServer(options: StartServerOptions): Promise<HttpServer> {
   const { app, extensions } = await buildServerParts(options)
 
   // Resolve plugin registrations (decorators, route table) but DON'T listen
   // yet — that way the imperative preload below can use `app.qvac` while
-  // keeping the port closed until models are ready, matching the pre-Fastify
+  // keeping the port closed until models are ready, matching the previous HTTP server
   // semantics that the e2e suite depends on.
   await app.ready()
   const preload = await preloadModels(
@@ -175,7 +175,7 @@ export async function startServer(options: StartServerOptions): Promise<FastifyI
   return app
 }
 
-function logStartupSummary(app: FastifyInstance, logger: Logger): void {
+function logStartupSummary(app: HttpServer, logger: Logger): void {
   logger.info('')
   logger.info('Endpoints:')
   const routes = app

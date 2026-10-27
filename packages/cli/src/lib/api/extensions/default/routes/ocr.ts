@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpServer, HttpReply } from '@/lib/http'
 import type { z } from 'zod'
 import { ocr } from '@qvac/sdk'
 import { randomBytes } from 'node:crypto'
@@ -11,7 +11,7 @@ import { ocrBody, ocrResult } from '@/lib/api/extensions/default/schemas/ocr'
 
 type OcrResult = z.infer<typeof ocrResult>
 type OcrParams = Parameters<typeof ocr>[0]
-type Logger = FastifyInstance['qvac']['logger']
+type Logger = HttpServer['qvac']['logger']
 
 interface OcrCall {
   logger: Logger
@@ -64,7 +64,7 @@ still read to the end.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/qvac/v1/ocr',
     {
@@ -131,7 +131,7 @@ async function recognise(call: OcrCall): Promise<OcrResult> {
   }
 }
 
-async function streamOcr(call: OcrCall, reply: FastifyReply): Promise<void> {
+async function streamOcr(call: OcrCall, reply: HttpReply): Promise<void> {
   const { model } = call
   const result = runOcr(call, true)
   const chunks = result.blockStream[Symbol.asyncIterator]()
@@ -147,7 +147,7 @@ async function streamOcr(call: OcrCall, reply: FastifyReply): Promise<void> {
   const id = `ocr-${randomBytes(6).toString('hex')}`
   const created = Math.floor(Date.now() / 1000)
 
-  // Fastify drops errors thrown after hijack, so a failure here has to end
+  // The route owns a hijacked response, so a failure here has to end
   // the stream itself or the client would hang.
   try {
     for (let next = first; next.done !== true; next = await chunks.next()) {

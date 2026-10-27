@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { FastifySchemaValidationError } from 'fastify/types/schema.js'
-import { validatorCompiler } from 'fastify-type-provider-zod'
+import type { HttpSchemaValidationError } from '@/lib/http'
+import { validatorCompiler } from '@/lib/http'
 import {
   MAX_FIT_MODELS,
   MODEL_FIT_FIELD_CODES,
@@ -66,7 +66,7 @@ describe('modelFitBody', () => {
     })
     const result = validate({
       models: Array.from({ length: MAX_FIT_MODELS + 1 }, () => ({ model: 'm' }))
-    }) as { error?: FastifySchemaValidationError[] }
+    }) as { error?: HttpSchemaValidationError[] }
 
     assert.equal(result.error?.[0]?.keyword, 'too_big')
     assert.equal(result.error?.[0]?.instancePath, '/models')

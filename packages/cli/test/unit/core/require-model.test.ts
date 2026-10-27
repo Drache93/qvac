@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { HttpReply, HttpRequest } from '@/lib/http'
 import { createModelRegistry } from '@/lib/api/core/model-registry'
 import {
   createLoadManager,
@@ -54,7 +54,7 @@ function makeCtx(loadFn: LoadModelFn, deps: LoadManagerDeps, cancelOnDisconnect:
 
 function fakeReply() {
   const raw = new EventEmitter()
-  return { reply: { raw } as unknown as FastifyReply, raw }
+  return { reply: { raw } as unknown as HttpReply, raw }
 }
 
 // A request and a reply backed by separate streams, so a test can tell which
@@ -63,8 +63,8 @@ function fakeExchange(ctx: QvacContext) {
   const reqRaw = new EventEmitter()
   const replyRaw = new EventEmitter()
   return {
-    req: { raw: reqRaw, server: { qvac: ctx } } as unknown as FastifyRequest,
-    reply: { raw: replyRaw } as unknown as FastifyReply,
+    req: { raw: reqRaw, server: { qvac: ctx } } as unknown as HttpRequest,
+    reply: { raw: replyRaw } as unknown as HttpReply,
     reqRaw,
     replyRaw
   }
@@ -227,7 +227,7 @@ describe('resolveAndCheckModel disconnect wiring', () => {
     return { ctx, gate, cancelled }
   }
 
-  it('ignores request-stream close, which Fastify fires once the body is read', async () => {
+  it('ignores request-stream close, which Node fires once the body is read', async () => {
     const { ctx, gate, cancelled } = gatedCtx('req-body')
     const { req, reply, reqRaw } = fakeExchange(ctx)
 

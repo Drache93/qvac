@@ -1,10 +1,9 @@
-import fp from 'fastify-plugin'
-import type { FastifyPluginAsync } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
 import type { QvacContext } from '@/lib/api/core/context'
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsync<{ context: QvacContext }> = async (app, opts) => {
+const plugin: HttpPlugin<{ context: QvacContext }> = async (app, opts) => {
   app.decorate('qvac', opts.context)
 }
 
-export default fp(plugin, { name: 'qvac-context' })
+export default plugin

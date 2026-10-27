@@ -1,4 +1,4 @@
-import type { FastifyRequest, preValidationAsyncHookHandler } from 'fastify'
+import type { HttpRequest, preValidationAsyncHookHandler } from '@/lib/http'
 import { HttpError } from '@/lib/api/lib/http-error'
 
 export interface ParsedFile {
@@ -8,7 +8,7 @@ export interface ParsedFile {
   buffer: Buffer
 }
 
-async function parseMultipart(req: FastifyRequest): Promise<void> {
+async function parseMultipart(req: HttpRequest): Promise<void> {
   const fields: Record<string, string | Buffer> = {}
   const files: ParsedFile[] = []
 

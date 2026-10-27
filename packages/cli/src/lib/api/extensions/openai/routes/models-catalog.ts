@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { buildCatalog, filterCatalog, paginate } from '@/lib/api/core/model-catalog'
 import { loadModelConstants } from '@/lib/api/core/config/constants'
@@ -24,7 +24,7 @@ SDK constant.
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.get(
     '/v1/models/catalog',
     {

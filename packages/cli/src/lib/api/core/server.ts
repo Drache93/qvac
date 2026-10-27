@@ -1,16 +1,6 @@
-import Fastify from 'fastify'
-import type { FastifyInstance } from 'fastify'
-import cors from '@fastify/cors'
-import multipart from '@fastify/multipart'
+import createHttpServer, { type HttpServer } from '@/lib/http'
 import { z } from 'zod'
-import swagger from '@fastify/swagger'
-import swaggerUi from '@fastify/swagger-ui'
-import {
-  jsonSchemaTransform,
-  serializerCompiler,
-  validatorCompiler,
-  type ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { apiDocsHtml } from '@/lib/api/core/docs'
 
 import type { QvacContext } from '@/lib/api/core/context'
 import { createCorsOriginMatcher, isLoopbackHost, normalizeCorsOrigin } from '@/lib/api/core/cors'
@@ -48,28 +38,23 @@ export interface CoreServerOptions {
 }
 
 /**
- * The shape-agnostic server: Fastify, swagger, CORS, auth, error handling and
+ * The HTTP server: OpenAPI, CORS, auth, error handling and
  * request logging. It serves introspection and nothing else — routes come from
  * the extensions mounted onto it.
  */
 export async function createCoreServer(
   ctx: QvacContext,
   options: CoreServerOptions
-): Promise<FastifyInstance> {
+): Promise<HttpServer> {
   const { logger } = ctx
 
-  const app = Fastify({
-    logger: false,
-    disableRequestLogging: true,
+  const app = createHttpServer({
     bodyLimit: MAX_BODY_BYTES,
-    ajv: { customOptions: { allErrors: false } }
-  }).withTypeProvider<ZodTypeProvider>()
+    multipart: { fileSize: MAX_UPLOAD_BYTES, files: MAX_UPLOAD_FILES }
+  })
 
-  app.setValidatorCompiler(validatorCompiler)
-  app.setSerializerCompiler(serializerCompiler)
-
-  await app.register(errorHandlerPlugin, { fieldCodes: extensionErrorCodes(options.extensions) })
-  await app.register(contextPlugin, { context: ctx })
+  await errorHandlerPlugin(app, { fieldCodes: extensionErrorCodes(options.extensions) })
+  await contextPlugin(app, { context: ctx })
 
   // Binding to loopback does not stop a page whose own hostname now resolves to
   // 127.0.0.1 (DNS rebinding): its requests are same-origin, so CORS never applies.
@@ -80,7 +65,7 @@ export async function createCoreServer(
   })
   // lunte-disable-next-line require-await
   app.addHook('onRequest', async (req) => {
-    if (!hostAllowed(req.headers.host)) {
+    if (!hostAllowed(req.headers['host'])) {
       throw new HttpError(
         403,
         'host_not_allowed',
@@ -89,59 +74,59 @@ export async function createCoreServer(
     }
   })
 
-  await app.register(swagger, {
-    openapi: {
-      openapi: '3.1.0',
-      info: {
-        title: 'QVAC API',
-        description: extensionSummary(options.extensions),
-        version: '1.0.0'
-      },
-      servers: [{ url: `http://${options.host}:${options.port}`, description: 'this server' }],
-      tags: extensionTags(options.extensions),
-      components: {
-        securitySchemes: {
-          bearerAuth: { type: 'http', scheme: 'bearer' }
-        }
-      },
-      ...(options.apiKey ? { security: [{ bearerAuth: [] }] } : {})
+  app.setOpenApiDocument({
+    openapi: '3.1.0',
+    info: {
+      title: 'QVAC API',
+      description: extensionSummary(options.extensions),
+      version: '1.0.0'
     },
-    transform: jsonSchemaTransform
+    servers: [{ url: `http://${options.host}:${options.port}`, description: 'this server' }],
+    tags: extensionTags(options.extensions),
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer' }
+      }
+    },
+    ...(options.apiKey ? { security: [{ bearerAuth: [] }] } : {})
   })
 
   // lunte-disable-next-line require-await
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger())
 
   if (options.docs) {
-    await app.register(swaggerUi, {
-      routePrefix: '/docs',
-      uiConfig: { docExpansion: 'list', deepLinking: true }
-    })
+    const docs = async (_req: unknown, reply: import('@/lib/http').HttpReply) =>
+      reply.type('text/html; charset=utf-8').send(apiDocsHtml)
+    app.get('/docs', { schema: { hide: true } }, docs)
+    app.get('/docs/', { schema: { hide: true } }, docs)
+    app.get('/docs/json', { schema: { hide: true } }, async () => app.swagger())
   }
 
   const corsOrigins = resolveCorsOrigins(options)
   if (corsOrigins.length > 0) {
     const matchCorsOrigin = createCorsOriginMatcher(corsOrigins)
-    await app.register(cors, {
-      origin(origin, callback) {
-        matchCorsOrigin(origin, (error, allowed) => callback(error, allowed ?? false))
-      },
-      methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      strictPreflight: false
+    app.addHook('onRequest', async (req, reply) => {
+      const origin = req.headers['origin']
+      reply.header('vary', 'Origin')
+      const allowed = await new Promise<boolean>((resolve, reject) => {
+        matchCorsOrigin(origin, (error, match) => (error ? reject(error) : resolve(match ?? false)))
+      })
+      if (origin && allowed) {
+        reply.header('access-control-allow-origin', origin)
+        if (req.method === 'OPTIONS') {
+          reply.header('access-control-allow-methods', 'GET, POST, DELETE, OPTIONS')
+          reply.header('access-control-allow-headers', 'Content-Type, Authorization')
+        }
+      }
+      if (req.method === 'OPTIONS') reply.code(204).send()
     })
   }
 
-  await app.register(cancelBridgePlugin)
-
-  // On the root instance so every extension's routes can take uploads.
-  await app.register(multipart, {
-    limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_UPLOAD_FILES }
-  })
+  await cancelBridgePlugin(app, {})
 
   if (options.apiKey) {
     const apiKey = options.apiKey
-    await app.register(authPlugin, { apiKey })
+    await authPlugin(app, { apiKey })
     app.get(
       IDENTITY_PATH,
       {
@@ -171,24 +156,19 @@ export async function createCoreServer(
     logger.info(`← ${reply.statusCode} ${req.method} ${req.url.split('?')[0]} (${duration})`)
   })
 
-  // Preload is intentionally NOT registered as an `onReady` hook: Fastify
-  // bounds those hooks by `pluginTimeout` (default 10 s) and model preload
-  // routinely takes minutes (a single uncached LLM blob is hundreds of MB
-  // over the P2P registry). `startServer()` drives preload imperatively
-  // between `app.ready()` and `app.listen()`, matching the legacy
-  // pre-Fastify behavior: port doesn't open until models are loaded.
+  // startServer preloads models before listening; downloads may take minutes.
   app.addHook('onClose', async () => {
     await shutdownSDK(logger)
   })
 
-  return app as unknown as FastifyInstance
+  return app
 }
 
 function isIntrospectionPath(url: string): boolean {
   return url === '/openapi.json' || url === '/docs' || url.startsWith('/docs/')
 }
 
-// Swagger UI is same-origin with the API, so `--docs` trusts the loopback
+// API explorer is same-origin with the API, so `--docs` trusts the loopback
 // origins a browser would actually send on that port.
 function resolveCorsOrigins(options: CoreServerOptions): string[] {
   const resolved = [...options.corsOrigins]

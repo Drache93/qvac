@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply, HttpRequest } from '@/lib/http'
 import { completion } from '@qvac/sdk'
 import type { Tool } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -100,19 +100,19 @@ and terminates **without** a \`[DONE]\` sentinel (per the spec).
     "Paginate over a stored response's normalized input items (the request that produced it). `limit` and `after` work as on the OpenAI cursor-paginated endpoints."
 }
 
-// Tag every fastify-managed reply for these routes with the volatile-store
+// Tag every server-managed reply for these routes with the volatile-store
 // stub header. Attached per-route (not as a plugin-wide `onSend` keyed on URL
 // prefix), so future siblings like `/v1/responses_export` can't pick it up
 // by accident. Hijacked replies (POST streaming via initSSE, POST blocking
-// via writeBlockingResponse) bypass fastify and inject the header themselves
+// via writeBlockingResponse) bypass serialization and inject the header themselves
 // when writing raw response headers.
 // lunte-disable-next-line require-await
-async function markVolatile(_req: FastifyRequest, reply: FastifyReply): Promise<void> {
+async function markVolatile(_req: HttpRequest, reply: HttpReply): Promise<void> {
   reply.header(VOLATILE_HEADER, RESPONSES_VOLATILE_STUB)
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   const openai = openaiState(app.qvac)
 
   app.post(

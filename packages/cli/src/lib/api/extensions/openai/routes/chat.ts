@@ -1,6 +1,6 @@
 import { unlink } from 'node:fs/promises'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply, HttpRequest } from '@/lib/http'
 import { completion, type CompletionStats } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { initSSE, sendSSE, endSSE } from '@/lib/api/lib/sse'
@@ -45,7 +45,7 @@ interface PreparedRequest extends SdkChatArgs {
   modelAlias: string
 }
 
-function prepare(req: FastifyRequest, body: Parameters<typeof toSdkChatArgs>[0]): PreparedRequest {
+function prepare(req: HttpRequest, body: Parameters<typeof toSdkChatArgs>[0]): PreparedRequest {
   const sdkModelId = req.qvacModel!.sdkModelId
   let sdk: SdkChatArgs
   try {
@@ -173,7 +173,7 @@ final chunk with an empty \`choices\` array (OpenAI compatibility).
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/chat/completions',
     {
@@ -208,11 +208,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
   )
 }
 
-async function runBlocking(
-  req: FastifyRequest,
-  reply: FastifyReply,
-  p: PreparedRequest
-): Promise<void> {
+async function runBlocking(req: HttpRequest, reply: HttpReply, p: PreparedRequest): Promise<void> {
   const { history, tmpPaths } = await writeChatImages(p.history)
   try {
     const completionFn = openaiState(req.server.qvac).completionOverride ?? completion
@@ -281,8 +277,8 @@ async function runBlocking(
 }
 
 async function runStreaming(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   p: PreparedRequest,
   includeUsage: boolean
 ): Promise<void> {

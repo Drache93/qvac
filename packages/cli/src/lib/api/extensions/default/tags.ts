@@ -1,6 +1,6 @@
 /**
- * Tag-level descriptions shown as section headers in Swagger UI.
- * Per-route descriptions live next to each route's Fastify schema.
+ * Tag-level descriptions shown as section headers in API explorer.
+ * Per-route descriptions live next to each route's route schema.
  */
 export const TAG_DESCRIPTIONS: Record<string, string> = {
   'Chat Batch':

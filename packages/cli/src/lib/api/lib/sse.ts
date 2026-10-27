@@ -1,7 +1,7 @@
 import type { ServerResponse } from 'node:http'
-import type { FastifyReply } from 'fastify'
+import type { HttpReply } from '@/lib/http'
 
-export function initSSE(reply: FastifyReply, extraHeaders?: Record<string, string | number>): void {
+export function initSSE(reply: HttpReply, extraHeaders?: Record<string, string | number>): void {
   reply.hijack()
   reply.raw.writeHead(200, {
     'Content-Type': 'text/event-stream',

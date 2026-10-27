@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { multipartToBody } from '@/lib/api/lib/multipart'
 import { filesUploadBody, fileIdParams } from '@/lib/api/extensions/openai/schemas/files'
@@ -49,7 +49,7 @@ will not serve stale bytes after the store has evicted the entry.
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/files',
     {

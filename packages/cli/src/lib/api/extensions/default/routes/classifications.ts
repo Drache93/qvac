@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import type { z } from 'zod'
 import { classify } from '@qvac/sdk'
 import { multipartToBodyOptional } from '@/lib/api/lib/multipart'
@@ -38,7 +38,7 @@ a multipart file part, a base64 data URL, or the \`id\` of a file uploaded with
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/qvac/v1/classifications',
     {

@@ -1,5 +1,5 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyReply, FastifyRequest } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
+import type { HttpReply, HttpRequest } from '@/lib/http'
 import { completion } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { initSSE, sendSSE, endSSE } from '@/lib/api/lib/sse'
@@ -29,8 +29,8 @@ interface SharedParams {
 }
 
 async function runBlockingSingle(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   p: SharedParams,
   prompt: string
 ): Promise<void> {
@@ -53,8 +53,8 @@ async function runBlockingSingle(
 }
 
 async function runBlockingMulti(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   p: SharedParams,
   prompts: string[]
 ): Promise<void> {
@@ -77,7 +77,7 @@ async function runBlockingMulti(
 }
 
 async function runOne(
-  req: FastifyRequest,
+  req: HttpRequest,
   p: SharedParams,
   prompt: string,
   index: number
@@ -102,8 +102,8 @@ async function runOne(
 }
 
 async function runStreaming(
-  req: FastifyRequest,
-  reply: FastifyReply,
+  req: HttpRequest,
+  reply: HttpReply,
   p: SharedParams,
   prompt: string
 ): Promise<void> {
@@ -171,7 +171,7 @@ clients expecting raw completion semantics may see template-shaped output.
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/completions',
     {

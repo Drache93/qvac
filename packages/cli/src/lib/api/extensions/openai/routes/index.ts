@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import audio from '@/lib/api/extensions/openai/routes/audio'
 import chat from '@/lib/api/extensions/openai/routes/chat'
 import completions from '@/lib/api/extensions/openai/routes/completions'
@@ -13,7 +13,7 @@ import vectorStores from '@/lib/api/extensions/openai/routes/vector-stores'
 import videos from '@/lib/api/extensions/openai/routes/videos'
 
 // Mount order determines the order of paths in the OpenAPI document.
-export const routes: readonly FastifyPluginAsyncZod[] = [
+export const routes: readonly HttpPlugin[] = [
   audio,
   chat,
   completions,

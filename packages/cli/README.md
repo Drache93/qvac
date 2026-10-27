@@ -191,7 +191,7 @@ keys are preserved; see the [SDK command reference](docs/sdk-cli.md).
 | `qvac sdk verify bundle --addons-source <path> --host <target>` | a bundle's addons and Bare ABI checked for each host                                                                   |
 
 `qvac sdk serve` listens on `127.0.0.1:11434` by default (`-p`, `-H`); a non-loopback host needs
-`--api-key` or `--api-key-file`, and `--docs` mounts Swagger UI at `/docs`. It is not `qvac serve`:
+`--api-key` or `--api-key-file`, and `--docs` mounts the API explorer at `/docs`. It is not `qvac serve`:
 that one puts this device in your QV.AC workspace, this one is a local HTTP API for apps.
 
 ## Configuration

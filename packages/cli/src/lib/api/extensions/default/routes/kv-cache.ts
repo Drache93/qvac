@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { z } from 'zod'
 import { deleteCache } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -36,7 +36,7 @@ cache identity is content-derived, so per-server scoping is not available.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.delete(
     '/qvac/v1/kv_cache',
     {

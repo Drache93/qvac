@@ -1,6 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import fp from 'fastify-plugin'
-import type { FastifyPluginAsync } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
 import { IDENTITY_PATH } from '@/lib/api/core/identity'
 import { HttpError } from '@/lib/api/lib/http-error'
 
@@ -12,7 +11,7 @@ function matches(header: string | undefined, expected: Buffer): boolean {
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsync<{ apiKey: string }> = async (app, opts) => {
+const plugin: HttpPlugin<{ apiKey: string }> = async (app, opts) => {
   const expected = Buffer.from(`Bearer ${opts.apiKey}`, 'utf8')
 
   // lunte-disable-next-line require-await
@@ -27,4 +26,4 @@ const plugin: FastifyPluginAsync<{ apiKey: string }> = async (app, opts) => {
   })
 }
 
-export default fp(plugin, { name: 'qvac-auth' })
+export default plugin

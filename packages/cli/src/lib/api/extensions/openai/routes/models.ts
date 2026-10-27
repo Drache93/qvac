@@ -1,5 +1,5 @@
-import type { FastifyInstance } from 'fastify'
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpServer } from '@/lib/http'
+import type { HttpPlugin } from '@/lib/http'
 import { z } from 'zod'
 import { HttpError } from '@/lib/api/lib/http-error'
 import { unloadModel } from '@/lib/api/core/lifecycle'
@@ -20,7 +20,7 @@ interface ModelObject {
 // Every configured alias is usable — it lazy-loads on first request — so all of
 // them are listed, whether or not they are currently loaded. `created` and
 // `state` come from the registry entry once the alias has been registered.
-function toModelObject(app: FastifyInstance, alias: string): ModelObject {
+function toModelObject(app: HttpServer, alias: string): ModelObject {
   const entry = app.qvac.registry.getEntry(alias)
   const createdMs = entry?.createdAt ?? Date.now()
   return {
@@ -51,7 +51,7 @@ again (lazy load).
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.get(
     '/v1/models',
     {

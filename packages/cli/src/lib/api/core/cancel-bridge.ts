@@ -15,7 +15,7 @@ const bindings = new WeakMap<ServerResponse, CancelBinding>()
  * disconnect (browser tab closed, `fetch().abort()`, network drop)
  * cancels the underlying SDK call promptly.
  *
- * The bridge listens for the `close` event on the response stream. Fastify
+ * The bridge listens for the `close` event on the response stream. Node
  * consumes the request body before a route handler runs, so by the time this
  * binds, `req` has already emitted `close` and a listener added then never
  * fires.

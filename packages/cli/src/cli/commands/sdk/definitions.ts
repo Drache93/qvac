@@ -257,7 +257,7 @@ export const SDK: SdkDefinition = {
         {
           spec: '--docs',
           description:
-            'Expose Swagger UI at /docs and add same-port loopback CORS origins; requires a fixed --port (JSON spec is always at /openapi.json)'
+            'Expose API explorer at /docs and add same-port loopback CORS origins; requires a fixed --port (JSON spec is always at /openapi.json)'
         },
         {
           spec: '--no-lazy-load',
@@ -351,7 +351,7 @@ export const SDK: SdkDefinition = {
             {
               spec: '--docs',
               description:
-                'Expose Swagger UI at /docs and add same-port loopback CORS origins; requires a fixed --port (JSON spec is always at /openapi.json)'
+                'Expose API explorer at /docs and add same-port loopback CORS origins; requires a fixed --port (JSON spec is always at /openapi.json)'
             },
             {
               spec: '--no-lazy-load',

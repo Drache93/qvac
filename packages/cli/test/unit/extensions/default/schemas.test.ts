@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { FastifySchemaValidationError } from 'fastify/types/schema.js'
-import { validatorCompiler } from 'fastify-type-provider-zod'
+import type { HttpSchemaValidationError } from '@/lib/http'
+import { validatorCompiler } from '@/lib/http'
 import {
   MAX_BATCH_INPUTS,
   TRANSLATE_FIELD_CODES,
@@ -78,7 +78,7 @@ describe('translateBody', () => {
     const result = validate({
       model: 'ta-en',
       text: Array.from({ length: MAX_BATCH_INPUTS + 1 }, () => 'a')
-    }) as { error?: FastifySchemaValidationError[] }
+    }) as { error?: HttpSchemaValidationError[] }
 
     assert.equal(result.error?.[0]?.keyword, 'too_big')
     assert.equal(result.error?.[0]?.instancePath, '/text')

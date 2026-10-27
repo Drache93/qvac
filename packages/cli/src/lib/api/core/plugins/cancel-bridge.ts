@@ -1,9 +1,8 @@
-import fp from 'fastify-plugin'
-import type { FastifyPluginAsync } from 'fastify'
+import type { HttpPlugin } from '@/lib/http'
 import { bindClientDisconnectCancel } from '@/lib/api/core/cancel-bridge'
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsync = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.addHook('onRequest', (req, reply, done) => {
     req.bindCancel = (requestId: string) => {
       bindClientDisconnectCancel(reply.raw, requestId, app.qvac.logger)
@@ -12,4 +11,4 @@ const plugin: FastifyPluginAsync = async (app) => {
   })
 }
 
-export default fp(plugin, { name: 'qvac-cancel-bridge' })
+export default plugin

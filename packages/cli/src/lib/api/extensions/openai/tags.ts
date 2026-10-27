@@ -1,6 +1,6 @@
 /**
- * Tag-level descriptions shown as section headers in Swagger UI.
- * Per-route descriptions live next to each route's Fastify schema in
+ * Tag-level descriptions shown as section headers in API explorer.
+ * Per-route descriptions live next to each route's route schema in
  * `routes/<domain>.ts` (the standard `schema.description` field).
  */
 export const TAG_DESCRIPTIONS: Record<string, string> = {

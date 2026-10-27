@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import type { z } from 'zod'
 import { assessModelFit } from '@qvac/sdk'
 import { HttpError } from '@/lib/api/lib/http-error'
@@ -42,7 +42,7 @@ entry, in request order, and \`budget\` the memory it was judged against.
 `.trim()
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/qvac/v1/models/fit',
     {

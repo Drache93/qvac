@@ -1,4 +1,4 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import type { HttpPlugin } from '@/lib/http'
 import { embed } from '@qvac/sdk'
 import { requireModel } from '@/lib/api/core/plugins/require-model'
 import { logUnsupported } from '@/lib/api/core/plugins/log-unsupported'
@@ -23,7 +23,7 @@ reported as 0 — the SDK \`embed()\` operation doesn't surface a token count.
 }
 
 // lunte-disable-next-line require-await
-const plugin: FastifyPluginAsyncZod = async (app) => {
+const plugin: HttpPlugin = async (app) => {
   app.post(
     '/v1/embeddings',
     {
