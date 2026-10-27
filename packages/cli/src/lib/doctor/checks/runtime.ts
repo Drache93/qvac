@@ -1,11 +1,24 @@
 import { createRequire } from 'node:module'
-import semver from 'semver'
+import { Version, Range } from 'bare-semver'
 import type { Check } from '@/lib/doctor/check'
 
 const require = createRequire(import.meta.url)
 // The CLI's own engines.node; bundling (bare-pack) is what needs this range.
 const { engines } = require('../../../../package.json') as { engines: { node: string } }
 const NODE_ENGINES = engines.node
+const NODE_RANGE = Range.parse(NODE_ENGINES)
+
+function parseNodeVersion(input: string): Version | null {
+  if (input.length > 256) return null
+  try {
+    const version = Version.parse(input.trim().replace(/^v/, ''))
+    return [version.major, version.minor, version.patch].every(Number.isSafeInteger)
+      ? version
+      : null
+  } catch {
+    return null
+  }
+}
 
 // Where the `qvac` CLI itself can run. This is NOT the set of SDK deploy
 // targets — the SDK additionally targets Android and iOS via Expo/BareKit,
@@ -20,7 +33,8 @@ const SUPPORTED_CLI_HOSTS: ReadonlyArray<string> = [
 
 export const checkNodeVersion: Check = (ctx) => {
   const version = ctx.nodeVersion
-  if (semver.valid(version) === null) {
+  const parsed = parseNodeVersion(version)
+  if (parsed === null) {
     return {
       id: 'node-version',
       label: 'Node.js version',
@@ -31,7 +45,9 @@ export const checkNodeVersion: Check = (ctx) => {
     }
   }
   const display = version.startsWith('v') ? version : `v${version}`
-  if (!semver.satisfies(version, NODE_ENGINES, { includePrerelease: true })) {
+  // Compare the range directly to include prereleases, as the previous doctor
+  // check did. Range.test intentionally excludes unmentioned prereleases.
+  if (!NODE_RANGE.comparators.some((set) => set.every((comparator) => comparator.test(parsed)))) {
     return {
       id: 'node-version',
       label: 'Node.js version',

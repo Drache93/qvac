@@ -1,6 +1,6 @@
 import type { AddressInfo } from 'node:net'
 import type { HttpServer } from '@/lib/http'
-import closeWithGrace from 'close-with-grace'
+import { installShutdown } from './shutdown.js'
 
 import { createLogger } from '@/lib/logger'
 import type { Logger } from '@/lib/logger'
@@ -159,7 +159,7 @@ export async function startServer(options: StartServerOptions): Promise<HttpServ
     app.qvac.logger.warn(banner)
   }
 
-  closeWithGrace({ delay: 10_000 }, async ({ signal }) => {
+  installShutdown(async (signal) => {
     app.log.info?.({ signal }, 'shutdown signal received')
     await app.close()
   })

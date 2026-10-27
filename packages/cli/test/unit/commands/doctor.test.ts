@@ -122,6 +122,39 @@ describe('checkNodeVersion', () => {
     assert.equal(r.value, 'v24.20.0')
   })
 
+  it('preserves prerelease and metadata comparisons', () => {
+    for (const [nodeVersion, status] of [
+      ['22.21.0-rc.1', 'fail'],
+      ['22.22.0-rc.1', 'pass'],
+      ['23.0.0-rc.1', 'fail'],
+      ['24.9.0-rc.1', 'fail'],
+      ['v24.10.0-nightly.20261027', 'pass'],
+      ['24.9.0+build.1', 'pass'],
+      [' v24.9.0 ', 'pass']
+    ] as const) {
+      assert.equal(checkNodeVersion(makeCtx({ nodeVersion })).status, status, nodeVersion)
+    }
+  })
+
+  it('warns for malformed or unsafe versions', () => {
+    for (const nodeVersion of [
+      '',
+      '24.9',
+      '=24.9.0',
+      'vv24.9.0',
+      '024.9.0',
+      '24.9.0-01',
+      '24.9.0+',
+      '9007199254740992.0.0',
+      `24.9.0-${'a'.repeat(256)}`
+    ]) {
+      const result = checkNodeVersion(makeCtx({ nodeVersion }))
+      assert.equal(result.status, 'warn', nodeVersion)
+      assert.equal(result.value, nodeVersion)
+      assert.match(result.hint ?? '', /Could not parse Node.js version/)
+    }
+  })
+
   it('warns when version cannot be parsed', () => {
     const r = checkNodeVersion(makeCtx({ nodeVersion: 'nightly' }))
     assert.equal(r.status, 'warn')
