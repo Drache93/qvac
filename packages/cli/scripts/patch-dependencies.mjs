@@ -12,16 +12,15 @@ export function patchDependencies(directory = root, { check = false } = {}) {
     return { check, changes: 0, results: [{ state: 'managed by pnpm patchedDependencies' }] }
   }
   const harness = packageRoot('@qvac/harness', directory)
-  const patches =
-    JSON.parse(fs.readFileSync(path.join(harness, 'package.json'), 'utf8')).patchedDependencies ||
-    {}
   const changes = []
   const results = []
-  for (const [identity, relative] of Object.entries(patches)) {
-    const planned = planPackage(identity, {
-      directory: harness,
-      patch: path.join(harness, relative)
-    })
+  for (const { identity, patch } of harnessPatches(harness)) {
+    // an optional dependency left out of the install, such as pyodide, has nothing to patch
+    if (!installed(identity, harness)) {
+      results.push({ package: identity, state: 'not installed' })
+      continue
+    }
+    const planned = planPackage(identity, { directory: harness, patch })
     changes.push(...planned)
     results.push({
       package: identity,
@@ -36,6 +35,27 @@ export function patchDependencies(directory = root, { check = false } = {}) {
   }
 
   return { check, changes: changes.length, results }
+}
+
+// The snapshot manifest drops patchedDependencies, so the patches the harness ships are the list
+function harnessPatches(harness) {
+  const folder = path.join(harness, 'patches')
+  return fs
+    .readdirSync(folder)
+    .filter((file) => file.endsWith('.patch'))
+    .map((file) => ({
+      identity: decodeURIComponent(file.slice(0, -'.patch'.length)),
+      patch: path.join(folder, file)
+    }))
+}
+
+function installed(identity, directory) {
+  try {
+    packageRoot(identity.slice(0, identity.lastIndexOf('@')), directory)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function packageRoot(name, directory) {

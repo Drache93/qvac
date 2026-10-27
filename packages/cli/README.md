@@ -303,8 +303,9 @@ upstream integrity and per-file provenance. The archive bundles these snapshots,
 reviewed SDK, inference, Core and Harness versions. SDK and inference retain their upstream library
 dependencies; their snapshots carry the CLI configuration-loader bridge and compatible distribution
 metadata. No unpublished npm package is needed.
-Python and QuickJS are optional, explicitly prepared providers; see
-[provider preparation](docs/plugins.md#optional-language-providers) for their offline workflow.
+Python (Pyodide) and QuickJS are optional dependencies: a normal install includes them, and
+`--omit=optional` leaves them out, in which case the `python`, `quickjs` and `code-mode` plugins
+report the missing package instead of starting.
 
 `pnpm pack:local` assembles an isolated production install from the committed npm shrinkwrap,
 checks the bundled files against their provenance, then packs it. This keeps a development SDK

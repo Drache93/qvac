@@ -177,7 +177,6 @@
     "zod": "file:vendor/zod"
   },
   "devDependencies": {
-    "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
     "@types/node": "^25.3.3",
     "bare-buffer": "3.7.1",
     "bare-build": "1.2.1",
@@ -188,11 +187,14 @@
     "openai": "^6.48.0",
     "prettier": "^3.9.4",
     "prettier-config-holepunch": "^2.0.0",
-    "pyodide": "314.0.2",
-    "quickjs-emscripten-core": "0.32.0",
     "tsc-alias": "^1.8.17",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
+    "pyodide": "314.0.2",
+    "quickjs-emscripten-core": "0.32.0"
   },
   "imports": {
     "#abort-controller": {

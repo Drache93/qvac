@@ -8,8 +8,8 @@ The owning source packages retain their original logging implementation.
 
 Core 1.0.0-rc.2 and Harness 1.0.0-rc.10 retain integrity-verified published runtime
 bytes. Their maintained manifests use the CLI's reviewed library replacements,
-pin the tested Bare dependencies, and omit optional Python/QuickJS peers that the
-explicit provider builder prepares separately. Provider patch files remain.
+pin the tested Bare dependencies, and omit the optional Python/QuickJS peers, which the CLI declares as its own optional dependencies.
+The harness patch files remain; the CLI postinstall applies them.
 
 Distribution-only adaptations apply to the snapshots, not their owning source
 manifests:

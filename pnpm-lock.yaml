@@ -618,9 +618,6 @@ importers:
         specifier: file:vendor/zod
         version: file:packages/cli/vendor/zod
     devDependencies:
-      '@jitl/quickjs-singlefile-mjs-release-sync':
-        specifier: 0.32.0
-        version: 0.32.0
       '@types/node':
         specifier: ^25.3.3
         version: 25.9.5
@@ -651,12 +648,6 @@ importers:
       prettier-config-holepunch:
         specifier: ^2.0.0
         version: 2.0.0(prettier@3.9.6)
-      pyodide:
-        specifier: 314.0.2
-        version: 314.0.2(patch_hash=df5bbd1ca07013bdf71016d4ef7e0af1f87bc1c5545065bb529bc79b7f0424ab)
-      quickjs-emscripten-core:
-        specifier: 0.32.0
-        version: 0.32.0
       tsc-alias:
         specifier: ^1.8.17
         version: 1.9.1
@@ -666,6 +657,16 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+    optionalDependencies:
+      '@jitl/quickjs-singlefile-mjs-release-sync':
+        specifier: 0.32.0
+        version: 0.32.0
+      pyodide:
+        specifier: 314.0.2
+        version: 314.0.2(patch_hash=df5bbd1ca07013bdf71016d4ef7e0af1f87bc1c5545065bb529bc79b7f0424ab)
+      quickjs-emscripten-core:
+        specifier: 0.32.0
+        version: 0.32.0
 
   packages/decoder-audio:
     dependencies:
@@ -14537,11 +14538,13 @@ snapshots:
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
-  '@jitl/quickjs-ffi-types@0.32.0': {}
+  '@jitl/quickjs-ffi-types@0.32.0':
+    optional: true
 
   '@jitl/quickjs-singlefile-mjs-release-sync@0.32.0':
     dependencies:
       '@jitl/quickjs-ffi-types': 0.32.0
+    optional: true
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -16625,7 +16628,8 @@ snapshots:
 
   '@types/command-line-usage@5.0.4': {}
 
-  '@types/emscripten@1.41.6': {}
+  '@types/emscripten@1.41.6':
+    optional: true
 
   '@types/estree@1.0.9': {}
 
@@ -26164,6 +26168,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   qlobber@7.0.1: {}
 
@@ -26233,6 +26238,7 @@ snapshots:
   quickjs-emscripten-core@0.32.0:
     dependencies:
       '@jitl/quickjs-ffi-types': 0.32.0
+    optional: true
 
   quickjs-wasi@3.5.0: {}
 
