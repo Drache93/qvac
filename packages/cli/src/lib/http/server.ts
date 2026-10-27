@@ -76,10 +76,9 @@ class Reply implements HttpReply {
       payload.pipe(this.raw)
       return this
     }
-    let data: string | Buffer | undefined
+    let data: string | Uint8Array | undefined
     if (payload === undefined) data = undefined
-    else if (payload instanceof Uint8Array) data = Buffer.from(payload)
-    else if (typeof payload === 'string') data = payload
+    else if (payload instanceof Uint8Array || typeof payload === 'string') data = payload
     else {
       const schema =
         this.schema?.response?.[this.statusCode] ??
@@ -90,7 +89,9 @@ class Reply implements HttpReply {
     }
     if (data !== undefined) {
       if (!this.raw.hasHeader('content-type')) {
-        this.type(Buffer.isBuffer(data) ? 'application/octet-stream' : 'text/plain; charset=utf-8')
+        this.type(
+          typeof data === 'string' ? 'text/plain; charset=utf-8' : 'application/octet-stream'
+        )
       }
       if (!this.raw.hasHeader('content-length')) {
         this.header('content-length', Buffer.byteLength(data))
