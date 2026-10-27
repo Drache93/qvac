@@ -203,6 +203,14 @@ function decodePathPart(value: string): string {
   }
 }
 
+function parseUrl(url: string): URL {
+  try {
+    return new URL(url, 'http://localhost')
+  } catch {
+    throw bodyError('HTTP_INVALID_URL', 'Malformed request URL')
+  }
+}
+
 function routeRank(url: string): string {
   return url
     .split('/')
@@ -373,7 +381,7 @@ class Scope {
       void scope.runHooks('onResponse', req, reply).catch(() => {})
     })
     try {
-      const url = new URL(req.url, 'http://localhost')
+      const url = parseUrl(req.url)
       req.query = Object.fromEntries(url.searchParams)
       if (route) {
         const match = route.pattern.exec(pathname)!

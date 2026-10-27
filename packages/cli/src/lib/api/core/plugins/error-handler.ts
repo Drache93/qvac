@@ -109,6 +109,13 @@ const plugin: HttpPlugin<ErrorHandlerOptions> = async (app, opts) => {
       return
     }
 
+    if (err.statusCode !== undefined && err.statusCode < 500) {
+      reply.code(err.statusCode).send({
+        error: { message, type: errorType(err.statusCode), code: 'invalid_request' }
+      })
+      return
+    }
+
     app.qvac.logger.error(formatServerError('unhandled', req.method, req.url, err))
     reply.code(500).send({
       error: {
