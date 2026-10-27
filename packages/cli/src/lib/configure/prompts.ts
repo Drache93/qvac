@@ -1,5 +1,5 @@
 import { emitKeypressEvents } from 'node:readline'
-import { select, search, editor, confirm, input } from '@inquirer/prompts'
+import { select, search, editor, confirm, input } from './prompt-adapter.js'
 import type { ModelCatalogEntry } from '@/lib/api/core/model-catalog'
 import { parseServeConfig } from '@/lib/api/core/config'
 import {
@@ -31,7 +31,7 @@ import {
 // choice). The delimiters can't occur in a model id or a modality value.
 const BACK = '::back::'
 
-// Run an @inquirer prompt with Esc bound to "go back one step": a keypress
+// Run a prompt with Esc bound to "go back one step": a keypress
 // listener aborts the prompt's signal, which rejects with AbortPromptError;
 // that is caught and surfaced as BACK. Ctrl+C still throws ExitPromptError and
 // is handled one level up (a full abort, not a step back).
@@ -93,7 +93,7 @@ interface PickOptions {
   previewEntry?: ((id: string, addon: string | null) => ServeModelEntry) | undefined
 }
 
-// The @inquirer picker shows the highlighted choice's `description` below the
+// The picker shows the highlighted choice's `description` below the
 // list. On a wide terminal, show the concrete serve.models entry the model would
 // produce (a real config example); otherwise just the docs link.
 function describeChoice(

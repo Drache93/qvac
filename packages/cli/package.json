@@ -83,7 +83,6 @@
     "test:diagnostics": "bash test/e2e/check-diagnostics.sh"
   },
   "dependencies": {
-    "@inquirer/prompts": "8.5.2",
     "@jitl/quickjs-singlefile-mjs-release-sync": "0.32.0",
     "@qvac/asr-ggml": "0.10.0",
     "@qvac/audiogen-ggml": "0.8.0",
