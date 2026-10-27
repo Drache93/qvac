@@ -1,4 +1,4 @@
-interface ManagedWatch {
+export interface ManagedWatch {
   on(event: string, listener: (...args: never[]) => void): unknown
   once(event: string, listener: (...args: never[]) => void): unknown
   removeListener(event: string, listener: (...args: never[]) => void): unknown

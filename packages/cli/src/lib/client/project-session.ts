@@ -1,10 +1,5 @@
-interface ManagedWatch {
-  on(event: string, listener: (...args: never[]) => void): unknown
-  once(event: string, listener: (...args: never[]) => void): unknown
-  removeListener(event: string, listener: (...args: never[]) => void): unknown
-  destroy(): void
-}
 import type { Capabilities } from '@qvac/core/client'
+import type { ManagedWatch } from './chat-session.js'
 type WatchMethod = 'projectsWatch' | 'chatsWatch' | 'knowledgeBaseWatch'
 interface ProjectScope {
   workspaceMeshId: string
