@@ -25,6 +25,9 @@ the network.
 
 ## Running
 
+The script imports the built CLI from `dist/`, so run `npm run build` first, and again after a
+change.
+
 ```sh
 node benchmarks/coding/polyglot.mjs --model Qwen3.6-35B-A3B-UD-Q4_K_M --data-dir <bench-data>
 ```
