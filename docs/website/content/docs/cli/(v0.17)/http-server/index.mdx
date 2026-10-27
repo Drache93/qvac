@@ -817,6 +817,10 @@ Runs an ordered pipeline of `flow-edit` and `repaint` operations over `sourceAud
 `bpm`, `keyscale`, `timesignature`, `vocalLanguage`, `inferenceSteps`, `shift` and the `dcw*`
 controls apply to every operation.
 
+Known limitation: the SDK decodes an encoded source to mono, and a loud stereo source can mix
+above full scale; the job then fails with `audio_edit_failed` (`sourceAudio must contain samples
+in [-1, 1]`). Lowering the source's gain avoids it.
+
 ```bash
 curl -sS http://localhost:11434/qvac/v1/audio/edits \
   -F model=music \
