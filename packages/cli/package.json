@@ -56,7 +56,7 @@
     "lint:fix": "lunte --fix",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "typecheck:bench-serve-openai-providers": "tsc -p tsconfig.benchmark.json --noEmit",
-    "test": "npx tsx --test 'test/unit/**/*.test.ts'",
+    "test": "npx tsx --test 'test/unit/**/*.test.ts' && npm run test:workbench",
     "test:unit": "npm run prepare:runtime && npx tsx --test 'test/unit/**/*.test.ts' && npm run typecheck:bench-serve-openai-providers && npm run test:bench-serve-openai-providers && npm run test:workbench",
     "test:bench-serve-openai-providers": "tsx --test benchmarks/serve-openai-providers/*.test.ts",
     "test:e2e": "npm run test:e2e:js",
