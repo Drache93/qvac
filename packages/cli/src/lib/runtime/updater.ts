@@ -1,6 +1,7 @@
 import fs from 'bare-fs'
 import os from 'bare-os'
 import path from 'bare-path'
+import { fileURLToPath } from 'bare-url'
 import Corestore from 'corestore'
 import Hyperswarm from 'hyperswarm'
 import PearRuntimeUpdater from 'pear-runtime-updater'
@@ -9,7 +10,7 @@ export async function startUpdater(entries: { release: string } | null = null) {
   const manifest = entries
     ? new URL(entries.release)
     : new URL('../../../package.json', import.meta.url)
-  const { version, upgrade } = JSON.parse(fs.readFileSync(manifest.pathname, 'utf8'))
+  const { version, upgrade } = JSON.parse(fs.readFileSync(fileURLToPath(manifest.href), 'utf8'))
   if (!upgrade) {
     return null
   }
