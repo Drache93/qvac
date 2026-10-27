@@ -13,7 +13,8 @@ import {
   CONFIG_NAME,
   configurations,
   checkMetadata,
-  parseRunnerLabels
+  parseRunnerLabels,
+  gateKeys
 } from '../select-projects.mjs'
 
 const root = fileURLToPath(new URL('../../..', import.meta.url))
@@ -72,6 +73,14 @@ for (const project of contract) {
           `${project.path} ${target} ${cfg.config}: runner key ${cfg.runnerKey} is not in reusable-runner-names.yml`
         )
     }
+  })
+
+  test(`${project.name}: has a Merge Guard key`, () => {
+    const dir = project.path.split('/')[1]
+    assert.ok(
+      gateKeys(read('.github/workflows/pr-gate-merge.yml'))[dir],
+      `${project.path}: add a pr-gate-merge.yml filter whose first path is "packages/${dir}/**"`
+    )
   })
 
   test(`${project.name}: host setup targets take no forwarded arguments`, () => {

@@ -176,11 +176,16 @@ export function select({ graph, affected, targets, labels, gate, configs = [] })
     const own = targets.filter((t) => n.data.targets[t])
     if (!own.length) continue
     const dir = n.data.root.split('/').pop()
+    // Without a key no status is posted, and Merge Guard waits for one until its deadline.
+    if (!gate[dir])
+      throw new Error(
+        `${n.name}: no pr-gate-merge.yml filter starts with "packages/${dir}/**", so it has no Merge Guard key`
+      )
     const { provider, providerArtifact } = nativeProvider(graph, n.name, gate)
     const common = {
       slug: dir,
       npm: n.data.metadata?.js?.packageName ?? n.name,
-      key: gate[dir] ?? '',
+      key: gate[dir],
       provider,
       providerArtifact,
       targets: own
