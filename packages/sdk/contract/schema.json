@@ -24405,7 +24405,6 @@
           "type": "object",
           "properties": {
             "chunkMs": {
-              "description": "Streaming chunk cadence in ms for this run. Nemotron accepts only 80, 160, 320, 560 or 1120 (any other value is rejected as INVALID_CONFIG); Unified RNN-T snaps to 80, 160, 560 or 1040; other models take any value.",
               "type": "integer",
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991

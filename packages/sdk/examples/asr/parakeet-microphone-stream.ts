@@ -60,7 +60,6 @@ try {
   const session = await transcribeStream({
     modelId,
     parakeetStreamingConfig: {
-      // EOU takes any cadence. Nemotron accepts only 80, 160, 320, 560 or 1120 ms.
       chunkMs: 1000,
       emitPartials: true
     }
