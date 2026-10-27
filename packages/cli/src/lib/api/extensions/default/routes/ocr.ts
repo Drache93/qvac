@@ -1,12 +1,11 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { z } from 'zod'
 import { ocr } from '@qvac/sdk'
 import { randomBytes } from 'node:crypto'
 import { initSSE, sendSSE, endSSE } from '@/lib/api/lib/sse'
-import { HttpError } from '@/lib/api/lib/http-error'
 import { multipartToBodyOptional } from '@/lib/api/lib/multipart'
-import { resolveBinaryInput } from '@/lib/api/lib/binary-input'
+import { BMP, JPEG, PNG, createImageInput, undecodableImageError } from '@/lib/api/lib/image-input'
 import { requireModel } from '@/lib/api/core/plugins/require-model'
 import { ocrBody, ocrResult } from '@/lib/api/extensions/default/schemas/ocr'
 
@@ -22,13 +21,6 @@ interface OcrCall {
   paragraph: boolean | undefined
 }
 
-// The formats the OCR addon decodes; it tells them apart by these signatures.
-const IMAGE_SIGNATURES: readonly (readonly number[])[] = [
-  [0x89, 0x50, 0x4e, 0x47],
-  [0xff, 0xd8, 0xff],
-  [0x42, 0x4d]
-]
-
 // The addon reports undecodable images with these codes. SDK streaming RPC
 // can drop the code, so also recognize its specific decode-error messages.
 const UNDECODABLE_IMAGE_CODES: ReadonlySet<number> = new Set([8109, 8110])
@@ -38,8 +30,7 @@ const UNDECODABLE_IMAGE_MESSAGES = [
   'Unsupported image format:'
 ] as const
 
-// Filled before the model is required, so a bad image is refused without loading it.
-const images = new WeakMap<FastifyRequest, Buffer>()
+const image = createImageInput([PNG, JPEG, BMP])
 
 const description = `
 Read the text in an image with a configured OCR model, backed by the SDK's \`ocr()\`.
@@ -89,7 +80,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
       preHandler: [
         // lunte-disable-next-line require-await
         async function (req) {
-          images.set(req, imageBytes(req, req.body.image))
+          image.read(req, req.body.image)
         },
         requireModel('ocr')
       ]
@@ -97,7 +88,7 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
     async (req, reply) => {
       const { paragraph, stream } = req.body
       const { sdkModelId, alias } = req.qvacModel!
-      const bytes = images.get(req)!
+      const bytes = image.get(req)
 
       const call: OcrCall = {
         logger: app.qvac.logger,
@@ -115,18 +106,6 @@ const plugin: FastifyPluginAsyncZod = async (app) => {
       return await recognise(call)
     }
   )
-}
-
-function imageBytes(req: FastifyRequest, value: Buffer | string): Buffer {
-  const { bytes } = resolveBinaryInput(req, 'image', value)
-  if (!IMAGE_SIGNATURES.some((sig) => sig.every((byte, i) => bytes[i] === byte))) {
-    throw new HttpError(
-      400,
-      'unsupported_image_format',
-      'image: expected a PNG, JPEG or BMP image.'
-    )
-  }
-  return bytes
 }
 
 function runOcr(call: OcrCall, stream: boolean) {
@@ -200,13 +179,7 @@ export function toHttpError(err: unknown): unknown {
   const undecodable =
     (typeof code === 'number' && UNDECODABLE_IMAGE_CODES.has(code)) ||
     UNDECODABLE_IMAGE_MESSAGES.some((message) => err.message.startsWith(message))
-  return undecodable
-    ? new HttpError(
-        400,
-        'unsupported_image_format',
-        'image: the OCR engine could not decode it; it may be truncated or corrupt.'
-      )
-    : err
+  return undecodable ? undecodableImageError('OCR') : err
 }
 
 export default plugin

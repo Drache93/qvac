@@ -28,6 +28,8 @@ export interface OpenAIState {
   completionOverride?: typeof sdk.completion
   /** Test seam — overrides `textToSpeechStream()` from `@qvac/sdk` when set. */
   textToSpeechStreamOverride?: typeof sdk.textToSpeechStream
+  /** Test seam — overrides `diffusion()` from `@qvac/sdk` when set. */
+  diffusionOverride?: typeof sdk.diffusion
   /** Test seam — overrides `video()` from `@qvac/sdk` when set. */
   videoOverride?: typeof sdk.video
   /** Test seam — overrides `cancel()` from `@qvac/sdk` when set. */
@@ -62,7 +64,7 @@ export async function createOpenAIState(
   const ffmpegAvailable = await probeFfmpegAvailable()
   if (!ffmpegAvailable) {
     logger.warn(
-      'ffmpeg not on PATH — /v1/videos/{id}/content defaults to video/avi and /v1/audio/speech rejects mp3/opus/aac/flac. Install ffmpeg to serve those. See: qvac doctor'
+      'ffmpeg not on PATH — /v1/videos/{id}/content defaults to video/avi and /v1/audio/speech rejects mp3/opus/aac/flac. Install ffmpeg to serve those. See: qvac sdk doctor'
     )
   }
 

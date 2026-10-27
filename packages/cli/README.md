@@ -31,7 +31,7 @@
 </p>
 
 `qvac` is one terminal app on top of [QV.AC Core](https://github.com/tetherto/qvac-core) and the
-[QV.AC harness](https://github.com/tetherto/qvac-harness). Core keeps your conversations, agents and
+[QV.AC Harness](https://github.com/tetherto/qvac-harness). Core keeps your conversations, agents and
 devices in a replicated mesh, so a chat started here is on your phone and laptop too. The harness
 runs the model, the tools and the plugins on the device you choose. Nothing goes to a server.
 
