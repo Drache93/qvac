@@ -82,7 +82,7 @@ export function useServer(opts: CreateServerOptions = {}): () => HttpServer {
 }
 
 // Like useServer, but preloads real models in-process (build + ready +
-// preloadModels). No listen and no close-with-grace signal handlers — those
+// preloadModels). No listen and no graceful-goodbye signal handlers — those
 // would interfere with the test runner.
 // One shared server per file, since model loads are expensive and node:test
 // isolates files into separate processes.

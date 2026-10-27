@@ -24,16 +24,19 @@ describe('serve: lifecycle (spawned binary)', () => {
     assert.equal(res.headers.get('access-control-allow-origin'), origin)
   })
 
-  it('shuts down on SIGTERM', async (t) => {
-    const srv = await configuredServer(t, MODELLESS_CONFIG, [])
+  for (const name of ['SIGTERM', 'SIGINT'] as const) {
+    it(`shuts down on ${name}`, async (t) => {
+      const srv = await configuredServer(t, MODELLESS_CONFIG, [])
 
-    srv.proc.kill('SIGTERM')
-    const [code, signal] = (await once(srv.proc, 'close')) as [number | null, string | null]
-    assert.ok(
-      code === 0 || signal === 'SIGTERM',
-      `expected clean shutdown, got code=${code} signal=${signal}`
-    )
-  })
+      srv.proc.kill(name)
+      const [code, signal] = (await once(srv.proc, 'close')) as [number | null, string | null]
+      // graceful-goodbye exits 130 after cleanup; the SDK re-raises the signal itself.
+      assert.ok(
+        code === 0 || code === 130 || signal === name,
+        `expected clean shutdown, got code=${code} signal=${signal}`
+      )
+    })
+  }
 
   // The real server logs the volatile-store banner at startup (the in-process
   // suite checks the banner string but not that it is actually emitted).
