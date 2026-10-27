@@ -84,6 +84,16 @@ void logBackendRegistrySnapshot() {
   }
 }
 
+// Module file naming follows ggml-backend-reg.cpp: no lib prefix and .dll
+// on Windows, lib prefix and .so elsewhere.
+#ifdef _WIN32
+constexpr const char* BACKEND_MODULE_PREFIX = "qvac-diffusion-ggml-";
+constexpr const char* BACKEND_MODULE_EXTENSION = ".dll";
+#else
+constexpr const char* BACKEND_MODULE_PREFIX = "libqvac-diffusion-ggml-";
+constexpr const char* BACKEND_MODULE_EXTENSION = ".so";
+#endif
+
 void logBackendModulePathSnapshot(
     const std::filesystem::path& backendsDirPath) {
   using Priority = qvac_lib_inference_addon_cpp::logger::Priority;
@@ -128,8 +138,8 @@ void logBackendModulePathSnapshot(
       break;
     }
     const auto filename = dirEntry.path().filename().string();
-    if (filename.rfind("libqvac-diffusion-ggml-", 0) == 0 &&
-        dirEntry.path().extension() == ".so") {
+    if (filename.rfind(BACKEND_MODULE_PREFIX, 0) == 0 &&
+        dirEntry.path().extension() == BACKEND_MODULE_EXTENSION) {
       entries.push_back(filename);
     }
   }

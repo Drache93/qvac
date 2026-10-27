@@ -1,8 +1,8 @@
 {
   "default-registry": {
     "kind": "git",
-    "reference": "main",
-    "baseline": "18fd55a0288f492346964fe780fb8c7c8789c351",
+    "reference": "QVAC-25560-ggml-windows-dl",
+    "baseline": "afe7f2c7c205c4cdb4f16e7b38b19424e624bfd8",
     "repository": "https://github.com/tetherto/qvac-registry-vcpkg.git"
   },
   "registries": [
