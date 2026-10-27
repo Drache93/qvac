@@ -359,11 +359,11 @@ export class ProductApp {
     const engine = this.engine!
     return async () => {
       try {
-        const meshId = this.meshId! || (await session.accountMesh(engine))
+        const meshId = this.meshId || (await session.accountMesh(engine))
         await session.writable(engine, meshId)
         const config = await engine.getConfig({})
         let agent =
-          this.agent! ||
+          this.agent ||
           (await session.chooseAgent(engine, meshId, {
             deviceId: this.originDeviceId,
             remembered: config.activeAgentId,
@@ -485,7 +485,7 @@ export class ProductApp {
 
   // Core's suggested next message, offered while the run it follows is still the latest turn.
   suggestion() {
-    if (this.busy || this.pending! || this.editor.value) {
+    if (this.busy || this.pending || this.editor.value) {
       return null
     }
 
@@ -1061,7 +1061,7 @@ export class ProductApp {
     const row = (k: string, v: string) => paint(k.padEnd(14), 'muted') + v
     return [
       row('Title', this.chatTitle(80)),
-      row('Chat id', this.chatId! || 'not created yet'),
+      row('Chat id', this.chatId || 'not created yet'),
       row('Messages', String(this.turns.filter((t: { from: string }) => t.from === 'user').length)),
       row('Agent', `${this.agent?.name || '—'} · ${this.agent?.modelName || '—'}`),
       row(
@@ -1130,7 +1130,7 @@ export class ProductApp {
         { label: 'New conversation', hint: 'ctrl+n', value: null },
         ...this.chats.map((c) => ({
           label: c.title || 'Untitled',
-          hint: c.id === this.chatId! ? 'current' : '',
+          hint: c.id === this.chatId ? 'current' : '',
           value: c.id
         }))
       ],
@@ -1218,7 +1218,7 @@ export class ProductApp {
 
   renameChat(title: string): Command {
     if (!title || !this.chatId) {
-      this.notice = this.chatId! ? 'Use /rename <title>' : 'Send a message first, then rename it'
+      this.notice = this.chatId ? 'Use /rename <title>' : 'Send a message first, then rename it'
       return null
     }
 
@@ -1629,7 +1629,7 @@ export class ProductApp {
 
   // A screen asking for a value keeps its "/" (paths have them); anything else gives way to commands.
   overlayOpen() {
-    return !!(this.picker! || this.panel || (this.screen! && !this.screen.prompt))
+    return !!(this.picker || this.panel || (this.screen && !this.screen.prompt))
   }
 
   editExternally(): Command {
@@ -1924,9 +1924,9 @@ export class ProductApp {
     const at = { x: msg.x, y: msg.y }
     if (msg.action === 'press' && msg.button === 'left') {
       this.drag = { from: at, to: at }
-    } else if (msg.action === 'motion' && this.drag!) {
-      this.drag!.to = at
-    } else if (msg.action === 'release' && this.drag!) {
+    } else if (msg.action === 'motion' && this.drag) {
+      this.drag.to = at
+    } else if (msg.action === 'release' && this.drag) {
       return this.release()
     }
 
@@ -1935,7 +1935,7 @@ export class ProductApp {
 
   wheel(msg: MouseMessage): Command {
     const step = msg.button === 'wheelup' ? -1 : 1
-    if (this.page === 'chat' && this.picker!) {
+    if (this.page === 'chat' && this.picker) {
       const n = this.pickerItems().length
       if (n) {
         this.picker!.cursor = (this.picker!.cursor + step + n) % n
@@ -2025,7 +2025,7 @@ export class ProductApp {
 
   chatFooter(f: Frame) {
     const width = f.inner
-    const rule = paint('─'.repeat(width), this.busy || this.pending! ? 'teal' : 'line')
+    const rule = paint('─'.repeat(width), this.busy || this.pending ? 'teal' : 'line')
     const model = `  ${this.agent?.modelName || ''}${this.thinkingLabel()} · ${this.deviceName()}`
     const status = this.runState() + paint(model, 'muted')
     const meter = this.usageMeter()
