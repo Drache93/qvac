@@ -315,8 +315,8 @@ export async function editor(options: {
   try {
     await writeFile(file, options.default ?? '', { encoding: 'utf8', mode: 0o600, flag: 'wx' })
     const [command, ...args] = editorCommand(
-      process.env['VISUAL'] ??
-        process.env['EDITOR'] ??
+      process.env['VISUAL'] ||
+        process.env['EDITOR'] ||
         (process.platform === 'win32' ? 'notepad' : 'vim')
     )
     await new Promise<void>((resolve, reject) => {
