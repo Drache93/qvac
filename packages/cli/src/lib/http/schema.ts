@@ -71,7 +71,7 @@ export function validate(schema: z.ZodType | undefined, value: unknown, context:
   return parsed.data
 }
 function jsonSchema(schema: z.ZodType, io: 'input' | 'output') {
-  const document = z.toJSONSchema(schema, { io, unrepresentable: 'any', target: 'openapi-3.0' })
+  const document = z.toJSONSchema(schema, { io, unrepresentable: 'any', target: 'draft-2020-12' })
   delete document.$schema
   return document
 }

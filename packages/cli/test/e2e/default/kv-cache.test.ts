@@ -28,8 +28,8 @@ describe('qvac kv_cache: surface', () => {
       schema: {
         type: 'object',
         properties: {
-          object: { type: 'string', enum: ['kv_cache.reclaim'] },
-          deleted: { type: 'boolean', enum: [true] }
+          object: { type: 'string', const: 'kv_cache.reclaim' },
+          deleted: { type: 'boolean', const: true }
         },
         required: ['object', 'deleted'],
         additionalProperties: false

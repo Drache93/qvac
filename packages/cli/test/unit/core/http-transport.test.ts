@@ -314,3 +314,20 @@ describe('HTTP transport lifecycle', () => {
     }
   )
 })
+
+describe('HTTP OpenAPI document', () => {
+  it('describes schemas in OpenAPI 3.1 JSON Schema', () => {
+    const app = createHttpServer()
+    app.post(
+      '/schema',
+      { schema: { body: z.object({ name: z.string().nullable(), count: z.number().gt(0) }) } },
+      () => ({})
+    )
+    const paths = app.swagger()['paths'] as Record<string, any>
+    const schema = paths['/schema'].post.requestBody.content['application/json'].schema
+    assert.deepEqual(schema.properties, {
+      name: { type: ['string', 'null'] },
+      count: { type: 'number', exclusiveMinimum: 0 }
+    })
+  })
+})
