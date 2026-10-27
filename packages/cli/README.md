@@ -45,6 +45,11 @@ pnpm --filter @qvac/cli start             # chat; first run sets this device up
 pnpm --filter @qvac/cli start --temp      # a throwaway store
 ```
 
+Outside the workspace, such as on a build box, install the package on its own with
+`npm ci --install-links` from `packages/cli`. The flag installs the `vendor/` snapshots as copies,
+as the shrinkwrap records them. Plain `npm ci` rejects the shrinkwrap, and `npm install` links them
+and writes `node_modules` inside `vendor/`, which `npm run build` then refuses.
+
 `qvac` launches with Node and runs the app on its own pinned Bare runtime; you do not need Bare
 installed. `qvac-bare` is the same CLI launched by Bare itself, with no Node past install (it needs
 `bare` on your PATH). State lives in

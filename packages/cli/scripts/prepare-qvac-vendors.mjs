@@ -22,6 +22,12 @@ for (const name of ['sdk', 'inference', 'core', 'harness']) {
   function checkEntries(folder, prefix = '') {
     for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
       const relative = prefix + entry.name
+      if (entry.isDirectory() && entry.name === 'node_modules') {
+        throw new Error(
+          `vendor/qvac/${name}/${relative} was installed into the snapshot: ` +
+            'npm links file: dependencies unless installed with npm ci --install-links'
+        )
+      }
       if (entry.isDirectory()) checkEntries(path.join(folder, entry.name), relative + '/')
       else if (!entry.isFile() || !expected.has(relative)) {
         throw new Error('Unexpected vendor runtime file: ' + name + '/' + relative)
