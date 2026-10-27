@@ -3,6 +3,7 @@
  * Uses Node.js fs/promises and path modules
  */
 import { promises as fs } from 'fs'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { validateConfig, parseJsonConfig, type QvacConfig } from './config-utils'
@@ -10,6 +11,15 @@ import { ConfigFileInvalidError, ConfigFileParseFailedError } from '@/utils/erro
 import { getClientLogger } from '@/logging'
 
 const logger = getClientLogger()
+
+/** Imports a config module by absolute file URL, returning its module namespace. */
+export type ConfigModuleLoader = (url: string) => Promise<{ default?: unknown }>
+const configModuleLoader = new AsyncLocalStorage<ConfigModuleLoader>()
+
+/** Scope a host-provided TypeScript loader to one command, including its async work. */
+export function withConfigModuleLoader<T>(loader: ConfigModuleLoader, run: () => T): T {
+  return configModuleLoader.run(loader, run)
+}
 
 /** Config filenames searched under a project root (bundle/verify/commands). */
 export const CONFIG_CANDIDATES = [
@@ -84,6 +94,19 @@ async function loadJsConfig(filePath: string): Promise<QvacConfig> {
 }
 
 async function loadTsConfig(filePath: string): Promise<QvacConfig> {
+  const loader = configModuleLoader.getStore()
+  if (loader) {
+    try {
+      const module = await loader(pathToFileURL(filePath).href)
+      return validateConfig(module.default ?? module)
+    } catch (error) {
+      throw new ConfigFileParseFailedError(
+        filePath,
+        error instanceof Error ? error.message : String(error),
+        error
+      )
+    }
+  }
   let tsxApiPath: string
   try {
     const { createRequire } = await import('node:module')

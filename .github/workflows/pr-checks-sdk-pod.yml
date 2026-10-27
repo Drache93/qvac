@@ -496,6 +496,13 @@ jobs:
                 rm -rf node_modules package-lock.json
               fi
 
+              if [ "$PKG" = "cli" ]; then
+                # Each CLI leg starts from its committed distribution lock.
+                # Copying local packages requires their pinned assets first.
+                git checkout HEAD -- npm-shrinkwrap.json
+                run "prepare snapshots $src" node scripts/prepare-qvac-vendors.mjs
+              fi
+
               if [ "$SRC" = "workspace" ]; then
                 run "sdk-source $src" npm run --if-present "sdk-source:$SRC"
               fi
@@ -510,6 +517,8 @@ jobs:
               # engine with a symlink.
               if [ "$PKG" = "sdk" ] && [ "$SRC" = "workspace" ]; then
                 :
+              elif [ "$PKG" = "cli" ]; then
+                run "install $src" npm install --ignore-scripts --install-links
               elif [ "$PM" = "npm" ]; then
                 # --ignore-scripts: this job writes GITHUB_TOKEN into the
                 # workspace .npmrc before installing, so a dependency lifecycle

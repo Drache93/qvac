@@ -1,0 +1,45 @@
+{
+  "name": "is-property",
+  "version": "1.0.2",
+  "description": "Tests if a JSON property can be accessed using . syntax",
+  "main": "is-property.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mikolalysenko/is-property.git"
+  },
+  "keywords": [
+    "is",
+    "property",
+    "json",
+    "dot",
+    "bracket",
+    ".",
+    "[]"
+  ],
+  "author": "Mikola Lysenko",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "gitHead": "0a85ea5b6b1264ea1cdecc6e5cf186adbb3ffc50",
+  "bugs": {
+    "url": "https://github.com/mikolalysenko/is-property/issues"
+  },
+  "files": [
+    "**/*"
+  ],
+  "x-qvac-fork": {
+    "upstream": {
+      "type": "git",
+      "url": "git://github.com/mikolalysenko/is-property.git"
+    },
+    "version": "1.0.2",
+    "integrity": "sha512-Ks/IoX00TtClbGQr4TWXemAnktAQvYB7HzcCxDGqEZU6oCmb2INHuOoKxbtR+HFkmYWBKv/dOZtGRiAjDhj92g==",
+    "changes": [
+      "Library-only distribution; runtime changes, if any, are recorded as exact patches in PROVENANCE.json.",
+      "Bundled local snapshot; no remote fork or registry publication required."
+    ]
+  }
+}

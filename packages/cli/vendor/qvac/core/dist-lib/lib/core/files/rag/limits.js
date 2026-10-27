@@ -1,0 +1,2 @@
+export const MAX_KNOWLEDGE_BYTES = 100 * 1024 * 1024;
+export const DEFAULT_KNOWLEDGE_CAP_BYTES = 1024 ** 3;

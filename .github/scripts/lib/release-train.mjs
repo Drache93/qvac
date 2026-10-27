@@ -237,6 +237,9 @@ export function publishedElsewhere (moved, gitHeadOf, head) {
 // will from npm once published. npm rejects an override that differs from a
 // direct dependency, so direct dependencies point at the same tarball.
 export function stageManifest (manifest, allTarballs) {
+  // The CLI distribution owns reviewed, integrity-checked runtime snapshots.
+  // A train bump must regenerate them deliberately, not replace them at install.
+  if (manifest.name === '@qvac/cli') return structuredClone(manifest)
   const tarballs = Object.fromEntries(Object.entries(allTarballs).filter(([dep]) => dep !== manifest.name))
   const staged = structuredClone(manifest)
   for (const field of DEPENDENCY_FIELDS) {

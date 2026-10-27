@@ -1,0 +1,17 @@
+{
+  "name": "signed-varint",
+  "version": "2.0.1",
+  "directory": "signed-varint",
+  "integrity": "sha512-abgDPg1106vuZZOvw7cFwdCABddfJRz5akcCcchzTbhyhYnsG31y4AlZEgp315T7W3nQq5P4xeOm186ZiPVFzw==",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dominictarr/signed-varint.git"
+  },
+  "sha256": {
+    "LICENSE": "bd72eb3720e8b226aedf4d84850238939dd43ad1139ffd72a888acd721510aa3",
+    "QVAC-NOTICE.md": "0b5dbfb273246409b54f0c0eb1ca08c805bcc4d3b8863a9923374cda1562d43c",
+    "README.md": "03da60097e3f88e27b489961a096ba888eea553caba29c952fb676fce15d5413",
+    "index.js": "0050172d35070c62d8d21776fa63c7134cf0c1352a58859bbd6c2599969c631d",
+    "package.json": "18c7b299db293a62e9ea3042456014b822d9632fabe322a5de615fb72719cc09"
+  }
+}

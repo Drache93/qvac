@@ -171,12 +171,12 @@ jobs:
           TRAIN_PROJECTS: ${{ needs.train.outputs.projects }}
         run: pnpm exec nx run-many -t build --projects="$TRAIN_PROJECTS" --exclude-task-dependencies
 
-      # The publish job runs no lifecycle scripts, so cli's prepublishOnly check
-      # runs here.
+      # CLI source and installed-tree gates run inside pack-distribution below.
+      # Other packages retain their workspace prepublishOnly checks.
       - name: Run prepublishOnly checks
         env:
           TRAIN_PROJECTS: ${{ needs.train.outputs.projects }}
-        run: pnpm exec nx run-many -t prepublishOnly --projects="$TRAIN_PROJECTS"
+        run: pnpm exec nx run-many -t prepublishOnly --projects="$TRAIN_PROJECTS" --exclude=@qvac/cli
 
       # The publish job compares what npm stores against these tarballs. Packing
       # also fails on a package whose dist/ is empty.

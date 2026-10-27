@@ -3,3 +3,6 @@ dist
 # Generated runtime, standalone binaries, and external benchmark checkouts
 output/
 out/
+
+# Bundled maintained runtime snapshots; verified by their provenance checks
+vendor/

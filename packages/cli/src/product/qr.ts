@@ -1,4 +1,4 @@
-import qrcode from 'qrcode-generator'
+import qrcode from '../lib/vendor/qrcode.mjs'
 
 const BLOCKS = [' ', '▄', '▀', '█']
 

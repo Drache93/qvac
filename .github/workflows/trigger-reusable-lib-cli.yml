@@ -73,46 +73,14 @@ jobs:
         with:
           node-version: 22
 
-      # Match SDK pod policy: in-repo SDK on main/tmp/feature, published on
-      # release-* (packages/cli/docs/sdk-cli.md "How CI tests the CLI/SDK pair").
-      # sdk-source:workspace builds inference + SDK and needs GPR (@tetherto/*)
-      # via GITHUB_TOKEN.
-      - name: Configure npm registries
-        if: ${{ !startsWith(github.ref_name, 'release-') }}
-        shell: node {0}
-        env:
-          GPR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          const fs = require('fs');
-          const path = require('path');
-
-          if (!process.env.GPR_TOKEN) {
-            console.log('::error::GITHUB_TOKEN is empty — cannot read @tetherto GPR packages');
-            process.exit(1);
-          }
-
-          const lines = [
-            'registry=https://registry.npmjs.org/',
-            '@qvac:registry=https://registry.npmjs.org/',
-            '@tetherto:registry=https://npm.pkg.github.com/',
-            `//npm.pkg.github.com/:_authToken=${process.env.GPR_TOKEN}`,
-          ];
-          const npmrc = lines.join('\n') + '\n';
-          const target = path.join(process.env.GITHUB_WORKSPACE, '.npmrc');
-          fs.writeFileSync(target, npmrc, 'utf8');
-          console.log(`::notice::.npmrc configured at ${target} (@tetherto → GPR via GITHUB_TOKEN)`);
-
-      # --ignore-scripts: the step above writes GITHUB_TOKEN into the workspace
-      # .npmrc, so a dependency lifecycle script would run with that token in
-      # reach. Nothing in this tree needs one — see
-      # .github/scripts/test/install-scripts-policy.test.mjs.
-      - name: Install dependencies
-        run: npm install --ignore-scripts
+      # The distribution uses reviewed SDK/inference snapshots from this commit.
+      # Materialize their pinned native assets before npm copies local packages.
+      - name: Prepare runtime snapshots
+        run: node scripts/prepare-qvac-vendors.mjs
         working-directory: ${{ env.WORKDIR }}
 
-      - name: Link workspace SDK
-        if: ${{ !startsWith(github.ref_name, 'release-') }}
-        run: npm run sdk-source:workspace
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --install-links
         working-directory: ${{ env.WORKDIR }}
 
       - name: Run format
@@ -171,17 +139,14 @@ jobs:
           name: cli-dist
           path: ${{ env.WORKDIR }}/dist/
 
-      - name: Rewrite SDK scope for GPR
-        uses: ./.github/actions/cli-rewrite-sdk-scope-for-gpr
-
       - name: Publish to GitHub Packages (dev)
         uses: ./.github/actions/publish-library-to-gpr
         with:
           secret-token: ${{ secrets.GITHUB_TOKEN }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
           tag: ${{ needs.publish-logic.outputs.gpr_tag }}
           workdir: packages/cli
           name-suffix: "-mono"
+          pack-script: pack:local
 
   publish-release-npm:
     needs:
@@ -226,12 +191,30 @@ jobs:
           workdir: ${{ env.WORKDIR }}
           tag: ${{ inputs.npm_tag }}
 
-      - name: Publish to NPM
-        id: publish
-        uses: tetherto/qvac-actions/publish-library-to-npm@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+      - name: Setup Node for trusted publishing
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # 6.3.0
         with:
-          tag: ${{ steps.dist-tag.outputs.tag }}
-          workdir: ${{ env.WORKDIR }}
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+
+      - name: Assemble and publish verified archive
+        id: publish
+        working-directory: ${{ env.WORKDIR }}
+        env:
+          PUBLISH_TAG: ${{ steps.dist-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          archive_dir=$(mktemp -d "$RUNNER_TEMP/cli-package.XXXXXX")
+          npm run pack:local -- "$archive_dir"
+          shopt -s nullglob
+          archives=("$archive_dir"/*.tgz)
+          if [[ ${#archives[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one CLI archive"
+            exit 1
+          fi
+          npm publish "${archives[0]}" --tag "$PUBLISH_TAG" --access public --provenance
+          version=$(node -p "require('./package.json').version")
+          echo "npm_published_version=$version" >> "$GITHUB_OUTPUT"
 
   # Tag the published version (no GitHub Release; SDK-only releases policy)
   create-tag:
@@ -265,17 +248,14 @@ jobs:
           name: cli-dist
           path: ${{ env.WORKDIR }}/dist/
 
-      - name: Rewrite SDK scope for GPR
-        uses: ./.github/actions/cli-rewrite-sdk-scope-for-gpr
-
       - name: Publish to GitHub Packages (feature)
         uses: ./.github/actions/publish-library-to-gpr
         with:
           secret-token: ${{ secrets.GITHUB_TOKEN }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
           tag: ${{ needs.publish-logic.outputs.gpr_tag }}
           workdir: packages/cli
           name-suffix: "-mono"
+          pack-script: pack:local
 
   publish-tmp-gpr:
     needs:
@@ -298,14 +278,11 @@ jobs:
           name: cli-dist
           path: ${{ env.WORKDIR }}/dist/
 
-      - name: Rewrite SDK scope for GPR
-        uses: ./.github/actions/cli-rewrite-sdk-scope-for-gpr
-
       - name: Publish to GitHub Packages (tmp)
         uses: ./.github/actions/publish-library-to-gpr
         with:
           secret-token: ${{ secrets.GITHUB_TOKEN }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
           tag: ${{ needs.publish-logic.outputs.gpr_tag }}
           workdir: packages/cli
           name-suffix: "-mono"
+          pack-script: pack:local

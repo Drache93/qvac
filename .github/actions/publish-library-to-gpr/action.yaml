@@ -25,6 +25,11 @@ inputs:
     required: false
     default: ""
 
+  pack-script:
+    description: "Optional npm script that writes one validated archive to its destination argument"
+    required: false
+    default: ""
+
 outputs:
   gpr_published_version:
     description: "The version that was published to GitHub Packages"
@@ -277,6 +282,25 @@ runs:
         echo "✅ Final publish name: $(node -p "require('./package.json').name")"
         echo "published_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
 
+    - name: Assemble distribution archive
+      id: pack_archive
+      if: inputs.pack-script != '' && steps.check_publish.outputs.should_publish == 'true'
+      shell: bash
+      working-directory: ${{ steps.resolve_dir.outputs.dir }}
+      env:
+        PACK_SCRIPT: ${{ inputs.pack-script }}
+      run: |
+        set -euo pipefail
+        archive_dir=$(mktemp -d "$RUNNER_TEMP/gpr-package.XXXXXX")
+        npm run "$PACK_SCRIPT" -- "$archive_dir"
+        shopt -s nullglob
+        archives=("$archive_dir"/*.tgz)
+        if [[ ${#archives[@]} -ne 1 ]]; then
+          echo "::error::Pack script must produce exactly one archive"
+          exit 1
+        fi
+        echo "archive=${archives[0]}" >> "$GITHUB_OUTPUT"
+
     - name: Publish to GitHub Packages (GPR)
       id: gpr_publish
       if: steps.check_publish.outputs.should_publish == 'true'
@@ -284,11 +308,13 @@ runs:
       shell: bash
       env:
         NODE_AUTH_TOKEN: ${{ inputs.secret-token }}
+        PACKAGE_ARCHIVE: ${{ steps.pack_archive.outputs.archive }}
+        PUBLISH_TAG: ${{ steps.determine_tag.outputs.tag }}
       run: |
         echo "Publishing to GitHub Packages (GPR) with dist-tag: ${{ steps.determine_tag.outputs.tag }}"
         echo "Publishing version: ${{ steps.determine_version.outputs.version }}"
 
-        if npm publish --tag ${{ steps.determine_tag.outputs.tag }}; then
+        if npm publish "${PACKAGE_ARCHIVE:-.}" --tag "$PUBLISH_TAG"; then
           PUBLISH_STATUS=0
           echo "✅ gpr publish successful"
           echo "Published version: ${{ steps.gpr_publish.outputs.gpr_published_version }}"

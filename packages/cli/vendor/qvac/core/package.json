@@ -1,0 +1,289 @@
+{
+  "name": "@qvac/core",
+  "version": "1.0.0-rc.2",
+  "type": "module",
+  "description": "Peer-to-peer AI across your devices",
+  "engines": {
+    "bare": ">=1.34.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist-lib/index.d.ts",
+      "default": "./dist-lib/index.js"
+    },
+    "./agent-icons": {
+      "types": "./dist-lib/lib/agent-icons.d.ts",
+      "default": "./dist-lib/lib/agent-icons.js"
+    },
+    "./audio-format": {
+      "types": "./dist-lib/lib/audio-format.d.ts",
+      "default": "./dist-lib/lib/audio-format.js"
+    },
+    "./constants": {
+      "types": "./dist-lib/lib/constants.d.ts",
+      "default": "./dist-lib/lib/constants.js"
+    },
+    "./errors": {
+      "types": "./dist-lib/lib/errors.d.ts",
+      "default": "./dist-lib/lib/errors.js"
+    },
+    "./credentials/obsidian": {
+      "types": "./dist-lib/lib/obsidian-key.d.ts",
+      "default": "./dist-lib/lib/obsidian-key.js"
+    },
+    "./task": {
+      "types": "./dist-lib/lib/task.d.ts",
+      "default": "./dist-lib/lib/task.js"
+    },
+    "./skill-types": {
+      "types": "./dist-lib/lib/skill-types.d.ts",
+      "default": "./dist-lib/lib/skill-types.js"
+    },
+    "./skill-readiness": {
+      "types": "./dist-lib/lib/skill-readiness.d.ts",
+      "default": "./dist-lib/lib/skill-readiness.js"
+    },
+    "./legacy-core-domain": {
+      "types": "./dist-lib/lib/legacy-core-domain.d.ts",
+      "default": "./dist-lib/lib/legacy-core-domain.js"
+    },
+    "./integrations": {
+      "types": "./dist-lib/lib/integrations/index.d.ts",
+      "default": "./dist-lib/lib/integrations/index.js"
+    },
+    "./rag/models": {
+      "types": "./dist-lib/lib/core/files/rag/models.d.ts",
+      "default": "./dist-lib/lib/core/files/rag/models.js"
+    },
+    "./rag/limits": {
+      "types": "./dist-lib/lib/core/files/rag/limits.d.ts",
+      "default": "./dist-lib/lib/core/files/rag/limits.js"
+    },
+    "./rag/similarity": {
+      "types": "./dist-lib/lib/core/files/rag/similarity.d.ts",
+      "default": "./dist-lib/lib/core/files/rag/similarity.js"
+    },
+    "./rag/document-types": {
+      "types": "./dist-lib/lib/core/files/rag/document-types.d.ts",
+      "default": "./dist-lib/lib/core/files/rag/document-types.js"
+    },
+    "./client": {
+      "types": "./dist-lib/client.d.ts",
+      "default": "./dist-lib/client.js"
+    },
+    "./capabilities": "./dist-lib/spec/capabilities.d.ts",
+    "./wire-codec": {
+      "types": "./dist-lib/spec/hrpc/messages.d.ts",
+      "default": "./dist-lib/spec/hrpc/messages.js"
+    },
+    "./log": {
+      "types": "./dist-lib/lib/log.d.ts",
+      "default": "./dist-lib/lib/log.js"
+    },
+    "./invite": {
+      "types": "./dist-lib/lib/core/invite.d.ts",
+      "default": "./dist-lib/lib/core/invite.js"
+    },
+    "./search-fold": {
+      "types": "./dist-lib/lib/core/search-fold.d.ts",
+      "default": "./dist-lib/lib/core/search-fold.js"
+    },
+    "./oauth": {
+      "types": "./dist-lib/lib/oauth.d.ts",
+      "default": "./dist-lib/lib/oauth.js"
+    },
+    "./oauth/client": {
+      "types": "./dist-lib/lib/oauth.client.d.ts",
+      "default": "./dist-lib/lib/oauth.client.js"
+    },
+    "./oauth/keys": {
+      "types": "./dist-lib/lib/oauth/keys.d.ts",
+      "default": "./dist-lib/lib/oauth/keys.js"
+    },
+    "./oauth/runtime/crypto": {
+      "types": "./dist-lib/lib/oauth/crypto.d.ts",
+      "default": "./dist-lib/lib/oauth/crypto.js"
+    },
+    "./oauth/runtime/fetch": {
+      "types": "./dist-lib/lib/oauth/fetch-platform.d.ts",
+      "default": "./dist-lib/lib/oauth/fetch-platform.js"
+    },
+    "./oauth/runtime/loopback": {
+      "types": "./dist-lib/lib/oauth/loopback.d.ts",
+      "default": "./dist-lib/lib/oauth/loopback.js"
+    },
+    "./credential-pusher": {
+      "types": "./dist-lib/lib/credential-pusher.d.ts",
+      "default": "./dist-lib/lib/credential-pusher.js"
+    },
+    "./fs-grants": {
+      "types": "./dist-lib/lib/fs-grants.d.ts",
+      "default": "./dist-lib/lib/fs-grants.js"
+    },
+    "./fs-grant-keys": {
+      "types": "./dist-lib/lib/fs-grant-keys.d.ts",
+      "default": "./dist-lib/lib/fs-grant-keys.js"
+    },
+    "./kv-cache": {
+      "types": "./dist-lib/lib/kv-cache.d.ts",
+      "default": "./dist-lib/lib/kv-cache.js"
+    },
+    "./suspend-lifecycle": {
+      "types": "./dist-lib/lib/suspend-lifecycle.d.ts",
+      "default": "./dist-lib/lib/suspend-lifecycle.js"
+    },
+    "./sidecar-entry": "./worker/stow-entry.mjs"
+  },
+  "prettier": "prettier-config-holepunch",
+  "imports": {
+    "url": {
+      "bare": "bare-url",
+      "default": "url"
+    },
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    },
+    "fs": {
+      "bare": "bare-fs",
+      "default": "fs"
+    },
+    "os": {
+      "bare": "bare-os",
+      "default": "os"
+    },
+    "process": {
+      "bare": "bare-process",
+      "default": "process"
+    },
+    "buffer": {
+      "bare": "bare-buffer",
+      "default": "buffer"
+    },
+    "events": {
+      "bare": "bare-events",
+      "default": "events"
+    },
+    "crypto": {
+      "bare": "bare-crypto",
+      "default": "crypto"
+    },
+    "http": {
+      "bare": "bare-http1",
+      "default": "http"
+    },
+    "child_process": {
+      "bare": "bare-subprocess",
+      "default": "child_process"
+    },
+    "#fetch": {
+      "bare": "bare-fetch",
+      "default": "./dist-lib/lib/fetch-node.js"
+    },
+    "worker_threads": {
+      "bare": "bare-worker",
+      "default": "worker_threads"
+    },
+    "#cpu-info": {
+      "bare": "bare-cpu-info",
+      "default": "./dist-lib/lib/core/cpu-info-node.js"
+    },
+    "#gpu-info": {
+      "bare": "bare-gpu-info",
+      "default": "./dist-lib/lib/core/gpu-info-node.js"
+    }
+  },
+  "dependencies": {
+    "@qvac/error": "^0.2.0",
+    "@qvac/harness": "1.0.0-rc.10",
+    "@qvac/logging": "^0.2.0",
+    "@qvac/skills": "^0.1.18",
+    "asenion": "^0.1.0",
+    "autobee": "^2.11.8",
+    "b4a": "^1.9.0",
+    "bare-abort-controller": "^1.1.2",
+    "bare-buffer": "^3.6.1",
+    "bare-cpu-info": "^0.1.0",
+    "bare-events": "^2.9.1",
+    "bare-fetch": "^3.0.1",
+    "bare-file-logger": "^1.2.1",
+    "bare-fs": "^4.7.2",
+    "bare-gpu-info": "^0.1.0",
+    "bare-http1": "4.5.9",
+    "bare-module": "7.1.0",
+    "bare-os": "^3.9.1",
+    "bare-path": "3.0.1",
+    "bare-pipe": "^4.2.2",
+    "bare-process": "^4.5.1",
+    "bare-rpc": "^1.3.7",
+    "bare-semver": "^1.1.0",
+    "bare-storage": "^1.1.0",
+    "bare-stow": "^0.1.4",
+    "bare-stream": "^2.13.3",
+    "bare-subprocess": "^6.1.0",
+    "bare-system-logger": "^1.0.3",
+    "bare-url": "^2.4.5",
+    "bare-worker": "4.5.0",
+    "blind-peer": "^3.10.2",
+    "blind-peering": "2.9.5",
+    "compact-encoding": "^3.4.0",
+    "corestore": "^7.12.6",
+    "hrpc": "^4.3.0",
+    "hyperblobs": "^2.12.1",
+    "hyperconf": "^1.0.3",
+    "hypercore-blob-server": "^1.12.0",
+    "hypercore-crypto": "^3.7.0",
+    "hypercore-id-encoding": "^1.3.0",
+    "hypercore-storage": "^3.4.0",
+    "hyperdb": "^6.9.0",
+    "hyperdispatch": "^1.6.0",
+    "hyperdrive": "^13.3.3",
+    "hyperschema": "1.26.2",
+    "hyperschema-ts": "^0.1.1",
+    "hyperswarm": "^4.17.0",
+    "keet-identity-key": "^3.2.0",
+    "process-top": "^1.7.1",
+    "protomux": "^3.11.0",
+    "protomux-wakeup": "^2.9.0",
+    "rache": "^1.0.0",
+    "rag-extract": "^0.1.1",
+    "ready-guard": "^1.0.0",
+    "ready-resource": "^1.2.0",
+    "rocksdb-native": "^3.17.4",
+    "safety-catch": "^1.0.3",
+    "scope-lock": "^1.2.4",
+    "sodium-universal": "^5.0.0",
+    "streamx": "^2.28.0",
+    "suspendify": "^1.7.2",
+    "which-runtime": "^1.4.0",
+    "z32": "^1.1.0",
+    "zod": "4.6.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tetherto/qvac-core.git"
+  },
+  "author": "Tether Inc",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/tetherto/qvac-core/issues"
+  },
+  "homepage": "https://github.com/tetherto/qvac-core",
+  "peerDependencies": {
+    "bare-ffmpeg": "^1.2.3",
+    "bare-pdfium": "1.7.1",
+    "bare-media": "^2.10.0",
+    "bare-crypto": "^1.15.3",
+    "bare-supervisor": "^0.1.1"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "LICENSE.md",
+    "NOTICE.md",
+    "README.md",
+    "SECURITY.md",
+    "dist-lib",
+    "ducks.png",
+    "worker"
+  ]
+}

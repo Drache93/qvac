@@ -1,0 +1,53 @@
+{
+  "name": "@xmldom/xmldom",
+  "version": "0.9.12",
+  "description": "A pure JavaScript W3C standard-based (XML DOM Level 2 Core) DOMParser and XMLSerializer module.",
+  "keywords": [
+    "w3c",
+    "dom",
+    "xml",
+    "parser",
+    "javascript",
+    "DOMParser",
+    "XMLSerializer",
+    "ponyfill"
+  ],
+  "homepage": "https://github.com/xmldom/xmldom",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/xmldom/xmldom.git"
+  },
+  "main": "lib/index.js",
+  "types": "index.d.ts",
+  "files": [
+    "**/*"
+  ],
+  "config": {
+    "test_stack_size": 256
+  },
+  "engines": {
+    "node": ">=14.6"
+  },
+  "bugs": {
+    "url": "https://github.com/xmldom/xmldom/issues"
+  },
+  "license": "MIT",
+  "auto-changelog": {
+    "prepend": true,
+    "remote": "origin",
+    "tagPrefix": "",
+    "template": "./auto-changelog.hbs"
+  },
+  "x-qvac-fork": {
+    "upstream": {
+      "type": "git",
+      "url": "git://github.com/xmldom/xmldom.git"
+    },
+    "version": "0.9.12",
+    "integrity": "sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==",
+    "changes": [
+      "Library-only distribution; runtime changes, if any, are recorded as exact patches in PROVENANCE.json.",
+      "Bundled local snapshot; no remote fork or registry publication required."
+    ]
+  }
+}

@@ -1,0 +1,426 @@
+{
+  "version": 11,
+  "offset": 0,
+  "schema": [
+    {
+      "id": 0,
+      "name": "@qvac/append-chunk",
+      "requestType": "@qvac/append-chunk-operation",
+      "version": 1
+    },
+    {
+      "id": 1,
+      "name": "@qvac/update-chunk",
+      "requestType": "@qvac/update-chunk-operation",
+      "version": 1
+    },
+    {
+      "id": 2,
+      "name": "@qvac/resolve-approval",
+      "requestType": "@qvac/resolve-approval-operation",
+      "version": 1
+    },
+    {
+      "id": 3,
+      "name": "@qvac/add-writer",
+      "requestType": "@qvac/writer",
+      "version": 1
+    },
+    {
+      "id": 4,
+      "name": "@qvac/remove-writer",
+      "requestType": "@qvac/remove-writer-operation",
+      "version": 1
+    },
+    {
+      "id": 5,
+      "name": "@qvac/join",
+      "requestType": "@qvac/writer-claim",
+      "version": 1
+    },
+    {
+      "id": 6,
+      "name": "@qvac/register-device",
+      "requestType": "@qvac/register-device-operation",
+      "version": 1
+    },
+    {
+      "id": 7,
+      "name": "@qvac/update-device",
+      "requestType": "@qvac/update-device-operation",
+      "version": 1
+    },
+    {
+      "id": 8,
+      "name": "@qvac/put-agent",
+      "requestType": "@qvac/put-agent-operation",
+      "version": 1
+    },
+    {
+      "id": 9,
+      "name": "@qvac/put-approval-rule",
+      "requestType": "@qvac/put-approval-rule-operation",
+      "version": 1
+    },
+    {
+      "id": 10,
+      "name": "@qvac/seed-defaults",
+      "requestType": "@qvac/seed-defaults-operation",
+      "version": 1
+    },
+    {
+      "id": 11,
+      "name": "@qvac/add-knowledge",
+      "requestType": "@qvac/add-knowledge-operation",
+      "version": 1
+    },
+    {
+      "id": 12,
+      "name": "@qvac/remove-knowledge",
+      "requestType": "@qvac/remove-knowledge-operation",
+      "version": 1
+    },
+    {
+      "id": 13,
+      "name": "@qvac/add-knowledge-artifact",
+      "requestType": "@qvac/add-knowledge-artifact-operation",
+      "version": 1
+    },
+    {
+      "id": 14,
+      "name": "@qvac/report-device-capabilities",
+      "requestType": "@qvac/report-device-capabilities-operation",
+      "version": 1
+    },
+    {
+      "id": 15,
+      "name": "@qvac/claim-indexing",
+      "requestType": "@qvac/claim-indexing-operation",
+      "version": 1
+    },
+    {
+      "id": 16,
+      "name": "@qvac/resolve-indexing",
+      "requestType": "@qvac/resolve-indexing-operation",
+      "version": 1
+    },
+    {
+      "id": 17,
+      "name": "@qvac/put-chat",
+      "requestType": "@qvac/put-chat-operation",
+      "version": 1
+    },
+    {
+      "id": 18,
+      "name": "@qvac/update-device-profile",
+      "requestType": "@qvac/update-device-profile-operation",
+      "version": 1
+    },
+    {
+      "id": 19,
+      "name": "@qvac/report-device-version",
+      "requestType": "@qvac/report-device-version-operation",
+      "version": 2
+    },
+    {
+      "id": 20,
+      "name": "@qvac/put-tool-configs",
+      "requestType": "@qvac/put-tool-configs-operation",
+      "version": 2
+    },
+    {
+      "id": 21,
+      "name": "@qvac/append-tool-activity",
+      "requestType": "@qvac/append-tool-activity-operation",
+      "version": 2
+    },
+    {
+      "id": 22,
+      "name": "@qvac/attest-device",
+      "requestType": "@qvac/device-attestation",
+      "version": 3
+    },
+    {
+      "id": 23,
+      "name": "@qvac/mint-member",
+      "requestType": "@qvac/mint-member-operation",
+      "version": 3
+    },
+    {
+      "id": 24,
+      "name": "@qvac/attest-member-device",
+      "requestType": "@qvac/attest-member-device-operation",
+      "version": 3
+    },
+    {
+      "id": 25,
+      "name": "@qvac/update-member",
+      "requestType": "@qvac/update-member-operation",
+      "version": 3
+    },
+    {
+      "id": 26,
+      "name": "@qvac/migrate-agent-catalog",
+      "requestType": "@qvac/put-agent-operation",
+      "version": 4
+    },
+    {
+      "id": 27,
+      "name": "@qvac/put-chat-group",
+      "requestType": "@qvac/put-chat-group-operation",
+      "version": 4
+    },
+    {
+      "id": 28,
+      "name": "@qvac/join-member",
+      "requestType": "@qvac/join-member-operation",
+      "version": 5
+    },
+    {
+      "id": 29,
+      "name": "@qvac/put-joined-mesh",
+      "requestType": "@qvac/put-joined-mesh-operation",
+      "version": 5
+    },
+    {
+      "id": 30,
+      "name": "@qvac/remove-member",
+      "requestType": "@qvac/remove-member-operation",
+      "version": 5
+    },
+    {
+      "id": 31,
+      "name": "@qvac/reindex-agents",
+      "requestType": "@qvac/reindex-agents-operation",
+      "version": 6
+    },
+    {
+      "id": 32,
+      "name": "@qvac/put-mesh-invite-grant",
+      "requestType": "@qvac/put-mesh-invite-grant-operation",
+      "version": 7
+    },
+    {
+      "id": 33,
+      "name": "@qvac/claim-invite",
+      "requestType": "@qvac/invite-claim",
+      "version": 7
+    },
+    {
+      "id": 34,
+      "name": "@qvac/mint-mesh-kind",
+      "requestType": "@qvac/mesh-kind",
+      "version": 7
+    },
+    {
+      "id": 35,
+      "name": "@qvac/vouched-join",
+      "requestType": "@qvac/vouched-join",
+      "version": 7
+    },
+    {
+      "id": 36,
+      "name": "@qvac/reindex-devices",
+      "requestType": "@qvac/reindex-devices-operation",
+      "version": 7
+    },
+    {
+      "id": 37,
+      "name": "@qvac/recover-device",
+      "requestType": "@qvac/recovery-claim",
+      "version": 7
+    },
+    {
+      "id": 38,
+      "name": "@qvac/purge-chat",
+      "requestType": "@qvac/purge-chat-operation",
+      "version": 8
+    },
+    {
+      "id": 39,
+      "name": "@qvac/name-mesh",
+      "requestType": "@qvac/name-mesh-operation",
+      "version": 9
+    },
+    {
+      "id": 40,
+      "name": "@qvac/open-join",
+      "requestType": "@qvac/open-join",
+      "version": 10
+    },
+    {
+      "id": 41,
+      "name": "@qvac/put-mesh-seed",
+      "requestType": "@qvac/mesh-seed",
+      "version": 10
+    },
+    {
+      "id": 42,
+      "name": "@qvac/raise-mesh-rules",
+      "requestType": "@qvac/raise-mesh-rules-operation",
+      "version": 11
+    },
+    {
+      "id": 43,
+      "name": "@qvac/put-public-mesh",
+      "requestType": "@qvac/public-mesh",
+      "version": 11
+    },
+    {
+      "id": 44,
+      "name": "@qvac/put-mesh-blind-peer",
+      "requestType": "@qvac/mesh-blind-peer",
+      "version": 11
+    },
+    {
+      "id": 45,
+      "name": "@qvac/put-workspace",
+      "requestType": "@qvac/put-workspace-operation",
+      "version": 11
+    },
+    {
+      "id": 46,
+      "name": "@qvac/set-member-role",
+      "requestType": "@qvac/member-role",
+      "version": 11
+    },
+    {
+      "id": 47,
+      "name": "@qvac/put-public-seed",
+      "requestType": "@qvac/public-seed",
+      "version": 11
+    },
+    {
+      "id": 48,
+      "name": "@qvac/put-project",
+      "requestType": "@qvac/put-project-operation",
+      "version": 11
+    },
+    {
+      "id": 49,
+      "name": "@qvac/set-project-listing",
+      "requestType": "@qvac/set-project-listing-operation",
+      "version": 11
+    },
+    {
+      "id": 50,
+      "name": "@qvac/put-project-member",
+      "requestType": "@qvac/project-member",
+      "version": 11
+    },
+    {
+      "id": 51,
+      "name": "@qvac/put-project-order",
+      "requestType": "@qvac/project-order",
+      "version": 11
+    },
+    {
+      "id": 52,
+      "name": "@qvac/retry-indexing",
+      "requestType": "@qvac/retry-indexing-operation",
+      "version": 11
+    },
+    {
+      "id": 53,
+      "name": "@qvac/progress-indexing",
+      "requestType": "@qvac/progress-indexing-operation",
+      "version": 11
+    },
+    {
+      "id": 54,
+      "name": "@qvac/mark-chat-read",
+      "requestType": "@qvac/chat-read",
+      "version": 11
+    },
+    {
+      "id": 55,
+      "name": "@qvac/delete-project",
+      "requestType": "@qvac/delete-project-operation",
+      "version": 11
+    },
+    {
+      "id": 56,
+      "name": "@qvac/set-knowledge-cap",
+      "requestType": "@qvac/set-knowledge-cap-operation",
+      "version": 11
+    },
+    {
+      "id": 57,
+      "name": "@qvac/upgrade-to-workspace",
+      "requestType": "@qvac/upgrade-to-workspace-operation",
+      "version": 11
+    },
+    {
+      "id": 58,
+      "name": "@qvac/take-model-request",
+      "requestType": "@qvac/model-request-operation",
+      "version": 11
+    },
+    {
+      "id": 59,
+      "name": "@qvac/settle-model-request",
+      "requestType": "@qvac/settle-model-request-operation",
+      "version": 11
+    },
+    {
+      "id": 60,
+      "name": "@qvac/cancel-model-request",
+      "requestType": "@qvac/model-request-operation",
+      "version": 11
+    },
+    {
+      "id": 61,
+      "name": "@qvac/reopen-model-request",
+      "requestType": "@qvac/model-request-operation",
+      "version": 11
+    },
+    {
+      "id": 62,
+      "name": "@qvac/put-agent-user",
+      "requestType": "@qvac/put-agent-user-operation",
+      "version": 11
+    },
+    {
+      "id": 63,
+      "name": "@qvac/put-member-key",
+      "requestType": "@qvac/member-key",
+      "version": 11
+    },
+    {
+      "id": 64,
+      "name": "@qvac/put-project-key",
+      "requestType": "@qvac/project-key",
+      "version": 11
+    },
+    {
+      "id": 65,
+      "name": "@qvac/put-project-host-key",
+      "requestType": "@qvac/project-host-key",
+      "version": 11
+    },
+    {
+      "id": 66,
+      "name": "@qvac/agent-join",
+      "requestType": "@qvac/agent-join",
+      "version": 11
+    },
+    {
+      "id": 67,
+      "name": "@qvac/put-project-device-key",
+      "requestType": "@qvac/project-device-key",
+      "version": 11
+    },
+    {
+      "id": 68,
+      "name": "@qvac/take-run-request",
+      "requestType": "@qvac/take-run-request-operation",
+      "version": 11
+    },
+    {
+      "id": 69,
+      "name": "@qvac/put-skill-secret",
+      "requestType": "@qvac/skill-secret",
+      "version": 11
+    }
+  ]
+}

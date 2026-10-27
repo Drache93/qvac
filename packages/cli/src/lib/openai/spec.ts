@@ -28,8 +28,8 @@ export async function renderOpenApiSpec(format: SpecFormat = 'json'): Promise<st
     await app.ready()
     const spec = app.swagger() as Record<string, unknown>
     if (format === 'yaml') {
-      const { dump } = await import('js-yaml')
-      return dump(spec, { lineWidth: 100 })
+      const { stringifyOpenApi } = await import('./yaml')
+      return stringifyOpenApi(spec)
     }
     return JSON.stringify(spec, null, 2) + '\n'
   } finally {

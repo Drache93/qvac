@@ -5,3 +5,15 @@ benchmarks/**/results
 # Generated runtime, standalone binaries, and external benchmark checkouts
 output/
 out/
+
+# Licensed generated runtime artifacts (see scripts/vendor-libraries.mjs)
+src/lib/vendor/*.mjs
+src/lib/vendor/*.d.mts
+src/lib/vendor/LICENSE.*
+src/lib/vendor/NOTICE.*
+
+# Bundled maintained runtime snapshots; verified by their provenance checks
+vendor/
+
+# Generated first-party package snapshots preserve their published formatting.
+vendor/qvac/

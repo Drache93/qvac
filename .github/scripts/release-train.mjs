@@ -39,6 +39,8 @@ import {
   stageManifest,
 } from './lib/release-train.mjs'
 
+import { cliArchivePath, cliSnapshotRanges, validateCliArchive, withCliArchiveTarget } from './lib/cli-release.mjs'
+
 const CATALOG = '.github/release-trains.json'
 const TARBALL_INDEX = 'tarballs.json'
 const WORKSPACE = 'pnpm-workspace.yaml'
@@ -135,7 +137,10 @@ function resolveTrain ([ref, base, headRef], options) {
   const projects = resolved.projects.map((name) => ({ name, dir: roots[name] }))
   const manifestAt = (sha, project) => {
     const manifest = gitShow(sha, `${project.dir}/package.json`)
-    return manifest && JSON.parse(manifest)
+    return manifest && cliSnapshotRanges(JSON.parse(manifest), (relative) => {
+      const source = gitShow(sha, `${project.dir}/${relative}`)
+      return source && JSON.parse(source)
+    })
   }
   const versionAtHead = (project) => {
     const manifest = manifestAt(head, project)
@@ -245,15 +250,35 @@ function packTrain ([name, dest]) {
     const before = new Set(readdirSync(out))
     const restore = stampGitHead(dir, head)
     try {
-      capture('pnpm', ['pack', '--pack-destination', out], { cwd: join(repoRoot, dir), env: { ...process.env, PNPM_CONFIG_IGNORE_SCRIPTS: 'true' } })
+      if (project === '@qvac/cli') {
+        capture(process.execPath, ['scripts/pack-distribution.mjs', out], { cwd: join(repoRoot, dir) })
+      } else {
+        capture('pnpm', ['pack', '--pack-destination', out], { cwd: join(repoRoot, dir), env: { ...process.env, PNPM_CONFIG_IGNORE_SCRIPTS: 'true' } })
+      }
     } finally {
       restore()
     }
-    const [file] = readdirSync(out).filter((entry) => !before.has(entry))
+    const files = readdirSync(out).filter((entry) => !before.has(entry) && entry.endsWith('.tgz'))
+    if (files.length !== 1) throw new Error(`Expected one archive for ${project}, found ${files.length}`)
+    const [file] = files
     index[project] = file
     console.log(`packed ${project} as ${file} (sha1 ${sha1(join(out, file))})`)
   }
   writeFileSync(join(out, TARBALL_INDEX), JSON.stringify(index, null, 2) + '\n')
+}
+
+
+function publishCliArchive () {
+  const archive = process.env.QVAC_RELEASE_CLI_ARCHIVE
+  const version = process.env.QVAC_RELEASE_CLI_VERSION
+  const head = process.env.QVAC_RELEASE_CLI_HEAD
+  if (!archive || !version || !head) throw new Error('CLI archive publishing must run inside a validated release train')
+  validateCliArchive(JSON.parse(capture('tar', ['-xOf', archive, 'package/package.json'])), { version, head })
+  const args = ['publish', archive, '--ignore-scripts', '--tag=latest', '--access=public']
+  const dryRun = process.env.QVAC_RELEASE_CLI_DRY_RUN === 'true'
+  if (dryRun) args.push('--dry-run')
+  else if (process.env.PNPM_CONFIG_PROVENANCE === 'true') args.push('--provenance')
+  if (run('npm', args, { stdio: 'inherit' }).status !== 0) throw new Error('CLI archive publication failed')
 }
 
 function stagePackage ([dir, tarballDir]) {
@@ -298,9 +323,25 @@ function publishTrain ([movedJson], options) {
       `--projects=${pending.map((project) => project.name).join(',')}`,
       '--exclude-task-dependencies', '--tag=latest', '--access=public']
     if (options['dry-run']) args.push('--dry-run')
-    if (run('pnpm', args, { stdio: 'inherit' }).status !== 0) {
-      fail(['Publish failed. Re-run the workflow: versions already on npm are skipped.'])
+    const cli = pending.find((project) => project.name === '@qvac/cli')
+    const env = { ...process.env }
+    if (cli) {
+      if (!options.tarballs) throw new Error('CLI publishing requires --tarballs from the validated build')
+      const index = JSON.parse(readFileSync(join(options.tarballs, TARBALL_INDEX), 'utf8'))
+      env.QVAC_RELEASE_CLI_ARCHIVE = cliArchivePath(options.tarballs, index)
+      env.QVAC_RELEASE_CLI_VERSION = cli.version
+      env.QVAC_RELEASE_CLI_HEAD = head
+      env.QVAC_RELEASE_CLI_DRY_RUN = String(options['dry-run'])
+      // Validate before publishing any member of the train.
+      validateCliArchive(JSON.parse(capture('tar', ['-xOf', env.QVAC_RELEASE_CLI_ARCHIVE, 'package/package.json'])), { version: cli.version, head })
     }
+    const publish = () => {
+      if (run('pnpm', args, { stdio: 'inherit', env }).status !== 0) {
+        throw new Error('Publish failed. Re-run the workflow: versions already on npm are skipped.')
+      }
+    }
+    if (cli) withCliArchiveTarget(repoRoot, cli.dir, publish)
+    else publish()
   } finally {
     restores.forEach((restore) => restore())
   }
@@ -382,6 +423,7 @@ const commands = {
   pack: packTrain,
   stage: stagePackage,
   publish: publishTrain,
+  'publish-cli-archive': publishCliArchive,
   wait: waitServed,
   tag: tagTrain,
 }

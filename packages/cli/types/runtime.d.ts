@@ -4,7 +4,14 @@ interface ImportMeta {
 }
 // Ambient var declares both Bare and globalThis.Bare, as supplied by the runtime.
 // lunte-disable-next-line no-var
-declare var Bare: { argv: string[]; platform: string; exit(code?: number): never }
+declare var Bare: {
+  argv: string[]
+  platform: string
+  IPC: import('bare-stream').Duplex
+  on(event: 'beforeExit', listener: (code: number) => void): unknown
+  on(event: 'uncaughtException' | 'unhandledRejection', listener: (error: unknown) => void): unknown
+  exit(code?: number): never
+}
 declare module '#fs' {
   import fs from 'node:fs'
   export default fs
@@ -52,6 +59,7 @@ declare module 'bare-supervisor/runner/sidecar' {
 declare module 'corestore' {
   export default class Corestore {
     constructor(path: string)
+    session(): Corestore
     replicate(connection: unknown): unknown
     close(): Promise<void>
   }

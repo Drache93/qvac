@@ -1,0 +1,10 @@
+import type HyperDB from 'hyperdb';
+import type { Router } from '../../../spec/mesh/hyperdispatch/index.js';
+import type { QvacAppendChunkOperation, QvacChunk } from '../../../spec/mesh/hyperschema/types.d.ts';
+import type { RouterContext } from './types.ts';
+export declare const TERMINAL_RUN_STATES: Set<string>;
+export declare function runHasTerminalStatus(tx: HyperDB, chatId: string, runId: string): Promise<boolean>;
+export declare function runnerRefusal(op: QvacAppendChunkOperation, { tx, node }: RouterContext): Promise<string | null>;
+export declare function runTaker(tx: HyperDB, request: QvacChunk, writerKey: Buffer): Promise<Buffer | null>;
+export declare function openToTake(request: QvacChunk | null): request is QvacChunk;
+export declare function registerRunRequestRoutes(router: Router): void;

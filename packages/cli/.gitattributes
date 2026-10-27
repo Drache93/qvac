@@ -1,0 +1,11 @@
+# Reviewed through the pin, regeneration script and provenance inventory.
+vendor/** -text linguist-vendored=true
+vendor/**/*.js linguist-generated=true
+vendor/**/*.mjs linguist-generated=true
+vendor/**/*.cjs linguist-generated=true
+vendor/**/*.ts linguist-generated=true
+vendor/**/*.mts linguist-generated=true
+vendor/**/*.cts linguist-generated=true
+src/lib/vendor/*.mjs linguist-generated=true
+src/lib/vendor/*.d.mts linguist-generated=true
+src/lib/vendor/** -text

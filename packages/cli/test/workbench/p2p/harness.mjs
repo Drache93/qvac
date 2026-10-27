@@ -5,7 +5,9 @@ import os from 'node:os'
 import path from 'node:path'
 import createTestnet from 'hyperdht/testnet.js'
 
-const CLI = new URL('../../../dist/index.js', import.meta.url).pathname
+const CLI = process.env.QVAC_CLI_TEST_PACKAGE
+  ? path.resolve(process.env.QVAC_CLI_TEST_PACKAGE, 'dist/index.js')
+  : new URL('../../../dist/index.js', import.meta.url).pathname
 
 export async function network(t) {
   const testnet = await createTestnet(3)

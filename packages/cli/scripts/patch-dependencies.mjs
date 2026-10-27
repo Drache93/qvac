@@ -58,17 +58,23 @@ function packageRoot(name, directory) {
 function planPackage(identity, { directory, patch }) {
   const at = identity.lastIndexOf('@')
   const name = identity.slice(0, at)
-  const version = identity.slice(at + 1)
   const target = packageRoot(name, directory)
-  const installed = JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8'))
-  if (installed.version !== version) {
-    throw new Error(
-      `Cannot patch ${identity}: installed ${installed.version}; update the pinned harness patch first`
-    )
-  }
-
   if (fs.realpathSync(target).includes(`${path.sep}.pnpm${path.sep}`)) {
     throw new Error(`Use pnpm install to apply the workspace patch for ${identity}`)
+  }
+  return planPackagePatch(identity, { target, patch })
+}
+
+// Plan exact patch bytes without modifying the package, including shared pnpm stores.
+export function planPackagePatch(identity, { target, patch }) {
+  const at = identity.lastIndexOf('@')
+  const name = identity.slice(0, at)
+  const version = identity.slice(at + 1)
+  const installed = JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8'))
+  if (installed.name !== name || installed.version !== version) {
+    throw new Error(
+      `Cannot patch ${identity}: installed ${installed.name}@${installed.version}; update the pinned harness patch first`
+    )
   }
   const changes = []
   for (const file of parsePatch(fs.readFileSync(patch, 'utf8'), name)) {

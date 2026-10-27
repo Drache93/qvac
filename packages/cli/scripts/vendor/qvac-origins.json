@@ -1,0 +1,12 @@
+{
+  "core": {
+    "version": "1.0.0-rc.2",
+    "integrity": "sha512-PCWLcARYptVosQTslC7rUQOh14QlCG2VzMvuCwlz2msNKcRyCFkCohXyVoWcG9da4whVEnKLgkzPO/bF7bbEyw==",
+    "url": "https://registry.npmjs.org/@qvac/core/-/core-1.0.0-rc.2.tgz"
+  },
+  "harness": {
+    "version": "1.0.0-rc.10",
+    "integrity": "sha512-zMbA2CSu1nNFP0s1ghfgC89yTpfhUB4DeciGtUyrDfn1j+BkyWrh/EDus8AwEnhgmRZjxbFm8g5Wz1rbZNOA4g==",
+    "url": "https://registry.npmjs.org/@qvac/harness/-/harness-1.0.0-rc.10.tgz"
+  }
+}

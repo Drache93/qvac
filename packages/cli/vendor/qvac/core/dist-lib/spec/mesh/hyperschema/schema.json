@@ -1,0 +1,6010 @@
+{
+  "version": 17,
+  "schema": [
+    {
+      "name": "chunk-type",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "user-message",
+          "version": 1
+        },
+        {
+          "key": "content",
+          "version": 1
+        },
+        {
+          "key": "thinking",
+          "version": 1
+        },
+        {
+          "key": "tool-call",
+          "version": 1
+        },
+        {
+          "key": "tool-result",
+          "version": 1
+        },
+        {
+          "key": "attachment",
+          "version": 1
+        },
+        {
+          "key": "approval-request",
+          "version": 1
+        },
+        {
+          "key": "run-status",
+          "version": 1
+        },
+        {
+          "key": "run-request",
+          "version": 1
+        },
+        {
+          "key": "sources",
+          "version": 1
+        },
+        {
+          "key": "compaction",
+          "version": 5
+        },
+        {
+          "key": "context",
+          "version": 17
+        },
+        {
+          "key": "model-request",
+          "version": 17
+        },
+        {
+          "key": "round-reset",
+          "version": 17
+        },
+        {
+          "key": "agent-switch",
+          "version": 17
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "run-state",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "executing",
+          "version": 1
+        },
+        {
+          "key": "completed",
+          "version": 1
+        },
+        {
+          "key": "failed",
+          "version": 1
+        },
+        {
+          "key": "canceled",
+          "version": 1
+        },
+        {
+          "key": "paused",
+          "version": 17
+        },
+        {
+          "key": "recovery-required",
+          "version": 17
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "approval-status",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "pending",
+          "version": 1
+        },
+        {
+          "key": "approved",
+          "version": 1
+        },
+        {
+          "key": "denied",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "resource-descriptor",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "kind",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "label",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "progress-phase",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "loading",
+          "version": 1
+        },
+        {
+          "key": "downloading",
+          "version": 1
+        },
+        {
+          "key": "queued",
+          "version": 1
+        },
+        {
+          "key": "generating",
+          "version": 1
+        },
+        {
+          "key": "transcribing",
+          "version": 3
+        },
+        {
+          "key": "compacting",
+          "version": 5
+        },
+        {
+          "key": "awaiting-download",
+          "version": 14
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "run-progress",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "phase",
+          "required": true,
+          "type": "@qvac/progress-phase",
+          "version": 1
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "percentage",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "busyChatId",
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-run-status-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "state",
+          "required": true,
+          "type": "@qvac/run-state",
+          "version": 1
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "percentage",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "metrics",
+          "type": "json",
+          "version": 1
+        },
+        {
+          "name": "progress",
+          "type": "@qvac/run-progress",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-run-status",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-run-status-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-approval-request-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "status",
+          "required": true,
+          "type": "@qvac/approval-status",
+          "version": 1
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "arguments",
+          "required": true,
+          "type": "json",
+          "version": 1
+        },
+        {
+          "name": "resource",
+          "type": "@qvac/resource-descriptor",
+          "version": 1
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-approval-request",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-approval-request-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-user-message-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "text",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-user-message",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-user-message-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-assistant-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "text",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-assistant",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-assistant-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-thinking-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "text",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-thinking",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-thinking-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-tool-call-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "arguments",
+          "type": "json",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-tool-call",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-tool-call-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-tool-result-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "result",
+          "type": "json",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-tool-result",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-tool-result-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-attachment-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 6,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "fileName",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "mimeType",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "byteLength",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "blobId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-attachment",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-attachment-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-run-request-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-run-request",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-run-request-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "rag-source",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "chunkIndex",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "excerpt",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "attachmentId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "artifactId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "score",
+          "required": true,
+          "type": "float64",
+          "version": 1
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "page",
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-sources-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "sources",
+          "required": true,
+          "array": true,
+          "type": "@qvac/rag-source",
+          "version": 1
+        },
+        {
+          "name": "notice",
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-sources",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-sources-v1",
+          "map": null,
+          "version": 1
+        },
+        {
+          "type": "@qvac/chunk-content-sources-v2",
+          "map": null,
+          "version": 2
+        }
+      ]
+    },
+    {
+      "name": "chunk-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "runId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "type",
+          "required": true,
+          "type": "@qvac/chunk-type",
+          "version": 1
+        },
+        {
+          "name": "seq",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "originDeviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "userMessage",
+          "type": "@qvac/chunk-content-user-message",
+          "version": 1
+        },
+        {
+          "name": "content",
+          "type": "@qvac/chunk-content-assistant",
+          "version": 1
+        },
+        {
+          "name": "thinking",
+          "type": "@qvac/chunk-content-thinking",
+          "version": 1
+        },
+        {
+          "name": "toolCall",
+          "type": "@qvac/chunk-content-tool-call",
+          "version": 1
+        },
+        {
+          "name": "toolResult",
+          "type": "@qvac/chunk-content-tool-result",
+          "version": 1
+        },
+        {
+          "name": "attachment",
+          "type": "@qvac/chunk-content-attachment",
+          "version": 1
+        },
+        {
+          "name": "approvalRequest",
+          "type": "@qvac/chunk-content-approval-request",
+          "version": 1
+        },
+        {
+          "name": "runStatus",
+          "type": "@qvac/chunk-content-run-status",
+          "version": 1
+        },
+        {
+          "name": "runRequest",
+          "type": "@qvac/chunk-content-run-request",
+          "version": 1
+        },
+        {
+          "name": "sources",
+          "type": "@qvac/chunk-content-sources",
+          "version": 1
+        },
+        {
+          "name": "parentId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "effect",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "intent",
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "display",
+          "type": "json",
+          "version": 5
+        },
+        {
+          "name": "rawCall",
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "compaction",
+          "type": "@qvac/chunk-content-compaction",
+          "version": 5
+        },
+        {
+          "name": "senderMemberId",
+          "type": "fixed32",
+          "version": 8
+        },
+        {
+          "name": "capability",
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "capabilityArgs",
+          "type": "json",
+          "version": 10
+        },
+        {
+          "name": "enhance",
+          "type": "@qvac/enhance-mode",
+          "version": 10
+        },
+        {
+          "name": "sourceId",
+          "type": "string",
+          "version": 16
+        },
+        {
+          "name": "requesterMemberId",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "senderNameAtSend",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "context",
+          "type": "@qvac/chunk-content-context",
+          "version": 17
+        },
+        {
+          "name": "modelRequest",
+          "type": "@qvac/chunk-content-model-request",
+          "version": 17
+        },
+        {
+          "name": "round",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "callId",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "resumed",
+          "type": "bool",
+          "version": 17
+        },
+        {
+          "name": "roundReset",
+          "type": "@qvac/chunk-content-round-reset",
+          "version": 17
+        },
+        {
+          "name": "agentSwitch",
+          "type": "@qvac/chunk-content-agent-switch",
+          "version": 17
+        },
+        {
+          "name": "runnerDeviceId",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "runTakenBy",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "runTakenAt",
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-counter-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "count",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "lastActivityAt",
+          "type": "uint",
+          "version": 5
+        }
+      ]
+    },
+    {
+      "name": "chunk-counter",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-counter-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "append-chunk-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "runId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "type",
+          "required": true,
+          "type": "@qvac/chunk-type",
+          "version": 1
+        },
+        {
+          "name": "originDeviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "userMessage",
+          "type": "@qvac/chunk-content-user-message",
+          "version": 1
+        },
+        {
+          "name": "content",
+          "type": "@qvac/chunk-content-assistant",
+          "version": 1
+        },
+        {
+          "name": "thinking",
+          "type": "@qvac/chunk-content-thinking",
+          "version": 1
+        },
+        {
+          "name": "toolCall",
+          "type": "@qvac/chunk-content-tool-call",
+          "version": 1
+        },
+        {
+          "name": "toolResult",
+          "type": "@qvac/chunk-content-tool-result",
+          "version": 1
+        },
+        {
+          "name": "attachment",
+          "type": "@qvac/chunk-content-attachment",
+          "version": 1
+        },
+        {
+          "name": "approvalRequest",
+          "type": "@qvac/chunk-content-approval-request",
+          "version": 1
+        },
+        {
+          "name": "runStatus",
+          "type": "@qvac/chunk-content-run-status",
+          "version": 1
+        },
+        {
+          "name": "runRequest",
+          "type": "@qvac/chunk-content-run-request",
+          "version": 1
+        },
+        {
+          "name": "sources",
+          "type": "@qvac/chunk-content-sources",
+          "version": 1
+        },
+        {
+          "name": "parentId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "effect",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "intent",
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "display",
+          "type": "json",
+          "version": 5
+        },
+        {
+          "name": "rawCall",
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "compaction",
+          "type": "@qvac/chunk-content-compaction",
+          "version": 5
+        },
+        {
+          "name": "senderMemberId",
+          "type": "fixed32",
+          "version": 8
+        },
+        {
+          "name": "capability",
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "capabilityArgs",
+          "type": "json",
+          "version": 10
+        },
+        {
+          "name": "enhance",
+          "type": "@qvac/enhance-mode",
+          "version": 10
+        },
+        {
+          "name": "sourceId",
+          "type": "string",
+          "version": 16
+        },
+        {
+          "name": "senderNameAtSend",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "context",
+          "type": "@qvac/chunk-content-context",
+          "version": 17
+        },
+        {
+          "name": "modelRequest",
+          "type": "@qvac/chunk-content-model-request",
+          "version": 17
+        },
+        {
+          "name": "round",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "callId",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "resumed",
+          "type": "bool",
+          "version": 17
+        },
+        {
+          "name": "roundReset",
+          "type": "@qvac/chunk-content-round-reset",
+          "version": 17
+        },
+        {
+          "name": "agentSwitch",
+          "type": "@qvac/chunk-content-agent-switch",
+          "version": 17
+        },
+        {
+          "name": "runnerDeviceId",
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "append-chunk-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/append-chunk-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-chunk-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "runStatus",
+          "type": "@qvac/chunk-content-run-status",
+          "version": 1
+        },
+        {
+          "name": "attachment",
+          "type": "@qvac/chunk-content-attachment",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-chunk-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/update-chunk-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "resolve-approval-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "approved",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "resolvedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "resolve-approval-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/resolve-approval-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "agent-reasoning",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "inherit",
+          "version": 1
+        },
+        {
+          "key": "enabled",
+          "version": 1
+        },
+        {
+          "key": "disabled",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "capability-profile",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "tiny",
+          "version": 1
+        },
+        {
+          "key": "low",
+          "version": 1
+        },
+        {
+          "key": "mid",
+          "version": 1
+        },
+        {
+          "key": "high",
+          "version": 1
+        },
+        {
+          "key": "xhigh",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "image-model-choice",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "sd2",
+          "version": 1
+        },
+        {
+          "key": "sdxl",
+          "version": 1
+        },
+        {
+          "key": "flux2-klein",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "agent-icon-name",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "artificial-intelligence",
+          "version": 1
+        },
+        {
+          "key": "code",
+          "version": 1
+        },
+        {
+          "key": "work",
+          "version": 1
+        },
+        {
+          "key": "calendar",
+          "version": 1
+        },
+        {
+          "key": "home",
+          "version": 1
+        },
+        {
+          "key": "shield",
+          "version": 1
+        },
+        {
+          "key": "bar-chart",
+          "version": 1
+        },
+        {
+          "key": "email",
+          "version": 1
+        },
+        {
+          "key": "auto-stories",
+          "version": 1
+        },
+        {
+          "key": "person",
+          "version": 1
+        },
+        {
+          "key": "heart",
+          "version": 5
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "tools-access-scope",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "all",
+          "version": 1
+        },
+        {
+          "key": "selected",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "skills-access-scope",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "all",
+          "version": 1
+        },
+        {
+          "key": "selected",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "agent-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 6,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "bio",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "providerDeviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "modelName",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "reasoning",
+          "required": true,
+          "type": "@qvac/agent-reasoning",
+          "version": 1
+        },
+        {
+          "name": "enabledSkills",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "enabledTools",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "installedSkills",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "isDefault",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "imageModelChoice",
+          "type": "@qvac/image-model-choice",
+          "version": 1
+        },
+        {
+          "name": "kvCacheK",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "kvCacheV",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "iconName",
+          "type": "@qvac/agent-icon-name",
+          "version": 1
+        },
+        {
+          "name": "ctxSize",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "toolsScope",
+          "type": "@qvac/tools-access-scope",
+          "version": 1
+        },
+        {
+          "name": "skillsScope",
+          "type": "@qvac/skills-access-scope",
+          "version": 1
+        },
+        {
+          "name": "imageSteps",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "imageWidth",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "imageHeight",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "approvalMode",
+          "type": "@qvac/approval-mode",
+          "version": 3
+        },
+        {
+          "name": "disabledToolsets",
+          "array": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "lenderDeviceId",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "sharedIn",
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "agent",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/agent-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chat-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 4,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "ragEnabled",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "webSearchEnabled",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "groupId",
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "rank",
+          "type": "float64",
+          "version": 6
+        },
+        {
+          "name": "rankedAt",
+          "type": "uint",
+          "version": 6
+        },
+        {
+          "name": "readThrough",
+          "type": "uint",
+          "version": 12
+        },
+        {
+          "name": "forkedFrom",
+          "type": "@qvac/chat-fork-source",
+          "version": 15
+        },
+        {
+          "name": "projectId",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "knowledgeSourcesOff",
+          "array": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "suggestion",
+          "type": "@qvac/chat-suggestion",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chat",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chat-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "device-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 5,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "joinedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "capabilityProfile",
+          "required": true,
+          "type": "@qvac/capability-profile",
+          "version": 1
+        },
+        {
+          "name": "recommendedModelName",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "revoked",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "revokedAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "writerKey",
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "installedToolNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "installedSkillNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "installedModelNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "cachedModelNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "revokedBy",
+          "type": "buffer",
+          "version": 2
+        },
+        {
+          "name": "appVersion",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "appBuild",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "appChannel",
+          "type": "@qvac/app-channel",
+          "version": 3
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "readySkillNames",
+          "array": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "toolCatalog",
+          "array": true,
+          "type": "@qvac/tool-report-entry",
+          "version": 4
+        },
+        {
+          "name": "memberId",
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "memberProof",
+          "type": "buffer",
+          "version": 4
+        },
+        {
+          "name": "attestedAt",
+          "type": "uint",
+          "version": 4
+        },
+        {
+          "name": "claimedMemberId",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "inviteToken",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "device",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/device-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "writer-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "device",
+          "type": "@qvac/device",
+          "version": 1
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "writer",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/writer-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-writer-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "deviceId",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "revokedAt",
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-writer-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/remove-writer-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "writer-claim-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "device",
+          "type": "@qvac/device",
+          "version": 1
+        },
+        {
+          "name": "deviceId",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "claimedMemberId",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "inviteToken",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "writer-claim",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/writer-claim-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "register-device-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "device",
+          "required": true,
+          "type": "@qvac/device",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "register-device-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/register-device-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-device-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "device",
+          "required": true,
+          "type": "@qvac/device",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-device-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/update-device-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "report-device-capabilities-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "installedToolNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "installedSkillNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "installedModelNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "cachedModelNames",
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "readySkillNames",
+          "array": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "toolCatalog",
+          "array": true,
+          "type": "@qvac/tool-report-entry",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "report-device-capabilities-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/report-device-capabilities-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-agent-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "agent",
+          "required": true,
+          "type": "@qvac/agent",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-agent-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-agent-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-chat-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "chat",
+          "required": true,
+          "type": "@qvac/chat",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-chat-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-chat-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "approval-decision",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "allow",
+          "version": 1
+        },
+        {
+          "key": "deny",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "approval-rule-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "toolName",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "resourceKind",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "resourcePattern",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "@qvac/approval-decision",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "expiresAt",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "effect",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "memberId",
+          "type": "fixed32",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "approval-rule",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/approval-rule-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-approval-rule-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "rule",
+          "required": true,
+          "type": "@qvac/approval-rule",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-approval-rule-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-approval-rule-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-blind-peer-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-blind-peer",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-blind-peer-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "autobee-head",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "meshKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "fastForward",
+          "type": "@qvac/autobee-head",
+          "version": 1
+        },
+        {
+          "name": "additionalNodes",
+          "array": true,
+          "type": "ipv4Address",
+          "version": 1
+        },
+        {
+          "name": "blindPeers",
+          "array": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "memberInvite",
+          "type": "bool",
+          "version": 7
+        },
+        {
+          "name": "memberId",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "inviteNonce",
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "compute",
+          "type": "bool",
+          "version": 7
+        },
+        {
+          "name": "inviterName",
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "deviceSeed",
+          "type": "fixed32",
+          "version": 14
+        },
+        {
+          "name": "deviceProof",
+          "type": "buffer",
+          "version": 14
+        },
+        {
+          "name": "workspace",
+          "type": "bool",
+          "version": 17
+        },
+        {
+          "name": "workspaceName",
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-invite-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "seed-defaults-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "agent",
+          "required": true,
+          "type": "@qvac/agent",
+          "version": 1
+        },
+        {
+          "name": "chat",
+          "required": true,
+          "type": "@qvac/chat",
+          "version": 1
+        },
+        {
+          "name": "blindPeers",
+          "array": true,
+          "type": "@qvac/mesh-blind-peer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "seed-defaults-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/seed-defaults-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "knowledge-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 8,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "fileName",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "mimeType",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "byteLength",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "blobId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "knowledge",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/knowledge-v1",
+          "map": null,
+          "version": 1
+        },
+        {
+          "type": "@qvac/knowledge-v2",
+          "map": null,
+          "version": 2
+        }
+      ]
+    },
+    {
+      "name": "add-knowledge-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "knowledge",
+          "required": true,
+          "type": "@qvac/knowledge",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "add-knowledge-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/add-knowledge-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-knowledge-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-knowledge-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/remove-knowledge-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "knowledge-artifact-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "sourceHash",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "embedderVersion",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "dimensions",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "artifactBlobId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "knowledge-artifact",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/knowledge-artifact-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "add-knowledge-artifact-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "artifact",
+          "required": true,
+          "type": "@qvac/knowledge-artifact",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "add-knowledge-artifact-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/add-knowledge-artifact-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "indexing-state",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "indexing",
+          "version": 1
+        },
+        {
+          "key": "ready",
+          "version": 1
+        },
+        {
+          "key": "failed",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "indexing-resolution",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "ready",
+          "version": 1
+        },
+        {
+          "key": "failed",
+          "version": 1
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "indexing-status-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 8,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "status",
+          "required": true,
+          "type": "@qvac/indexing-state",
+          "version": 1
+        },
+        {
+          "name": "claimId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "claimedBy",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "indexing-status",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/indexing-status-v1",
+          "map": null,
+          "version": 1
+        },
+        {
+          "type": "@qvac/indexing-status-v2",
+          "map": null,
+          "version": 2
+        }
+      ]
+    },
+    {
+      "name": "claim-indexing-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "claimId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "claim-indexing-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/claim-indexing-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "resolve-indexing-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "claimId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "status",
+          "required": true,
+          "type": "@qvac/indexing-resolution",
+          "version": 1
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "resolve-indexing-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/resolve-indexing-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-device-profile-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "capabilityProfile",
+          "required": true,
+          "type": "@qvac/capability-profile",
+          "version": 1
+        },
+        {
+          "name": "recommendedModelName",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "platform",
+          "type": "string",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "update-device-profile-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/update-device-profile-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "app-channel",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "dev",
+          "version": 3
+        },
+        {
+          "key": "staging",
+          "version": 3
+        },
+        {
+          "key": "prod",
+          "version": 3
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "approval-mode",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "ask",
+          "version": 3
+        },
+        {
+          "key": "skip-all",
+          "version": 3
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "report-device-version-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 3
+        },
+        {
+          "name": "appVersion",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "appBuild",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "appChannel",
+          "required": true,
+          "type": "@qvac/app-channel",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "report-device-version-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/report-device-version-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool-configs-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 5,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "toolName",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "settings",
+          "required": true,
+          "type": "json",
+          "version": 3
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 3
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 3
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "tool-configs",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/tool-configs-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-tool-configs-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "settings",
+          "required": true,
+          "type": "@qvac/tool-configs",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "put-tool-configs-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-tool-configs-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool-decision",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "auto",
+          "version": 3
+        },
+        {
+          "key": "allowed",
+          "version": 3
+        },
+        {
+          "key": "denied",
+          "version": 3
+        },
+        {
+          "key": "skip-all",
+          "version": 3
+        },
+        {
+          "key": "blocked",
+          "version": 3
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "tool-activity-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "originDeviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 3
+        },
+        {
+          "name": "chatId",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "runId",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "toolName",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "arguments",
+          "type": "json",
+          "version": 3
+        },
+        {
+          "name": "resource",
+          "type": "@qvac/resource-descriptor",
+          "version": 3
+        },
+        {
+          "name": "effect",
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "@qvac/tool-decision",
+          "version": 3
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 3
+        },
+        {
+          "name": "seq",
+          "required": true,
+          "type": "uint",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "tool-activity",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/tool-activity-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "append-tool-activity-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "activity",
+          "required": true,
+          "type": "@qvac/tool-activity",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "append-tool-activity-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/append-tool-activity-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool-activity-counter-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "count",
+          "required": true,
+          "type": "uint",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "tool-activity-counter",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/tool-activity-counter-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tool-report-entry",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 4
+        },
+        {
+          "name": "promptChars",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        },
+        {
+          "name": "toolset",
+          "type": "string",
+          "version": 4
+        },
+        {
+          "name": "skillGated",
+          "type": "bool",
+          "version": 4
+        },
+        {
+          "name": "scopeRequired",
+          "type": "bool",
+          "version": 4
+        },
+        {
+          "name": "rootsRequired",
+          "type": "bool",
+          "version": 4
+        },
+        {
+          "name": "writeRootsRequired",
+          "type": "bool",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "writer-activity-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 4,
+      "fields": [
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        },
+        {
+          "name": "clock",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "revoked",
+          "type": "bool",
+          "version": 5
+        }
+      ]
+    },
+    {
+      "name": "writer-activity",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/writer-activity-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "device-attestation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "device-attestation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/device-attestation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "member-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 4
+        },
+        {
+          "name": "joinedAt",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "member",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/member-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mint-member-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "member",
+          "required": true,
+          "type": "@qvac/member",
+          "version": 4
+        },
+        {
+          "name": "proof",
+          "required": true,
+          "type": "buffer",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "mint-member-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mint-member-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-member-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "member",
+          "required": true,
+          "type": "@qvac/member",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "update-member-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/update-member-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "attest-member-device-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 4
+        },
+        {
+          "name": "proof",
+          "required": true,
+          "type": "buffer",
+          "version": 4
+        },
+        {
+          "name": "attestedAt",
+          "required": true,
+          "type": "uint",
+          "version": 4
+        }
+      ]
+    },
+    {
+      "name": "attest-member-device-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/attest-member-device-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-compaction-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "summary",
+          "required": true,
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "throughId",
+          "required": true,
+          "type": "string",
+          "version": 5
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-compaction",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-compaction-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chat-group-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 4,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 5
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 5
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 5
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 5
+        },
+        {
+          "name": "rank",
+          "type": "float64",
+          "version": 6
+        }
+      ]
+    },
+    {
+      "name": "chat-group",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chat-group-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-chat-group-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "group",
+          "required": true,
+          "type": "@qvac/chat-group",
+          "version": 5
+        }
+      ]
+    },
+    {
+      "name": "put-chat-group-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-chat-group-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-member-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "revokedAt",
+          "type": "uint",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "remove-member-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/remove-member-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "join-member-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "member",
+          "required": true,
+          "type": "@qvac/member",
+          "version": 7
+        },
+        {
+          "name": "proof",
+          "required": true,
+          "type": "buffer",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "join-member-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/join-member-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "joined-mesh-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "meshKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 7
+        },
+        {
+          "name": "joinedAt",
+          "required": true,
+          "type": "uint",
+          "version": 7
+        },
+        {
+          "name": "leftAt",
+          "type": "uint",
+          "version": 7
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "version": 7
+        },
+        {
+          "name": "labeledAt",
+          "type": "uint",
+          "version": 7
+        },
+        {
+          "name": "shared",
+          "type": "bool",
+          "version": 7
+        },
+        {
+          "name": "sharedAt",
+          "type": "uint",
+          "version": 7
+        },
+        {
+          "name": "workspace",
+          "type": "bool",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "joined-mesh",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/joined-mesh-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-joined-mesh-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "room",
+          "required": true,
+          "type": "@qvac/joined-mesh",
+          "version": 7
+        }
+      ]
+    },
+    {
+      "name": "put-joined-mesh-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-joined-mesh-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "reindex-agents-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "agentIds",
+          "array": true,
+          "type": "string",
+          "version": 9
+        }
+      ]
+    },
+    {
+      "name": "reindex-agents-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/reindex-agents-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "enhance-mode",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "never",
+          "version": 10
+        },
+        {
+          "key": "auto",
+          "version": 10
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "vouched-join-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "device",
+          "type": "@qvac/device",
+          "version": 10
+        },
+        {
+          "name": "deviceId",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "writerKey",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "memberProof",
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "memberSignature",
+          "type": "buffer",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "vouched-join",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/vouched-join-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite-grant-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "grantKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "issuerDeviceId",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "issuerMemberId",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "issuedAt",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "expiresAt",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "maxUses",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "uses",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "revokedAt",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "revokedBy",
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "updatedAt",
+          "type": "uint",
+          "version": 10
+        },
+        {
+          "name": "sequence",
+          "type": "uint",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite-grant",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-invite-grant-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite-spend-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "grantKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "spentAt",
+          "type": "uint",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "mesh-invite-spend",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-invite-spend-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-mesh-invite-grant-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "grant",
+          "required": true,
+          "type": "@qvac/mesh-invite-grant",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "put-mesh-invite-grant-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-mesh-invite-grant-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "invite-claim-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "device",
+          "type": "@qvac/device",
+          "version": 10
+        },
+        {
+          "name": "deviceId",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "claimedMemberId",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "inviteToken",
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "grantKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "inviteSignature",
+          "required": true,
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "member",
+          "type": "@qvac/member",
+          "version": 10
+        },
+        {
+          "name": "memberClaim",
+          "type": "buffer",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "invite-claim",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/invite-claim-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-kind-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "kind",
+          "required": true,
+          "type": "string",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "mesh-kind",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-kind-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "reindex-devices-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": []
+    },
+    {
+      "name": "reindex-devices-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/reindex-devices-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "index-backfill-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "index",
+          "required": true,
+          "type": "string",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "index-backfill",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/index-backfill-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "invite-sequence-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "value",
+          "required": true,
+          "type": "uint",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "invite-sequence",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/invite-sequence-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "member-removal-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "grantSequence",
+          "required": true,
+          "type": "uint",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "member-removal",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/member-removal-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "recovery-claim-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "device",
+          "required": true,
+          "type": "@qvac/device",
+          "version": 10
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 10
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        },
+        {
+          "name": "proof",
+          "required": true,
+          "type": "buffer",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "recovery-claim",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/recovery-claim-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-founder-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 10
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 10
+        }
+      ]
+    },
+    {
+      "name": "mesh-founder",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-founder-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "purged-chat-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 11
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 11
+        }
+      ]
+    },
+    {
+      "name": "purged-chat",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/purged-chat-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "purge-chat-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 11
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 11
+        }
+      ]
+    },
+    {
+      "name": "purge-chat-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/purge-chat-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-name-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 13
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 13
+        },
+        {
+          "name": "namedAt",
+          "required": true,
+          "type": "uint",
+          "version": 13
+        },
+        {
+          "name": "namedBy",
+          "type": "fixed32",
+          "version": 13
+        }
+      ]
+    },
+    {
+      "name": "mesh-name",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-name-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "name-mesh-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 13
+        },
+        {
+          "name": "namedAt",
+          "required": true,
+          "type": "uint",
+          "version": 13
+        }
+      ]
+    },
+    {
+      "name": "name-mesh-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/name-mesh-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "open-join-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 14
+        },
+        {
+          "name": "device",
+          "type": "@qvac/device",
+          "version": 14
+        },
+        {
+          "name": "deviceId",
+          "type": "fixed32",
+          "version": 14
+        },
+        {
+          "name": "deviceSignature",
+          "type": "buffer",
+          "version": 14
+        },
+        {
+          "name": "member",
+          "type": "@qvac/member",
+          "version": 14
+        },
+        {
+          "name": "memberClaim",
+          "type": "buffer",
+          "version": 14
+        }
+      ]
+    },
+    {
+      "name": "open-join",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/open-join-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "mesh-seed-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "meshKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 14
+        },
+        {
+          "name": "seed",
+          "required": true,
+          "type": "fixed32",
+          "version": 14
+        }
+      ]
+    },
+    {
+      "name": "mesh-seed",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-seed-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chat-fork-source",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "meshId",
+          "required": true,
+          "type": "string",
+          "version": 15
+        },
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 15
+        },
+        {
+          "name": "runId",
+          "type": "string",
+          "version": 15
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-sources-v2",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "sources",
+          "required": true,
+          "array": true,
+          "type": "@qvac/rag-source",
+          "version": 17
+        },
+        {
+          "name": "notice",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "chatFilesNotReady",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "projectFilesNotReady",
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "model-request-state",
+      "namespace": "qvac",
+      "offset": 1,
+      "enum": [
+        {
+          "key": "open",
+          "version": 17
+        },
+        {
+          "key": "taken",
+          "version": 17
+        },
+        {
+          "key": "done",
+          "version": 17
+        },
+        {
+          "key": "failed",
+          "version": 17
+        },
+        {
+          "key": "cancelled",
+          "version": 17
+        }
+      ],
+      "strings": true
+    },
+    {
+      "name": "chunk-content-context-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "turn",
+          "type": "json",
+          "version": 17
+        },
+        {
+          "name": "toolSetHash",
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-context",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-context-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-model-request-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "round",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "agents",
+          "array": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "options",
+          "type": "json",
+          "version": 17
+        },
+        {
+          "name": "toolTurns",
+          "type": "json",
+          "version": 17
+        },
+        {
+          "name": "cacheKey",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "promptPrefix",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "state",
+          "required": true,
+          "type": "@qvac/model-request-state",
+          "version": 17
+        },
+        {
+          "name": "takenBy",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "takenAt",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "result",
+          "type": "json",
+          "version": 17
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "hostDeviceId",
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-model-request",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-model-request-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-round-reset-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "replacedTypes",
+          "array": true,
+          "type": "@qvac/chunk-type",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-round-reset",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-round-reset-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-agent-switch-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chunk-content-agent-switch",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chunk-content-agent-switch-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chat-suggestion",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "text",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "runId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "knowledge-v2",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "chatId",
+          "required": false,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "fileName",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "mimeType",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "byteLength",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "blobId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "deletedBy",
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "indexing-status-v2",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "chatId",
+          "required": false,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "status",
+          "required": true,
+          "type": "@qvac/indexing-state",
+          "version": 17
+        },
+        {
+          "name": "claimId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "claimedBy",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "mesh-rules-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "rules",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "atGenesis",
+          "type": "bool",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "mesh-rules",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/mesh-rules-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "raise-mesh-rules-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "rules",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "raise-mesh-rules-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/raise-mesh-rules-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "public-mesh-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "meshKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "public-mesh",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/public-mesh-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "workspace-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "upgradeMemberIds",
+          "array": true,
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "workspace",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/workspace-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-workspace-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "workspace",
+          "required": true,
+          "type": "@qvac/workspace",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "put-workspace-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-workspace-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "member-role-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "role",
+          "required": true,
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "member-role",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/member-role-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "public-seed-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "publicMeshKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "sealedSeed",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "public-seed",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/public-seed-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "memberIds",
+          "array": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "createdBy",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "deletedAt",
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "groupId",
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-project-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "project",
+          "required": true,
+          "type": "@qvac/project",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "put-project-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-project-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "set-project-listing-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "projectId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "removed",
+          "type": "bool",
+          "version": 17
+        },
+        {
+          "name": "removedAt",
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "set-project-listing-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/set-project-listing-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-member-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "addedAt",
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project-member",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-member-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-order-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "workspaceKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "projectIds",
+          "array": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "orderedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project-order",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-order-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "retry-indexing-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "knowledgeId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "retry-indexing-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/retry-indexing-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "progress-indexing-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "claimId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "progress-indexing-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/progress-indexing-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "chat-read-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "chatId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "readThrough",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "chat-read",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/chat-read-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "delete-project-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "projectId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "delete-project-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/delete-project-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "knowledge-cap-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "bytes",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "setAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "setBy",
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "knowledge-cap",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/knowledge-cap-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "set-knowledge-cap-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "bytes",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "setAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "set-knowledge-cap-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/set-knowledge-cap-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "upgrade-to-workspace-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "upgradedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "upgrade-to-workspace-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/upgrade-to-workspace-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "model-request-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "model-request-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/model-request-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "take-run-request-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "take-run-request-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/take-run-request-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "settle-model-request-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "state",
+          "required": true,
+          "type": "@qvac/model-request-state",
+          "version": 17
+        },
+        {
+          "name": "result",
+          "type": "json",
+          "version": 17
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "settle-model-request-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/settle-model-request-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "agent-host-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "agent-host",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/agent-host-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "agent-user-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "userId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "project",
+          "type": "bool",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "agent-user",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/agent-user-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "put-agent-user-operation-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "memberId",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "projectId",
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "removed",
+          "type": "bool",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "put-agent-user-operation",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/put-agent-user-operation-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "member-key-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "boxKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "member-key",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/member-key-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-key-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "projectId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "boxKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "sealedSeed",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project-key",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-key-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-host-key-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "projectId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "sealedSeed",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project-host-key",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-host-key-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "agent-join-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "agentId",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "at",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        },
+        {
+          "name": "deviceSignature",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "agent-join",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/agent-join-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "skill-secret-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 17
+        },
+        {
+          "name": "sealed",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        },
+        {
+          "name": "updatedAt",
+          "required": true,
+          "type": "uint",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "skill-secret",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/skill-secret-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "project-device-key-v1",
+      "namespace": "qvac",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "projectId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "deviceId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "memberId",
+          "required": true,
+          "type": "fixed32",
+          "version": 17
+        },
+        {
+          "name": "sealedSeed",
+          "required": true,
+          "type": "buffer",
+          "version": 17
+        }
+      ]
+    },
+    {
+      "name": "project-device-key",
+      "namespace": "qvac",
+      "framed": false,
+      "versions": [
+        {
+          "type": "@qvac/project-device-key-v1",
+          "map": null,
+          "version": 1
+        }
+      ]
+    }
+  ]
+}

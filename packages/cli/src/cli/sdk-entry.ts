@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { withConfigModuleLoader } from '@qvac/sdk/commands'
+import { importConfig } from '../lib/runtime/config-import.js'
 import { fileURLToPath } from 'node:url'
 import pkg from '../../package.json' with { type: 'json' }
 import { sdkTree, sdkOptions, type SdkCommand } from './commands/sdk/tree.js'
@@ -66,7 +68,7 @@ async function main(words: string[]): Promise<void> {
   }
 }
 export async function runSdkCommand(words: string[]): Promise<void> {
-  await main(words).catch((error: unknown) => {
+  await withConfigModuleLoader(importConfig, () => main(words)).catch((error: unknown) => {
     console.error(`qvac sdk: ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = words[0] === 'verify' && words[1] === 'deps' ? 2 : 1
   })

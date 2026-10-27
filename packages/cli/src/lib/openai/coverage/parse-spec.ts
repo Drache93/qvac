@@ -10,7 +10,7 @@ import {
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { load } from 'js-yaml'
+import { parse as load } from '../../vendor/miniyaml-openapi.mjs'
 import type { CoverageSpecSourceMode, HttpMethod, SpecEntry } from '@/lib/openai/coverage/types'
 
 const SPEC_URL = 'https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml'

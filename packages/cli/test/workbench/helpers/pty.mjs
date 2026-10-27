@@ -1,9 +1,12 @@
 // Drives the real qvac in a pseudo-terminal and keeps a Screen of what a terminal would show.
 import { spawn } from 'node:child_process'
+import path from 'node:path'
 import { Screen } from './vt.mjs'
 
 const BRIDGE = new URL('./pty-bridge.py', import.meta.url).pathname
-const CLI = new URL('../../../dist/index.js', import.meta.url).pathname
+const CLI = process.env.QVAC_CLI_TEST_PACKAGE
+  ? path.resolve(process.env.QVAC_CLI_TEST_PACKAGE, 'dist/index.js')
+  : new URL('../../../dist/index.js', import.meta.url).pathname
 
 export function terminal(t, args, { rows = 30, cols = 100, cwd, env = {} } = {}) {
   const child = spawn('python3', [BRIDGE, rows, cols, 'node', CLI, ...args], {

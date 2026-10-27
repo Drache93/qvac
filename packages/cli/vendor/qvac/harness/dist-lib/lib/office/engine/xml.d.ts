@@ -1,0 +1,45 @@
+import { Element, type Document, type Node } from '@xmldom/xmldom';
+export type { Document, Element, Node };
+export declare const ns: {
+    readonly a: 'http://schemas.openxmlformats.org/drawingml/2006/main';
+    readonly p: 'http://schemas.openxmlformats.org/presentationml/2006/main';
+    readonly r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    readonly w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    readonly p14: 'http://schemas.microsoft.com/office/powerpoint/2010/main';
+    readonly wp: 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+    readonly pic: 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+    readonly c: 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+    readonly xdr: 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+    readonly x: 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+    readonly rels: 'http://schemas.openxmlformats.org/package/2006/relationships';
+    readonly ct: 'http://schemas.openxmlformats.org/package/2006/content-types';
+};
+export type Attributes = Record<string, string | number | undefined | null>;
+export type Build = (local: string, attributes?: Attributes) => Element;
+export declare function decode(bytes: Uint8Array): string;
+export declare function parse(input: Uint8Array | string, name?: string): Document;
+export declare function toString(doc: Document): string;
+export declare function serialize(doc: Document): Uint8Array;
+export declare function root(doc: Document): Element;
+export declare function owner(node: Node): Document;
+export declare function isElement(node: Node | null, namespace?: string, local?: string): node is Element;
+export declare function children(el: Node, namespace?: string, local?: string): Element[];
+export declare function child(el: Node, namespace?: string, local?: string): Element | null;
+export declare function descendants(el: Element | Document, namespace: string, local: string): Element[];
+export declare function text(node: Node | null): string;
+export declare function clean(value: string): string;
+export declare function setText(el: Element, value: string): void;
+export declare function attr(el: Element, name: string): string;
+export declare function setAttributes(el: Element, attributes?: Attributes): Element;
+export declare function named(doc: Document, qualifiedName: string, namespace: string): Element;
+export declare function qualify(doc: Document, namespace: string, local: string): string;
+export declare function builder(doc: Document, namespace: string): Build;
+export interface QualifiedName {
+    namespace: string;
+    local: string;
+}
+export declare function setNsAttribute(el: Element, name: QualifiedName, value: string): void;
+export declare function insertOrdered(parent: Element, el: Element, order: readonly string[]): Element;
+export declare function remove(node: Node): void;
+export declare function append(parent: Node, node: Element): Element;
+export declare function clone(el: Element): Element;

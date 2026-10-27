@@ -1,0 +1,2566 @@
+{
+  "version": 1,
+  "schema": [
+    {
+      "id": 0,
+      "name": "@assistant/config-get",
+      "request": {
+        "name": "@assistant/config-key",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/config-value",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 1,
+      "name": "@assistant/config-set",
+      "request": {
+        "name": "@assistant/config-set-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/config-set-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 2,
+      "name": "@assistant/config-watch",
+      "request": {
+        "name": "@assistant/config-key",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/config-value",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 3,
+      "name": "@assistant/create-agent",
+      "request": {
+        "name": "@assistant/create-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 4,
+      "name": "@assistant/list-agents",
+      "request": {
+        "name": "@assistant/list-agents-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 5,
+      "name": "@assistant/get-agent",
+      "request": {
+        "name": "@assistant/agent-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 6,
+      "name": "@assistant/update-agent",
+      "request": {
+        "name": "@assistant/update-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 7,
+      "name": "@assistant/delete-agent",
+      "request": {
+        "name": "@assistant/delete-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 8,
+      "name": "@assistant/agents-watch",
+      "request": {
+        "name": "@assistant/list-agents-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 9,
+      "name": "@assistant/create-chat",
+      "request": {
+        "name": "@assistant/create-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 10,
+      "name": "@assistant/list-chats",
+      "request": {
+        "name": "@assistant/list-chats-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 11,
+      "name": "@assistant/get-chat",
+      "request": {
+        "name": "@assistant/chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 12,
+      "name": "@assistant/rename-chat",
+      "request": {
+        "name": "@assistant/rename-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 13,
+      "name": "@assistant/set-chat-suggestion",
+      "request": {
+        "name": "@assistant/set-chat-suggestion-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 14,
+      "name": "@assistant/set-chat-rag-enabled",
+      "request": {
+        "name": "@assistant/set-chat-flag-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 15,
+      "name": "@assistant/set-chat-web-search-enabled",
+      "request": {
+        "name": "@assistant/set-chat-flag-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 16,
+      "name": "@assistant/delete-chat",
+      "request": {
+        "name": "@assistant/chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 17,
+      "name": "@assistant/chats-watch",
+      "request": {
+        "name": "@assistant/list-chats-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 18,
+      "name": "@assistant/create-chat-group",
+      "request": {
+        "name": "@assistant/create-chat-group-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 19,
+      "name": "@assistant/list-chat-groups",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 20,
+      "name": "@assistant/rename-chat-group",
+      "request": {
+        "name": "@assistant/rename-chat-group-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 21,
+      "name": "@assistant/delete-chat-group",
+      "request": {
+        "name": "@assistant/chat-group-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 22,
+      "name": "@assistant/set-chat-group",
+      "request": {
+        "name": "@assistant/set-chat-group-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 23,
+      "name": "@assistant/list-chat-activity",
+      "request": {
+        "name": "@assistant/chat-activity-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-activity-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 24,
+      "name": "@assistant/chat-activity-watch",
+      "request": {
+        "name": "@assistant/chat-activity-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-activity-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 25,
+      "name": "@assistant/list-devices",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 26,
+      "name": "@assistant/devices-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 27,
+      "name": "@assistant/save-device-capabilities",
+      "request": {
+        "name": "@assistant/save-device-capabilities-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 28,
+      "name": "@assistant/model-downloads-watch",
+      "request": {
+        "name": "@assistant/device-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-download-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 29,
+      "name": "@assistant/set-model-download-status",
+      "request": {
+        "name": "@assistant/set-model-download-status-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 30,
+      "name": "@assistant/clear-model-download",
+      "request": {
+        "name": "@assistant/clear-model-download-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 31,
+      "name": "@assistant/custom-models-watch",
+      "request": {
+        "name": "@assistant/device-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/custom-model-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 32,
+      "name": "@assistant/add-custom-model",
+      "request": {
+        "name": "@assistant/add-custom-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/add-custom-model-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 33,
+      "name": "@assistant/remove-custom-model",
+      "request": {
+        "name": "@assistant/remove-custom-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/delete-model-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 34,
+      "name": "@assistant/remove-device",
+      "request": {
+        "name": "@assistant/device-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 35,
+      "name": "@assistant/rename-device",
+      "request": {
+        "name": "@assistant/rename-device-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 36,
+      "name": "@assistant/save-device-profile",
+      "request": {
+        "name": "@assistant/save-device-profile-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 37,
+      "name": "@assistant/append-chunk",
+      "request": {
+        "name": "@assistant/append-chunk-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-id",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 38,
+      "name": "@assistant/update-chunk",
+      "request": {
+        "name": "@assistant/update-chunk-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 39,
+      "name": "@assistant/resolve-approval",
+      "request": {
+        "name": "@assistant/resolve-approval-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 40,
+      "name": "@assistant/list-chunks",
+      "request": {
+        "name": "@assistant/chunks-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 41,
+      "name": "@assistant/chunks-watch",
+      "request": {
+        "name": "@assistant/chunks-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 42,
+      "name": "@assistant/upload-attachment",
+      "request": {
+        "name": "@assistant/upload-attachment-request",
+        "stream": true
+      },
+      "response": {
+        "name": "@assistant/upload-attachment-response",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 43,
+      "name": "@assistant/download-attachment",
+      "request": {
+        "name": "@assistant/download-attachment-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/download-attachment-response",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 44,
+      "name": "@assistant/delete-attachment",
+      "request": {
+        "name": "@assistant/delete-attachment-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 45,
+      "name": "@assistant/upload-knowledge",
+      "request": {
+        "name": "@assistant/upload-knowledge-request",
+        "stream": true
+      },
+      "response": {
+        "name": "@assistant/upload-knowledge-response",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 46,
+      "name": "@assistant/list-knowledge",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 47,
+      "name": "@assistant/knowledge-watch",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 48,
+      "name": "@assistant/remove-knowledge",
+      "request": {
+        "name": "@assistant/remove-knowledge-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 49,
+      "name": "@assistant/rag-search",
+      "request": {
+        "name": "@assistant/rag-search-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/rag-search-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 50,
+      "name": "@assistant/run-agent",
+      "request": {
+        "name": "@assistant/run-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 51,
+      "name": "@assistant/send-message",
+      "request": {
+        "name": "@assistant/send-message-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/send-message-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 52,
+      "name": "@assistant/stop-run",
+      "request": {
+        "name": "@assistant/stop-run-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 53,
+      "name": "@assistant/mesh-status-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-status",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 54,
+      "name": "@assistant/network-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/network-status",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 55,
+      "name": "@assistant/device-info",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device-info",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 56,
+      "name": "@assistant/store-identity-phrase",
+      "request": {
+        "name": "@assistant/identity-phrase",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 57,
+      "name": "@assistant/leave-mesh",
+      "request": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 58,
+      "name": "@assistant/acknowledge-kicked",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 59,
+      "name": "@assistant/join-mesh",
+      "request": {
+        "name": "@assistant/join-mesh-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 60,
+      "name": "@assistant/cancel-mesh-join",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 61,
+      "name": "@assistant/suspend",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 62,
+      "name": "@assistant/resume",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 63,
+      "name": "@assistant/mesh-invite",
+      "request": {
+        "name": "@assistant/mesh-invite-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-invite-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 64,
+      "name": "@assistant/list-approval-rules",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/approval-rule-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 65,
+      "name": "@assistant/diagnostics",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/diagnostics",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 66,
+      "name": "@assistant/diagnostics-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/diagnostics",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 67,
+      "name": "@assistant/run-requests-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 68,
+      "name": "@assistant/list-models",
+      "request": {
+        "name": "@assistant/list-models-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-info-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 69,
+      "name": "@assistant/delete-model",
+      "request": {
+        "name": "@assistant/delete-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/delete-model-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 70,
+      "name": "@assistant/model-catalog-watch",
+      "request": {
+        "name": "@assistant/device-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-catalog-revision",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 71,
+      "name": "@assistant/skills",
+      "request": {
+        "name": "@assistant/skill-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/skill-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 72,
+      "name": "@assistant/download-knowledge",
+      "request": {
+        "name": "@assistant/download-knowledge-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/download-knowledge-response",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 73,
+      "name": "@assistant/get-config",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 74,
+      "name": "@assistant/set-config",
+      "request": {
+        "name": "@assistant/app-config-update",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 75,
+      "name": "@assistant/set-model-paused",
+      "request": {
+        "name": "@assistant/set-model-paused-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 76,
+      "name": "@assistant/retry-model-download",
+      "request": {
+        "name": "@assistant/clear-model-download-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 77,
+      "name": "@assistant/config-watch-typed",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 78,
+      "name": "@assistant/logs-watch",
+      "request": {
+        "name": "@assistant/logs-watch-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/log-line-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 79,
+      "name": "@assistant/write-log",
+      "request": {
+        "name": "@assistant/write-log-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 80,
+      "name": "@assistant/list-indexing",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/indexing-status-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 81,
+      "name": "@assistant/transcribe",
+      "request": {
+        "name": "@assistant/transcribe-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/transcribe-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 82,
+      "name": "@assistant/speak",
+      "request": {
+        "name": "@assistant/speak-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/speak-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 83,
+      "name": "@assistant/skill-catalog",
+      "request": {
+        "name": "@assistant/skill-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/skill-catalog-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 84,
+      "name": "@assistant/tools",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-catalog-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 85,
+      "name": "@assistant/speak-stream",
+      "request": {
+        "name": "@assistant/speak-stream-frame",
+        "stream": true
+      },
+      "response": {
+        "name": "@assistant/speak-response",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 86,
+      "name": "@assistant/indexing-progress-watch",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/indexing-progress-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 87,
+      "name": "@assistant/indexing-watch",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/indexing-status-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 88,
+      "name": "@assistant/transcode-image",
+      "request": {
+        "name": "@assistant/transcode-image-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/transcode-image-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 89,
+      "name": "@assistant/sync-status-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/sync-status",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 90,
+      "name": "@assistant/set-tool-configs",
+      "request": {
+        "name": "@assistant/set-tool-configs-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-configs",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 91,
+      "name": "@assistant/delete-tool-configs",
+      "request": {
+        "name": "@assistant/delete-tool-configs-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-configs",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 92,
+      "name": "@assistant/list-tool-configs",
+      "request": {
+        "name": "@assistant/list-tool-configs-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-configs-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 93,
+      "name": "@assistant/tool-configs-watch",
+      "request": {
+        "name": "@assistant/list-tool-configs-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-configs-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 94,
+      "name": "@assistant/list-attachments-by-kind",
+      "request": {
+        "name": "@assistant/attachments-by-kind-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 95,
+      "name": "@assistant/search-chats",
+      "request": {
+        "name": "@assistant/search-chats-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/search-chats-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 96,
+      "name": "@assistant/list-tool-activity",
+      "request": {
+        "name": "@assistant/list-tool-activity-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-activity-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 97,
+      "name": "@assistant/tool-activity-watch",
+      "request": {
+        "name": "@assistant/list-tool-activity-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-activity-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 98,
+      "name": "@assistant/record-tool-activity",
+      "request": {
+        "name": "@assistant/record-tool-activity-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/tool-activity-id",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 99,
+      "name": "@assistant/clear-kv-cache",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/kv-cache-deletion-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 100,
+      "name": "@assistant/list-managed-skills",
+      "request": {
+        "name": "@assistant/list-managed-skills-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/managed-skills-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 101,
+      "name": "@assistant/read-skill-file",
+      "request": {
+        "name": "@assistant/skill-name-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/skill-file-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 102,
+      "name": "@assistant/write-skill-file",
+      "request": {
+        "name": "@assistant/write-skill-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 103,
+      "name": "@assistant/copy-skill-for-edit",
+      "request": {
+        "name": "@assistant/skill-name-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/copy-skill-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 104,
+      "name": "@assistant/delete-overlay-skill",
+      "request": {
+        "name": "@assistant/skill-name-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/delete-skill-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 105,
+      "name": "@assistant/push-skill-secret",
+      "request": {
+        "name": "@assistant/push-skill-secret-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 106,
+      "name": "@assistant/file-status-watch",
+      "request": {
+        "name": "@assistant/knowledge-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/file-status-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 107,
+      "name": "@assistant/compact-chat",
+      "request": {
+        "name": "@assistant/chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/compact-chat-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 108,
+      "name": "@assistant/notifications-watch",
+      "request": {
+        "name": "@assistant/notification-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/notification-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 109,
+      "name": "@assistant/ack-notification",
+      "request": {
+        "name": "@assistant/notification-ack",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 110,
+      "name": "@assistant/begin-model-transfer",
+      "request": {
+        "name": "@assistant/model-transfer-start",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-transfer",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 111,
+      "name": "@assistant/complete-model-transfer",
+      "request": {
+        "name": "@assistant/model-transfer",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 112,
+      "name": "@assistant/delete-chat-kv-cache",
+      "request": {
+        "name": "@assistant/kv-cache-chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/kv-cache-deletion-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 113,
+      "name": "@assistant/file-read",
+      "request": {
+        "name": "@assistant/file-read-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/file-read-frame",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 114,
+      "name": "@assistant/file-preview",
+      "request": {
+        "name": "@assistant/file-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/file-preview-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 115,
+      "name": "@assistant/file-retry",
+      "request": {
+        "name": "@assistant/file-retry-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 116,
+      "name": "@assistant/move-chat",
+      "request": {
+        "name": "@assistant/move-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 117,
+      "name": "@assistant/move-chat-group",
+      "request": {
+        "name": "@assistant/move-chat-group-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 118,
+      "name": "@assistant/list-members",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/member-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 119,
+      "name": "@assistant/list-meshes",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 120,
+      "name": "@assistant/meshes-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 121,
+      "name": "@assistant/account",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/account",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 122,
+      "name": "@assistant/account-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/account",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 123,
+      "name": "@assistant/open-mesh",
+      "request": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 124,
+      "name": "@assistant/close-mesh",
+      "request": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 125,
+      "name": "@assistant/set-mesh-label",
+      "request": {
+        "name": "@assistant/mesh-label-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 126,
+      "name": "@assistant/create-room",
+      "request": {
+        "name": "@assistant/create-room-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 127,
+      "name": "@assistant/sort-chat-groups-by-name",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-group-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 128,
+      "name": "@assistant/members-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/member-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 129,
+      "name": "@assistant/update-member",
+      "request": {
+        "name": "@assistant/update-member-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/member",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 130,
+      "name": "@assistant/remove-member",
+      "request": {
+        "name": "@assistant/remove-member-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 131,
+      "name": "@assistant/archived-mesh-contents",
+      "request": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/archived-mesh-contents",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 132,
+      "name": "@assistant/migrate-archived-mesh",
+      "request": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/archived-mesh-migration",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 133,
+      "name": "@assistant/list-archived-meshes",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/archived-mesh-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 134,
+      "name": "@assistant/account-recoverable",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/account-recovery-state",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 135,
+      "name": "@assistant/recovery-publish",
+      "request": {
+        "name": "@assistant/identity-phrase",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/account-recovery-state",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 136,
+      "name": "@assistant/recover-account",
+      "request": {
+        "name": "@assistant/identity-phrase",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 137,
+      "name": "@assistant/display-name",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/display-name",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 138,
+      "name": "@assistant/set-display-name",
+      "request": {
+        "name": "@assistant/display-name",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 139,
+      "name": "@assistant/inference-calls",
+      "request": {
+        "name": "@assistant/inference-calls-query",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/inference-call-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 140,
+      "name": "@assistant/list-local-files",
+      "request": {
+        "name": "@assistant/local-files-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/local-file-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 141,
+      "name": "@assistant/get-default-agent",
+      "request": {
+        "name": "@assistant/default-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/default-agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 142,
+      "name": "@assistant/get-device",
+      "request": {
+        "name": "@assistant/device-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/device",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 143,
+      "name": "@assistant/detect-language",
+      "request": {
+        "name": "@assistant/detect-language-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/detect-language-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 144,
+      "name": "@assistant/create-mesh",
+      "request": {
+        "name": "@assistant/create-mesh-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/mesh-target",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 145,
+      "name": "@assistant/preview-mesh-invite",
+      "request": {
+        "name": "@assistant/preview-mesh-invite-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/preview-mesh-invite-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 146,
+      "name": "@assistant/load-model",
+      "request": {
+        "name": "@assistant/load-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/load-model-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 147,
+      "name": "@assistant/unload-model",
+      "request": {
+        "name": "@assistant/unload-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/unload-model-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 148,
+      "name": "@assistant/set-model-released",
+      "request": {
+        "name": "@assistant/set-model-released-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 149,
+      "name": "@assistant/preview-custom-model",
+      "request": {
+        "name": "@assistant/preview-custom-model-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/custom-model-preview",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 150,
+      "name": "@assistant/model-users",
+      "request": {
+        "name": "@assistant/model-users-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-users",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 151,
+      "name": "@assistant/mark-chat-read",
+      "request": {
+        "name": "@assistant/chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 152,
+      "name": "@assistant/models-watch",
+      "request": {
+        "name": "@assistant/list-models-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/model-info-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 153,
+      "name": "@assistant/set-mesh-name",
+      "request": {
+        "name": "@assistant/mesh-name-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 154,
+      "name": "@assistant/set-chat-agent",
+      "request": {
+        "name": "@assistant/set-chat-agent-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 155,
+      "name": "@assistant/move-chat-to-mesh",
+      "request": {
+        "name": "@assistant/move-chat-to-mesh-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-move",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 156,
+      "name": "@assistant/chat-move-watch",
+      "request": {
+        "name": "@assistant/chat-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat-move",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 157,
+      "name": "@assistant/chunks-delta-watch",
+      "request": {
+        "name": "@assistant/chunks-by-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-delta",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 158,
+      "name": "@assistant/set-auto-download-models",
+      "request": {
+        "name": "@assistant/set-auto-download-models-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/app-config",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 159,
+      "name": "@assistant/fork-chat",
+      "request": {
+        "name": "@assistant/fork-chat-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 160,
+      "name": "@assistant/set-blind-peering",
+      "request": {
+        "name": "@assistant/blind-peering",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/blind-peering",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 161,
+      "name": "@assistant/blind-peering-watch",
+      "request": {
+        "name": "@assistant/empty",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/blind-peering",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 162,
+      "name": "@assistant/list-agent-folders",
+      "request": {
+        "name": "@assistant/agent-folders-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent-folders",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 163,
+      "name": "@assistant/add-agent-folder",
+      "request": {
+        "name": "@assistant/add-agent-folder-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent-folders",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 164,
+      "name": "@assistant/remove-agent-folder",
+      "request": {
+        "name": "@assistant/remove-agent-folder-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent-folders",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 165,
+      "name": "@assistant/create-workspace",
+      "request": {
+        "name": "@assistant/create-workspace-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/workspace",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 166,
+      "name": "@assistant/get-workspace",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/workspace",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 167,
+      "name": "@assistant/workspace-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/workspace",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 168,
+      "name": "@assistant/update-workspace",
+      "request": {
+        "name": "@assistant/update-workspace-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/workspace",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 169,
+      "name": "@assistant/set-member-role",
+      "request": {
+        "name": "@assistant/set-member-role-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/member",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 170,
+      "name": "@assistant/create-project",
+      "request": {
+        "name": "@assistant/create-project-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 171,
+      "name": "@assistant/list-projects",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 172,
+      "name": "@assistant/projects-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 173,
+      "name": "@assistant/update-project",
+      "request": {
+        "name": "@assistant/update-project-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 174,
+      "name": "@assistant/add-project-member",
+      "request": {
+        "name": "@assistant/project-member-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 175,
+      "name": "@assistant/remove-project-member",
+      "request": {
+        "name": "@assistant/project-member-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/project",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 176,
+      "name": "@assistant/set-chat-project",
+      "request": {
+        "name": "@assistant/set-chat-project-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 177,
+      "name": "@assistant/leave-workspace",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 178,
+      "name": "@assistant/list-knowledge-base",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge-base-list",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 179,
+      "name": "@assistant/knowledge-base-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge-base-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 180,
+      "name": "@assistant/file-knowledge",
+      "request": {
+        "name": "@assistant/file-knowledge-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 181,
+      "name": "@assistant/set-project-order",
+      "request": {
+        "name": "@assistant/project-order-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 182,
+      "name": "@assistant/delete-project",
+      "request": {
+        "name": "@assistant/delete-project-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 183,
+      "name": "@assistant/set-knowledge-cap",
+      "request": {
+        "name": "@assistant/knowledge-cap-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 184,
+      "name": "@assistant/get-knowledge",
+      "request": {
+        "name": "@assistant/knowledge-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/knowledge",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 185,
+      "name": "@assistant/set-chat-knowledge-source",
+      "request": {
+        "name": "@assistant/set-chat-knowledge-source-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chat",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 186,
+      "name": "@assistant/take-model-request",
+      "request": {
+        "name": "@assistant/model-request-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 187,
+      "name": "@assistant/settle-model-request",
+      "request": {
+        "name": "@assistant/settle-model-request-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 188,
+      "name": "@assistant/cancel-model-request",
+      "request": {
+        "name": "@assistant/model-request-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 189,
+      "name": "@assistant/reopen-model-request",
+      "request": {
+        "name": "@assistant/model-request-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 190,
+      "name": "@assistant/model-requests-watch",
+      "request": {
+        "name": "@assistant/mesh-scope",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk-list",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 191,
+      "name": "@assistant/share-agent",
+      "request": {
+        "name": "@assistant/agent-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/agent",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 192,
+      "name": "@assistant/unshare-agent",
+      "request": {
+        "name": "@assistant/agent-id",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 193,
+      "name": "@assistant/host-run-log-begin",
+      "request": {
+        "name": "@assistant/host-run-log-begin-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/host-run-log-begin-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 194,
+      "name": "@assistant/host-run-log-append",
+      "request": {
+        "name": "@assistant/host-run-log-append-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 195,
+      "name": "@assistant/host-run-log-release",
+      "request": {
+        "name": "@assistant/host-run-log-release-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/ok-response",
+        "stream": false
+      },
+      "version": 1
+    },
+    {
+      "id": 196,
+      "name": "@assistant/take-run-request",
+      "request": {
+        "name": "@assistant/run-request-request",
+        "stream": false
+      },
+      "response": {
+        "name": "@assistant/chunk",
+        "stream": false
+      },
+      "version": 1
+    }
+  ]
+}

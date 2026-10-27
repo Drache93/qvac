@@ -1,0 +1,22 @@
+{
+  "name": "bundlebee-import",
+  "version": "2.0.0",
+  "repository": "https://github.com/holepunchto/bundlebee-import.git",
+  "baseCommit": "a6e72f0858033ff79f4265333d979671e1735215",
+  "sourceBranch": "codex/bundlebee-import-pinned-releases",
+  "sourceHash": "371ef8bcc29d6cda18d14c7e3723e8431d51299971e01b18565eb5af62535188",
+  "files": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "README.md": "2f371c8a7a8e6b84e7c3ca1c63380331bcc453f0012132f3a7dc8fa29fa014cf",
+    "index.d.ts": "003fbb1a3dc2399080bafa4819af64d56daee3326fc52d05c829108927cce7ed",
+    "index.js": "804ce1bef314de50b1066a2f9700841a71159c0332c98c3d815a00d87deb1ddd",
+    "lib/errors.js": "5f506457d36757ffaef48fe8082fb6e4b58f63544287e4ef76145465347ac26d",
+    "lib/link.js": "98888f7bfe6d222da2d1bb140f1a3230cb204f85b9fe00ddb8700b5af7cdc79d",
+    "lib/network.js": "f6df2fb289cc9395dd6849073a7c7558e10ec43e7e4c1ec215e87b041d7bb686",
+    "lib/selectors.js": "3c6ab6319ba5e6bba78efe544b91df22bd09dd0adfccc21bb6e44ec2ddfc6976",
+    "package.json": "9a67e1192d62a53c844a291c73d53d9e6c311671d3566fe9660c84796fb465b5"
+  },
+  "changes": [
+    "Pin the unpublished bundlebee dependency to the exact bundled sibling version."
+  ]
+}

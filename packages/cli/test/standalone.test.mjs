@@ -88,7 +88,27 @@ test(
     fs.chmodSync(binary, 0o755)
     const state = path.join(dir, 'state')
     fs.mkdirSync(state)
-    fs.writeFileSync(path.join(state, 'plugins.json'), JSON.stringify({ enabled: ['quickjs'] }))
+    const options = {}
+    for (const id of ['quickjs', 'python']) {
+      const stage = path.join(dir, `${id}-provider`)
+      const build = spawnSync(
+        process.execPath,
+        [path.join(root, 'scripts/build-provider.mjs'), id, stage],
+        { encoding: 'utf8' }
+      )
+      assert.equal(build.status, 0, build.stderr)
+      const publish = spawnSync(
+        process.execPath,
+        [path.join(root, 'dist/index.js'), 'provider', 'publish', stage, '--data-dir', state],
+        { encoding: 'utf8' }
+      )
+      assert.equal(publish.status, 0, publish.stderr)
+      options[id] = { provider: { pin: JSON.parse(publish.stdout) } }
+    }
+    fs.writeFileSync(
+      path.join(state, 'plugins.json'),
+      JSON.stringify({ enabled: ['quickjs', 'python', 'code-mode'], options })
+    )
 
     const result = await complete(binary, dir, state)
     assert.equal(result.code, 0, `signal=${result.signal}\n${result.stderr}\n${result.stdout}`)
@@ -96,6 +116,8 @@ test(
     const status = JSON.parse(fs.readFileSync(path.join(state, 'cli-host-status.json'), 'utf8'))
     assert.ok(status.writtenAt, 'CLI host extension must configure the harness')
     assert.equal(status.plugins.find((plugin) => plugin.id === 'quickjs')?.state, 'ready')
+    assert.equal(status.plugins.find((plugin) => plugin.id === 'python')?.state, 'ready')
+    assert.equal(status.plugins.find((plugin) => plugin.id === 'code-mode')?.state, 'ready')
     assert.ok(
       fs.existsSync(path.join(state, 'sdk-home/skills/qvac-plugins/SKILL.md')),
       'standalone must install its shipped CLI skill'

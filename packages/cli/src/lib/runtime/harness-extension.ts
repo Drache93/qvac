@@ -8,6 +8,7 @@ import { Agent } from '@qvac/harness/agent'
 import { ExternalAgents } from '@qvac/harness/plugins/external-agents'
 import { sharedImports } from '@qvac/harness/user-plugins'
 import { BUILT_IN_PLUGINS, PLUGIN_CATALOG } from './plugin-catalog.js'
+import { loadPreparedProvider } from './providers.js'
 import { inlinePlugin } from './config-merge.js'
 import {
   emptyPluginState,
@@ -53,7 +54,6 @@ const LOADERS = {
   'sandbox-vm': () => import('@qvac/harness/plugins/sandbox-vm'),
   'egress-proxy': () => import('@qvac/harness/plugins/egress-proxy'),
   lsp: () => import('@qvac/harness/plugins/lsp'),
-  quickjs: () => import('@qvac/harness/plugins/quickjs'),
   'code-mode': () => import('@qvac/harness/plugins/code-mode'),
   'command-hooks': () => import('@qvac/harness/plugins/command-hooks'),
   'language-hint': () => import('@qvac/harness/plugins/language-hint'),
@@ -108,9 +108,13 @@ const BUILDS: Record<
 async function catalogPlugin(
   entry: CatalogPlugin,
   overrides: Record<string, unknown> | undefined,
-  built: Built
+  built: Built,
+  dataDir: string
 ) {
-  const exports = await LOADERS[entry.id as keyof typeof LOADERS]()
+  const exports =
+    entry.id === 'python' || entry.id === 'quickjs'
+      ? await loadPreparedProvider(entry.id, overrides?.['provider'], dataDir)
+      : await LOADERS[entry.id as keyof typeof LOADERS]()
   const Plugin = (exports as unknown as Record<string, Constructor>)[entry.export]!
   const options: Record<string, unknown> = { ...entry.options, ...overrides }
   for (const [key, id] of Object.entries(entry.inject || {})) {
@@ -228,7 +232,7 @@ export async function configureHarness(
   const wanted = withConfigPlugins(state || emptyPluginState(), catalog)
   const from = (id: string) =>
     catalog.some((p) => p.id === id) ? sources[`harness.plugins.${id}`] : 'plugins.json'
-  await addCatalogPlugins(wanted, { add, claimed, built, status, platform, from, plugins })
+  await addCatalogPlugins(wanted, { add, claimed, built, status, platform, from, plugins, dataDir })
   if (state?.mcp.servers.length) {
     await addMcpServers(harness, { servers: state.mcp.servers, add })
   }
@@ -356,7 +360,8 @@ async function addCatalogPlugins(
     status,
     platform,
     from,
-    plugins
+    plugins,
+    dataDir
   }: {
     add: Adder
     claimed: Set<string | null>
@@ -365,6 +370,7 @@ async function addCatalogPlugins(
     platform: string
     from(id: string): string | undefined
     plugins: PluginEntry[]
+    dataDir: string
   }
 ) {
   const { entries, skipped } = resolvePlugins(state, PLUGIN_CATALOG, platform)
@@ -383,7 +389,7 @@ async function addCatalogPlugins(
     if (!claimed.has(entry.id)) {
       const optional = plugins.some((p) => p.id === entry.id && p.optional)
       await add({ id: entry.id, name: entry.name, source: from(entry.id), optional }, () =>
-        catalogPlugin(entry, state.options[entry.id], built)
+        catalogPlugin(entry, state.options[entry.id], built, dataDir)
       )
     }
   }

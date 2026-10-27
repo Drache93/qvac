@@ -8,3 +8,7 @@ bun.lock
 output/
 out/
 *.tgz
+
+# Exact native files are materialized from vendor provenance before build/pack.
+/vendor/qvac/**/prebuilds/
+/vendor/qvac/*/weights/

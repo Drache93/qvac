@@ -1,0 +1,12 @@
+import type { ToolDefinition } from '../contract/index.ts';
+import { pptx, xlsx } from '../office/engine/index.ts';
+type Deck = ReturnType<typeof pptx.open>;
+type Workbook = ReturnType<typeof xlsx.open>;
+type FormatName = 'pptx' | 'docx' | 'xlsx';
+type Args = Record<string, unknown>;
+export declare function shapeFor(deck: Deck, op: Args): Args;
+export declare function sheetFor(book: Workbook, op: Args, created: boolean): Args;
+export declare function normalizeArgs(args: Args): Args;
+export declare function revisedName(format: FormatName, fileName: string): string;
+export declare function createOfficeTools(): ToolDefinition[];
+export {};

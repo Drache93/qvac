@@ -1,0 +1,13 @@
+export { COMPACTION_MIN_CTX_SIZE, contextOptionsForModel, DEFAULT_CONTEXT_SIZE, defaultContextForModel, formatTokenCount, MODEL_CONTEXT_TARGET, type ModelContextTarget, maxContextForModel, modelContextTargetForPlatform } from './model-context.ts';
+export declare const PENDING_BLOB_REFERENCE = "{\"pending\":true}";
+export declare const CANCELED_CHAT_MESSAGE = "Stopped the current run. Send a follow-up to steer the next step.";
+export declare const HOMEBREW_BIN_DIRS: ReadonlyArray<string>;
+export declare const SAFE_BIN_NAME: RegExp;
+export declare const MODEL_IDLE_UNLOAD_KEY = "model.idleUnloadMinutes";
+export declare const MODEL_IDLE_UNLOAD_MINUTES: ReadonlyArray<number>;
+export declare const MODEL_MEMORY_CAP_KEY = "model.memoryCapPercent";
+export declare const MODEL_MEMORY_CAP_DEFAULT = 85;
+export declare const MODEL_MEMORY_CAP_MIN = 10;
+export declare const MODEL_MEMORY_CAP_MAX = 100;
+export declare const FAKE_MODELS_KEY = "debug.fakeModels";
+export declare const QUACK_MODEL = "quack";

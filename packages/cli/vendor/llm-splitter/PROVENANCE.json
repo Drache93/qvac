@@ -1,0 +1,22 @@
+{
+  "name": "llm-splitter",
+  "version": "0.2.0",
+  "directory": "llm-splitter",
+  "integrity": "sha512-Yqi947Vk5Ps2YqhOV8K+RR6bseLhZLIVfovpWJH5cT7GE4Pca8/3iny/3oQ47scD7SfQd3whhxMfc+KgxTgDHA==",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nearform/llm-splitter.git"
+  },
+  "sha256": {
+    "LICENSE": "fd20878bf8b4ae482fecf51605a976b53f72f6a40713e891c74e8bc2f7fddecf",
+    "QVAC-NOTICE.md": "ce8944cd4dbaf29d3e824f4801cd2b854503df2cfbdefd264a53ec1260aa1806",
+    "README.md": "4b390e35a066d55369b38a63062e3e426fcd42782282b2099c8503089c3613b5",
+    "dist/get-chunk.d.ts": "46637295059c07e88f7218a3b6e864c74e1b6908e77d66e798e1d27984f09e8b",
+    "dist/get-chunk.js": "52782ff072ae5dd24674e9b8a5c32955b13c6eed3001638a949c71a5f7e06735",
+    "dist/index.d.ts": "bb4c083d1e415a8ece6219fb2a753bf4463f7954c0d5bb81db91994b4c2dbf96",
+    "dist/index.js": "9e3af65e455cf8020ebf048be805e0775a9f0e1116807871a3d56f2f74aa5b10",
+    "dist/split.d.ts": "9419990179f40f027f254d2306d7d4d1a084c88c14528288a632a2c566b5c7d3",
+    "dist/split.js": "71841e06d9316892a5025efa0c33caf641e36e6b3bc9d97633e7ee60f774b92f",
+    "package.json": "8ef363242b8ec3fea21f0e6e9547291c9a238d48226952689b5a5f85709f066b"
+  }
+}

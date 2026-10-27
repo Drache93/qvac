@@ -34,3 +34,6 @@ export type {
   EnginesOverride,
   EnginesUpgrade
 } from '@/commands/verify/engines-advice'
+
+export { withConfigModuleLoader } from '@/client/config-loader/resolve-config.node'
+export type { ConfigModuleLoader } from '@/client/config-loader/resolve-config.node'

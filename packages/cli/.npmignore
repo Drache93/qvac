@@ -1,0 +1,2 @@
+# package.json files is the publication allowlist.
+# Materialized vendor native assets are intentionally ignored only by Git.

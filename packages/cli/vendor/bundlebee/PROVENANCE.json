@@ -1,0 +1,21 @@
+{
+  "name": "bundlebee",
+  "version": "2.0.0",
+  "repository": "git+https://github.com/holepunchto/bundlebee.git",
+  "baseCommit": "9b03ce786cabbb8408e8a164fee21f510b581015",
+  "sourceBranch": "codex/bundlebee-v2-releases",
+  "sourceHash": "b2e79504c29c76b00b2744481aec66cd24beb89790605fba2c2bca69e20f685f",
+  "files": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "README.md": "664b90c5cb5550f58dbcc01f3aedaee4fb3887ca5cc1918dd025d41aa4a41bb0",
+    "index.d.ts": "1a128045f9e31f826bba0e49bd46bd6e59ef2d6343eb187d2883d04dae08dc09",
+    "index.js": "7140afdcefc588f03ca9be0c414dee9cf0774284d3d18550a38b621e0e3bac37",
+    "lib/release-assets.js": "a6c57f295f2b6be56405972e8a53ea591cfe613fa44c786e769162fc0faf14b6",
+    "lib/release-records.js": "e03e7ec934f75406185c9d93f64ee0416fd1a188ba859b127443d56ea8466d06",
+    "lib/releases.js": "16d9277dbb8567967a116cab48540c2d18a34993d8e62df8cfe6931aeda1419c",
+    "package.json": "ca4d203fe3b030883ec587b4ec332e2a118ff3653078b078df435795de904bb0",
+    "schema/index.js": "e9fe3e4c78ac1b1af11ae45267878674da8a328feea9f0e7b4d84428046cf754",
+    "schema/schema.json": "bb0afa889bdf7b72a6e47f4e4c2a504e11ed5d6b231b20a9b39ad14e5327f8bb"
+  },
+  "changes": []
+}

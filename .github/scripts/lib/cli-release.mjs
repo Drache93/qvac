@@ -1,0 +1,62 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
+
+export function cliArchivePath (directory, index) {
+  const file = index['@qvac/cli']
+  if (typeof file !== 'string' || basename(file) !== file || !file.endsWith('.tgz')) {
+    throw new Error('The CLI release requires its validated train tarball')
+  }
+  return resolve(directory, file)
+}
+
+export function validateCliArchive (manifest, { version, head }) {
+  if (manifest.name !== '@qvac/cli' || manifest.version !== version || manifest.gitHead !== head) {
+    throw new Error('CLI archive name/version/gitHead does not match this release')
+  }
+}
+
+// Keep CLI in the existing Nx dependency graph, replacing only its publish action.
+// No archive path or release metadata is interpolated into shell command text.
+export function withCliArchiveTarget (root, dir, action) {
+  const file = join(root, dir, 'project.json')
+  const original = readFileSync(file, 'utf8')
+  const project = JSON.parse(original)
+  project.targets ||= {}
+  project.targets['nx-release-publish'] = {
+    executor: 'nx:run-commands',
+    cache: false,
+    dependsOn: ['^nx-release-publish'],
+    options: {
+      cwd: root,
+      commands: [{ command: 'node .github/scripts/release-train.mjs publish-cli-archive', forwardAllArgs: false }],
+    },
+  }
+  try {
+    writeFileSync(file, JSON.stringify(project, null, 2) + '\n')
+    return action()
+  } finally {
+    writeFileSync(file, original)
+  }
+}
+
+// A maintained file dependency has an exact version in its checked-in manifest.
+// Resolve it from the same commit before applying the normal train range policy.
+export function cliSnapshotRanges (manifest, readSnapshot) {
+  if (manifest.name !== '@qvac/cli') return manifest
+  const result = structuredClone(manifest)
+  for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+    for (const [name, spec] of Object.entries(result[field] || {})) {
+      if (!spec.startsWith('file:')) continue
+      const relative = spec.slice(5)
+      if (!relative.startsWith('vendor/') || relative.includes('\\') || relative.split('/').includes('..')) {
+        throw new Error(`Invalid CLI snapshot path: ${spec}`)
+      }
+      const snapshot = readSnapshot(relative + '/package.json')
+      if (!snapshot || snapshot.name !== name || typeof snapshot.version !== 'string') {
+        throw new Error(`CLI snapshot identity mismatch: ${name}`)
+      }
+      result[field][name] = snapshot.version
+    }
+  }
+  return result
+}

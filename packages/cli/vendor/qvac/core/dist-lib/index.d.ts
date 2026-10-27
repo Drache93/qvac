@@ -1,0 +1,12 @@
+export type { AssistantAgent, AssistantAgentList, AssistantConfigValue } from './spec/hyperschema/types.d.ts';
+export type { Logger } from './lib/logger-type.ts';
+export { Core } from './lib/core.ts';
+export { Client } from './lib/client.ts';
+export { AssistantClient } from './lib/assistant-client.ts';
+export { harnessDeleteModel, harnessListModels, harnessSkillCatalog, harnessTools, QvacAssistant, type Harness, type ListModelsOptions, type ModelInfo, type ModelType, type Skill, type ToolCatalogEntry } from './lib/assistant.ts';
+export { assistantChild, assistantTree, type AssistantChildOptions, type AssistantTreeOptions, type EmbedderFactory, type HarnessContext, type HarnessFactory } from './lib/assistant-tree.ts';
+export { ASSISTANT_WAKEUP_LINGER_MS, createAssistantSuspendLifecycle, type AssistantSuspendLifecycleOptions } from './lib/suspend-lifecycle.ts';
+export { default as Supervisor } from 'bare-supervisor';
+export type { AssistantDiagnostics, DiagnosticsSlice, HarnessDiagnostics, RunSummary } from './lib/diagnostics.ts';
+export { clientSessions, duplexPair, type ClientSessions } from '@qvac/harness/transport';
+export { groupAttachmentsByMessage, replyMessageId, REPLY_MESSAGE_PREFIX } from './lib/core/files/records/linkage.ts';
