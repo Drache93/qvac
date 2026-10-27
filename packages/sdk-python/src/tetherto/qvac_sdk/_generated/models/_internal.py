@@ -3816,6 +3816,12 @@ class CompletionOrchestrateRequest(GeneratedBaseModel):
         ),
     ]
     kv_cache: Annotated[bool | KvCache | None, Field(alias="kvCache")] = None
+    prefill: Annotated[
+        bool | None,
+        Field(
+            description="Evaluate the prompt without generating an answer. Requires an enabled KV cache."
+        ),
+    ] = None
     tools: Annotated[
         list[CompletionOrchestrateRequestToolsItem] | None,
         Field(
@@ -4466,6 +4472,12 @@ class CompletionStreamRequest(GeneratedBaseModel):
         ),
     ]
     kv_cache: Annotated[bool | KvCache | None, Field(alias="kvCache")] = None
+    prefill: Annotated[
+        bool | None,
+        Field(
+            description="Evaluate the prompt without generating an answer. Requires an enabled KV cache."
+        ),
+    ] = None
     tools: Annotated[
         list[CompletionStreamRequestToolsItem] | None,
         Field(
