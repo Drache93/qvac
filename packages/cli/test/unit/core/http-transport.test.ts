@@ -52,6 +52,23 @@ describe('HTTP multipart transport', () => {
     assert.equal((await files[1]!.toBuffer()).toString(), 'second')
   })
 
+  it('reads extended filenames, unquoted parameters and padded boundaries', async () => {
+    const body = Buffer.from(
+      `--${boundary}  \r\n` +
+        `Content-Disposition: form-data; name=file; filename*=UTF-8''%E2%82%AC%20rates.txt\r\n\r\n` +
+        `data\r\n` +
+        `--${boundary}\t\r\n` +
+        `Content-Disposition: form-data; name=model\r\n\r\n` +
+        `fixture\r\n` +
+        `--${boundary}-- \r\n`
+    )
+    const [file, field] = await parts(body)
+    assert.equal(file?.type, 'file')
+    assert.equal(file.type === 'file' && file.filename, '\u20ac rates.txt')
+    assert.equal(file.fieldname, 'file')
+    assert.deepEqual(field, { type: 'field', fieldname: 'model', value: 'fixture' })
+  })
+
   it('rejects a truncated body instead of returning a partial uploaded file', async () => {
     const body = multipart([{ name: 'file', filename: 'file.bin', data: 'data' }])
     await assert.rejects(

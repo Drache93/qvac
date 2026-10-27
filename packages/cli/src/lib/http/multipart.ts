@@ -13,13 +13,32 @@ export type MultipartPart =
 function malformed(message: string): Error {
   return new Error(message)
 }
-function delimiterKind(body: Buffer, position: number): 'part' | 'end' | null {
-  const suffix = body.subarray(position, position + 2).toString()
-  if (suffix === '\r\n') return 'part'
-  if (suffix !== '--') return null
-  let end = position + 2
+// What follows a boundary: `--` for the last one, then optional linear whitespace and CRLF.
+function delimiterEnd(body: Buffer, position: number): { last: boolean; next: number } | null {
+  const last = body[position] === 45 && body[position + 1] === 45
+  let end = last ? position + 2 : position
   while (body[end] === 32 || body[end] === 9) end++
-  return end === body.length || body.subarray(end, end + 2).toString() === '\r\n' ? 'end' : null
+  if (body[end] === 13 && body[end + 1] === 10) return { last, next: end + 2 }
+  return last && end === body.length ? { last, next: end } : null
+}
+function dispositionParams(disposition: string): Record<string, string> {
+  const params: Record<string, string> = Object.create(null) as Record<string, string>
+  for (const [, key, quoted, token] of disposition.matchAll(
+    /;\s*([^\s=;]+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^;\s]*))/g
+  )) {
+    params[key!.toLowerCase()] = quoted?.replace(/\\(.)/g, '$1') ?? token!
+  }
+  return params
+}
+// RFC 5987 `filename*=UTF-8''percent-encoded`.
+function extendedValue(value: string): string {
+  const match = /^utf-8'[^']*'(.*)$/i.exec(value)
+  if (!match) throw malformed('Unsupported multipart filename encoding')
+  try {
+    return decodeURIComponent(match[1]!)
+  } catch {
+    throw malformed('Malformed multipart filename encoding')
+  }
 }
 export async function* multipartParts(
   body: Buffer,
@@ -39,11 +58,10 @@ export async function* multipartParts(
   }
   position = delimiter.length
   while (position < body.length) {
-    if (delimiterKind(body, position) === 'end') return
-    if (body.subarray(position, position + 2).toString() !== '\r\n') {
-      throw malformed('Invalid multipart delimiter')
-    }
-    position += 2
+    const after = delimiterEnd(body, position)
+    if (!after) throw malformed('Invalid multipart delimiter')
+    if (after.last) return
+    position = after.next
     const headerEnd = body.indexOf('\r\n\r\n', position)
     if (headerEnd < 0 || headerEnd - position > (limits.headerSize ?? 16_384)) {
       throw malformed('Multipart headers too large or incomplete')
@@ -56,16 +74,14 @@ export async function* multipartParts(
     }
     const disposition = headers['content-disposition'] ?? ''
     if (!/^form-data(?:;|$)/i.test(disposition)) throw malformed('Expected form-data disposition')
-    const name = /(?:^|;)\s*name="((?:[^"\\]|\\.)*)"/i
-      .exec(disposition)?.[1]
-      ?.replace(/\\(.)/g, '$1')
+    const params = dispositionParams(disposition)
+    const name = params['name']
     if (name === undefined) throw malformed('Missing multipart field name')
-    const filename = /(?:^|;)\s*filename="((?:[^"\\]|\\.)*)"/i
-      .exec(disposition)?.[1]
-      ?.replace(/\\(.)/g, '$1')
+    const extended = params['filename*']
+    const filename = extended === undefined ? params['filename'] : extendedValue(extended)
     const start = headerEnd + 4
     let end = body.indexOf(separator, start)
-    while (end >= 0 && delimiterKind(body, end + separator.length) === null) {
+    while (end >= 0 && !delimiterEnd(body, end + separator.length)) {
       end = body.indexOf(separator, end + 1)
     }
     if (end < 0) throw malformed('Incomplete multipart body')
