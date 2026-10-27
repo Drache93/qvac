@@ -290,6 +290,27 @@ describe('HTTP transport lifecycle', () => {
     }
   )
 
+  it('sizes multipart bodies by the upload limits instead of the body limit', async (t) => {
+    const app = createHttpServer({ bodyLimit: 8, multipart: { fileSize: 16, files: 2 } })
+    t.after(() => app.close())
+    app.post('/upload', { schema: { consumes: ['multipart/form-data'] } }, async (req) => {
+      const sizes: number[] = []
+      for await (const part of req.parts()) {
+        if (part.type === 'file') sizes.push((await part.toBuffer()).length)
+      }
+      return { sizes }
+    })
+    const file = { name: 'file', filename: 'file.bin', data: Buffer.alloc(16) }
+    const response = await app.inject({
+      method: 'POST',
+      url: '/upload',
+      payload: multipart([file, file]),
+      headers: { 'content-type': contentType }
+    })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(response.json(), { sizes: [16, 16] })
+  })
+
   it(
     'exposes client disconnect on the raw reply and closes exactly once',
     { timeout: 5000 },

@@ -17,7 +17,7 @@ import type {
   ServerOptions,
   HookDone
 } from './index.js'
-import { multipartParts } from './multipart.js'
+import { multipartBodyLimit, multipartParts } from './multipart.js'
 import { validate, serializerCompiler, operation } from './schema.js'
 import type { HttpErrorShape } from './schema.js'
 
@@ -386,8 +386,17 @@ class Scope {
         raw.resume()
         return
       }
-      body = await readBody(raw, route?.options.bodyLimit ?? this.settings.bodyLimit ?? 1024 * 1024)
       const contentType = req.headers['content-type']?.split(';')[0]?.trim().toLowerCase()
+      const multipart =
+        contentType === 'multipart/form-data' &&
+        route?.options.schema?.consumes?.includes(contentType)
+      body = await readBody(
+        raw,
+        route?.options.bodyLimit ??
+          (multipart
+            ? multipartBodyLimit(this.settings.multipart)
+            : (this.settings.bodyLimit ?? 1024 * 1024))
+      )
       if (contentType === 'application/json' || contentType?.endsWith('+json')) {
         if (!body.length) throw bodyError('HTTP_EMPTY_JSON_BODY', 'Request body must be valid JSON')
         try {

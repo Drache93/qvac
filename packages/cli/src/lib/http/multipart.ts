@@ -10,6 +10,13 @@ export type MultipartPart =
     }
   | { type: 'field'; fieldname: string; value: string }
 
+const FILE_SIZE = 100 * 1024 * 1024
+const FILES = 10
+
+// The whole body is buffered before parsing, so it must hold every allowed file, plus framing.
+export function multipartBodyLimit(limits: ServerOptions['multipart'] = {}): number {
+  return (limits.files ?? FILES) * (limits.fileSize ?? FILE_SIZE) + 1024 * 1024
+}
 function malformed(message: string): Error {
   return new Error(message)
 }
@@ -87,8 +94,8 @@ export async function* multipartParts(
     if (end < 0) throw malformed('Incomplete multipart body')
     const value = body.subarray(start, end)
     if (filename !== undefined) {
-      if (++files > (limits.files ?? 10)) throw malformed('Too many uploaded files')
-      if (value.length > (limits.fileSize ?? 100 * 1024 * 1024)) {
+      if (++files > (limits.files ?? FILES)) throw malformed('Too many uploaded files')
+      if (value.length > (limits.fileSize ?? FILE_SIZE)) {
         throw malformed('Uploaded file too large')
       }
       yield {
