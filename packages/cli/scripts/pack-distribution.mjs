@@ -39,7 +39,7 @@ try {
   }
   run(npm, ['ci', '--omit=dev', '--ignore-scripts', '--install-links', '--no-audit', '--no-fund'])
   fs.mkdirSync(destination, { recursive: true })
-  run(npm, ['pack', '--pack-destination', destination])
+  run(npm, ['pack', '--ignore-scripts=false', '--pack-destination', destination])
 } finally {
   fs.rmSync(stage, { recursive: true, force: true })
 }

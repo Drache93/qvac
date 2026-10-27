@@ -1,5 +1,7 @@
 node_modules
 dist
+!vendor/bundlebee/dist/
+!vendor/bundlebee-import/dist/
 .DS_Store
 package-lock.json
 bun.lock

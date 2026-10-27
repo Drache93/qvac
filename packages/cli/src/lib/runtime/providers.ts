@@ -36,7 +36,7 @@ export async function loadPreparedProvider(
   const store = borrowed || new Corestore(path.join(directory, 'cores'))
   try {
     // Import is cache-only. Provider preparation is always a separate explicit operation.
-    const descriptor: unknown = await Import(store, pin, { offline: true, assetDirectory: assets })
+    const descriptor: unknown = await Import(store, pin, { assetDirectory: assets })
     if (
       !isRecord(descriptor) ||
       descriptor['format'] !== 1 ||

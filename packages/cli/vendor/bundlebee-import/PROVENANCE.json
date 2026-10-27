@@ -2,21 +2,29 @@
   "name": "bundlebee-import",
   "version": "2.0.0",
   "repository": "https://github.com/holepunchto/bundlebee-import.git",
-  "baseCommit": "a6e72f0858033ff79f4265333d979671e1735215",
+  "baseCommit": "2fd5f7efffd34072d8e36818b3255f3463fa4d83",
   "sourceBranch": "codex/bundlebee-import-pinned-releases",
-  "sourceHash": "371ef8bcc29d6cda18d14c7e3723e8431d51299971e01b18565eb5af62535188",
-  "files": {
-    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
-    "README.md": "2f371c8a7a8e6b84e7c3ca1c63380331bcc453f0012132f3a7dc8fa29fa014cf",
-    "index.d.ts": "003fbb1a3dc2399080bafa4819af64d56daee3326fc52d05c829108927cce7ed",
-    "index.js": "804ce1bef314de50b1066a2f9700841a71159c0332c98c3d815a00d87deb1ddd",
-    "lib/errors.js": "5f506457d36757ffaef48fe8082fb6e4b58f63544287e4ef76145465347ac26d",
-    "lib/link.js": "98888f7bfe6d222da2d1bb140f1a3230cb204f85b9fe00ddb8700b5af7cdc79d",
-    "lib/network.js": "f6df2fb289cc9395dd6849073a7c7558e10ec43e7e4c1ec215e87b041d7bb686",
-    "lib/selectors.js": "3c6ab6319ba5e6bba78efe544b91df22bd09dd0adfccc21bb6e44ec2ddfc6976",
-    "package.json": "9a67e1192d62a53c844a291c73d53d9e6c311671d3566fe9660c84796fb465b5"
-  },
   "changes": [
     "Pin the unpublished bundlebee dependency to the exact bundled sibling version."
-  ]
+  ],
+  "sourceHash": "16d70bd8889f2c753c673c93a9a4cffcbc7e3e548439621ce0d4ad76fad42868",
+  "files": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "README.md": "385459b4b4556e450df0c89c0bf35247955d9039c7c61f1c895626d18714aa58",
+    "dist/index.cjs": "dbbb2c3b80fe0c4952c59c8f1b894bde2f396769eee489a4f7d4a91c9a71ecd3",
+    "dist/index.d.cts": "7d018ac70e4ad6f11ab8805239fb822fc5796d428db743030a79c8d402855702",
+    "dist/index.d.ts": "a5b78f3c2021213c9e28615709a675a2cf6e0b0624f0fba1801d2de2e8955203",
+    "dist/index.js": "7a7879f8841786414b55f2bdd514a34be6f6cef798675705428d4a899bbb565d",
+    "dist/lib/errors.d.ts": "d9d2a4fcb05d38022e81b4b472c0bea6bd2394a132eae76fd271f00312eb9b99",
+    "dist/lib/errors.js": "0613afbbd04b4086238db0354464169f989ad880aa266792deaf813bdc6b7194",
+    "dist/lib/link.d.ts": "631dd0b6818a9a46401a67ef00aa681aed280c138249c13ee4ccf840eb4264d4",
+    "dist/lib/link.js": "636d5e1f2b2d56fb063f83f86cb0ecce3c990b75cda194b1a94154502a530bfe",
+    "dist/lib/network.d.ts": "c3a0f261553d3017f04c2faf0fda26978f72591e20274346c9de2e81f96e2711",
+    "dist/lib/network.js": "b657941fda024dd6fe1de391c765bd6de9cc2fb539371fc60f92a066bda250cb",
+    "dist/lib/options.d.ts": "97c60b34ac62d7e96e5cf9496a02a6a1724af1632a6d6415ab1c9fbf4dcdfe99",
+    "dist/lib/options.js": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+    "dist/lib/transport.d.ts": "88ae1cf9b3c9ffd2668b9f89c2358b2719ae4d908974e88b2d65ed6cb0eb3c5f",
+    "dist/lib/transport.js": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+    "package.json": "b23c4b08151a48c4b2f1209e847344b4cc90686773a4c6628fdae400cc4e2936"
+  }
 }

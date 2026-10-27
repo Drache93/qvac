@@ -526,7 +526,7 @@ importers:
         version: 0.1.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-pipe@4.2.3(bare-abort-controller@1.1.2)(bare-buffer@3.7.1))(bare-url@2.5.4)
       bundlebee:
         specifier: file:vendor/bundlebee
-        version: file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
+        version: file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))
       bundlebee-import:
         specifier: file:vendor/bundlebee-import
         version: file:packages/cli/vendor/bundlebee-import(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
@@ -14451,7 +14451,7 @@ snapshots:
 
   '@hyperswarm/secret-stream@6.9.1(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)':
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       hypercore-crypto: 3.7.0(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
       noise-curve-ed: 2.1.0(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
       noise-handshake: 4.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
@@ -14470,7 +14470,7 @@ snapshots:
 
   '@hyperswarm/secret-stream@6.9.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)':
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       hypercore-crypto: 3.7.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
       noise-curve-ed: 2.1.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
       noise-handshake: 4.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
@@ -14489,7 +14489,7 @@ snapshots:
 
   '@hyperswarm/secret-stream@6.9.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)':
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       hypercore-crypto: 3.7.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
       noise-curve-ed: 2.1.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
       noise-handshake: 4.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
@@ -20472,11 +20472,12 @@ snapshots:
     dependencies:
       bare-abort-controller: 1.1.2
       bare-semver: 1.1.0
-      bundlebee: file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
+      bundlebee: file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))
       hypercore-id-encoding: 1.3.0
       hyperdht: 6.33.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-url@2.5.4)
       hyperswarm: 4.17.2(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-url@2.5.4)
       pear-link: 4.2.1
+      safety-catch: 1.0.3
     transitivePeerDependencies:
       - bare-buffer
       - bare-events
@@ -20484,7 +20485,7 @@ snapshots:
       - react-native-b4a
       - sodium-javascript
 
-  bundlebee@file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4):
+  bundlebee@file:packages/cli/vendor/bundlebee(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2)):
     dependencies:
       b4a: 1.9.0
       bare-bundle: 1.11.0(bare-buffer@3.7.1)(bare-url@2.5.4)
@@ -20492,18 +20493,19 @@ snapshots:
       bare-module: 7.1.0(bare-buffer@3.7.1)
       bare-module-traverse: 2.7.2(bare-buffer@3.7.1)(bare-url@2.5.4)
       bare-semver: 1.1.0
+      bare-url: 2.5.4
       compact-encoding: 3.5.2
       hyperbee2: 2.20.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-url@2.5.4)
       hypercore-crypto: 3.7.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
       hypercore-id-encoding: 1.3.0
       hyperschema: 1.26.2(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)
       ready-resource: 1.2.0(bare-abort-controller@1.1.2)
+      scope-lock: 1.2.4
       url-file-url: 1.0.5
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
       - bare-events
-      - bare-url
       - react-native-b4a
       - sodium-javascript
 
@@ -23910,7 +23912,7 @@ snapshots:
 
   is-options@1.0.2:
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
     transitivePeerDependencies:
       - react-native-b4a
 
@@ -26210,7 +26212,7 @@ snapshots:
 
   quickbit-universal@2.2.0(bare-url@2.4.6):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       simdle-universal: 1.1.2(bare-url@2.4.6)
     optionalDependencies:
       quickbit-native: 2.4.8(bare-url@2.4.6)
@@ -26220,7 +26222,7 @@ snapshots:
 
   quickbit-universal@2.2.0(bare-url@2.5.4):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       simdle-universal: 1.1.2(bare-url@2.5.4)
     optionalDependencies:
       quickbit-native: 2.4.8(bare-url@2.5.4)
@@ -26893,7 +26895,7 @@ snapshots:
 
   simdle-native@1.3.9(bare-url@2.4.6):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       require-addon: 1.2.0(bare-url@2.4.6)
     transitivePeerDependencies:
       - bare-url
@@ -26902,7 +26904,7 @@ snapshots:
 
   simdle-native@1.3.9(bare-url@2.5.4):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       require-addon: 1.2.0(bare-url@2.5.4)
     transitivePeerDependencies:
       - bare-url
@@ -26911,7 +26913,7 @@ snapshots:
 
   simdle-universal@1.1.2(bare-url@2.4.6):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
     optionalDependencies:
       simdle-native: 1.3.9(bare-url@2.4.6)
     transitivePeerDependencies:
@@ -26920,7 +26922,7 @@ snapshots:
 
   simdle-universal@1.1.2(bare-url@2.5.4):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
     optionalDependencies:
       simdle-native: 1.3.9(bare-url@2.5.4)
     transitivePeerDependencies:
@@ -27023,7 +27025,7 @@ snapshots:
 
   sodium-secretstream@1.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       sodium-universal: 5.0.1(bare-abort-controller@1.1.2)(bare-buffer@3.6.2)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
     transitivePeerDependencies:
       - bare-abort-controller
@@ -27035,7 +27037,7 @@ snapshots:
 
   sodium-secretstream@1.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       sodium-universal: 5.0.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.4.6)
     transitivePeerDependencies:
       - bare-abort-controller
@@ -27047,7 +27049,7 @@ snapshots:
 
   sodium-secretstream@1.2.0(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4):
     dependencies:
-      b4a: 1.8.1
+      b4a: 1.9.0
       sodium-universal: 5.0.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-events@2.9.1(bare-abort-controller@1.1.2))(bare-url@2.5.4)
     transitivePeerDependencies:
       - bare-abort-controller

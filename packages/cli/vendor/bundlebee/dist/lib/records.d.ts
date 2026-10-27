@@ -1,0 +1,14 @@
+import type { ReleasePin, ResolutionMap } from './types';
+export declare const Pin: import("compact-encoding").Encoder<ReleasePin, ReleasePin>;
+export declare const Manifest: import("compact-encoding").Encoder<import("./types").ReleaseManifest, import("./types").ReleaseManifest>;
+export declare const Module: import("compact-encoding").Encoder<import("./types").StoredModule, import("./types").StoredModule>;
+export declare const MANIFEST: Uint8Array<ArrayBufferLike>;
+export declare function moduleKey(path: string): Uint8Array;
+export declare function assetKey(path: string): Uint8Array;
+export declare function versionKey(name: string, value: string): Uint8Array;
+export declare function abiKey(name: string, abi: number): Uint8Array;
+export declare function orderedPrefix(name: string): string;
+export declare function orderedKey(name: string, input: string): Uint8Array;
+export declare function releasePath(input: string): string;
+export declare function validatePin(input: unknown): ReleasePin;
+export declare function parseResolutions(json: string): ResolutionMap;

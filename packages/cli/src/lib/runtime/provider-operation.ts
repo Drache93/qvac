@@ -12,7 +12,7 @@ export async function providerOperation([action, input, dataDir]: string[]) {
     const document: unknown = JSON.parse(fs.readFileSync(input, 'utf8'))
     const wrapped = isRecord(document) && 'pin' in document
     const pin = Bundlebee.validateRelease(wrapped ? document['pin'] : document)
-    const options: Parameters<typeof prepareProvider>[2] = {}
+    const options: { blindPeers?: string[]; fallback?: boolean } = {}
     if (wrapped) {
       const peers = document['blindPeers']
       if (peers !== undefined) {

@@ -17,10 +17,11 @@ for (const [i, name] of names.entries()) {
   if (manifest.name !== name || manifest.version !== '2.0.0') {
     throw new Error(`Expected ${name}@2.0.0`)
   }
+  execFileSync('npm', ['run', 'build'], { cwd: source, stdio: 'inherit' })
   const target = path.join(root, 'vendor', name)
   fs.rmSync(target, { recursive: true, force: true })
   fs.mkdirSync(target, { recursive: true })
-  for (const file of [...new Set([...manifest.files, 'LICENSE', 'README.md'])]) {
+  for (const file of [...new Set([...manifest.files, 'package.json', 'LICENSE', 'README.md'])]) {
     if (file.includes('..') || path.isAbsolute(file)) {
       throw new Error('Unexpected package file: ' + file)
     }

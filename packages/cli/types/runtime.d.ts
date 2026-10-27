@@ -59,6 +59,9 @@ declare module 'bare-supervisor/runner/sidecar' {
 declare module 'corestore' {
   export default class Corestore {
     constructor(path: string)
+    readonly opened: boolean
+    readonly closing: Promise<void> | null
+    get(options?: object): import('bundlebee/types').Core
     session(): Corestore
     replicate(connection: unknown): unknown
     close(): Promise<void>
