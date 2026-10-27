@@ -365,10 +365,11 @@ function framesAre(blocks, width, height, magic) {
 
 let streamingScene
 const residentWalks = new Map()
-// Temporarily keep Linux CI parity on Vulkan while CUDA drift is investigated:
-// https://github.com/tetherto/qvac/pull/5264. Other ABot lanes keep their backend.
-// Keep the CI default here: PR workflows read project metadata from main.
-const parityBackend = proc.env.ABOT_PARITY_BACKEND || (canFetchRegistry ? 'vulkan0' : 'gpu')
+// Linux GPU CI must exercise CUDA explicitly: generic GPU selection could
+// silently fall back to Vulkan if the packaged CUDA module fails to load.
+// Keep the default here because PR workflows read project metadata from main.
+// Local runs can select another backend with ABOT_PARITY_BACKEND.
+const parityBackend = proc.env.ABOT_PARITY_BACKEND || (canFetchRegistry ? 'cuda0' : 'gpu')
 
 async function provisionStreamingScene(t) {
   const provisioned = await provisionWorldGeneration(t)

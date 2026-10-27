@@ -145,8 +145,8 @@ directory.
 
 ### DGX Spark and RTX 5090 CUDA
 
-Linux builds request CUDA through `vcpkg.json`, so the CUDA toolkit is required
-for the default Linux source build as well as `build:cuda`. The Linux vcpkg
+CUDA is opt-in: the default Linux source build does not require the CUDA
+toolkit. Use `build:cuda` or `-D SD_CUDA=ON` to enable it. The Linux vcpkg
 toolchain selects the matching Clang host compiler for nvcc.
 
 For native Linux ARM64 builds on GB10 or Linux x64 builds on RTX 5090, put

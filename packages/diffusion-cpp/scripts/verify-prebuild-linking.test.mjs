@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import vm from 'node:vm'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
@@ -13,48 +14,71 @@ import {
 
 const checker = fileURLToPath(new URL('./verify-prebuild-linking.mjs', import.meta.url))
 
-test('Linux release configuration requests CUDA kernels as well as the toolkit', () => {
+test('CUDA is opt-in for source builds and enabled for Linux release prebuilds', () => {
   const manifest = JSON.parse(fs.readFileSync(new URL('../vcpkg.json', import.meta.url), 'utf8'))
   const project = JSON.parse(fs.readFileSync(new URL('../project.json', import.meta.url), 'utf8'))
   const dependency = manifest.dependencies.find((entry) => entry.name === 'stable-diffusion-cpp')
+  assert.equal(dependency.features, undefined, 'ordinary source builds must not request CUDA')
   assert.ok(
-    dependency.features?.some((feature) => feature.name === 'cuda' && feature.platform === 'linux'),
-    'Linux must request stable-diffusion-cpp[cuda]; installing the toolkit alone does not build CUDA kernels'
+    manifest.features.cuda.dependencies.some(
+      (entry) => entry.name === 'stable-diffusion-cpp' && entry.features.includes('cuda')
+    )
   )
+  const cmake = fs.readFileSync(new URL('../CMakeLists.txt', import.meta.url), 'utf8')
+  assert.match(cmake, /if\(SD_CUDA\)\s+list\(APPEND VCPKG_MANIFEST_FEATURES "cuda"\)/)
   assert.equal(project.targets.build.options.ci.includeCuda, true)
   assert.equal(project.targets.build.options.ci.includeCudaArm64, true)
+  assert.equal(project.targets.build.options.ci.platformCmakeDefines, 'linux: -D SD_CUDA=ON')
 })
 
-// Minimal ELF fixture with a dynamic string table and DT_NEEDED records.
-// Only dependency names vary between the packaging failure cases.
-function elf(dependencies) {
-  const names = Buffer.from('\0' + dependencies.join('\0') + '\0')
-  const dynamicOffset = 0x140
+// Real ELF64 section and symbol layouts, including symbol binding/definition.
+// The dependency-only fixtures missed the CUDA module's unresolved std symbols.
+function elf(dependencies, symbols = []) {
+  const names = Buffer.from(
+    '\0' + [...dependencies, ...symbols.map((s) => s.name)].join('\0') + '\0'
+  )
+  const dynamicOffset = 0x180
   const dynamicSize = (dependencies.length + 1) * 16
-  const stringsOffset = dynamicOffset + dynamicSize
+  const symbolsOffset = dynamicOffset + dynamicSize
+  const symbolsSize = (symbols.length + 1) * 24
+  const stringsOffset = symbolsOffset + symbolsSize
   const buffer = Buffer.alloc(stringsOffset + names.length)
   buffer.set([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1])
   buffer.writeBigUInt64LE(0x80n, 0x28)
   buffer.writeUInt16LE(64, 0x3a)
-  buffer.writeUInt16LE(3, 0x3c)
-  buffer.writeUInt32LE(6, 0xc0 + 4)
-  buffer.writeBigUInt64LE(BigInt(dynamicOffset), 0xc0 + 0x18)
-  buffer.writeBigUInt64LE(BigInt(dynamicSize), 0xc0 + 0x20)
-  buffer.writeUInt32LE(2, 0xc0 + 0x28)
-  buffer.writeUInt32LE(3, 0x100 + 4)
-  buffer.writeBigUInt64LE(BigInt(stringsOffset), 0x100 + 0x18)
-  buffer.writeBigUInt64LE(BigInt(names.length), 0x100 + 0x20)
+  buffer.writeUInt16LE(4, 0x3c)
+  function section(index, type, offset, size, link = 0, entrySize = 0) {
+    const start = 0x80 + index * 64
+    buffer.writeUInt32LE(type, start + 4)
+    buffer.writeBigUInt64LE(BigInt(offset), start + 0x18)
+    buffer.writeBigUInt64LE(BigInt(size), start + 0x20)
+    buffer.writeUInt32LE(link, start + 0x28)
+    buffer.writeBigUInt64LE(BigInt(entrySize), start + 0x38)
+  }
+  section(1, 6, dynamicOffset, dynamicSize, 2, 16)
+  section(2, 3, stringsOffset, names.length)
+  section(3, 11, symbolsOffset, symbolsSize, 2, 24)
   let offset = 1
   dependencies.forEach((name, index) => {
     buffer.writeBigUInt64LE(1n, dynamicOffset + index * 16)
     buffer.writeBigUInt64LE(BigInt(offset), dynamicOffset + index * 16 + 8)
     offset += Buffer.byteLength(name) + 1
   })
+  symbols.forEach((symbol, index) => {
+    const start = symbolsOffset + (index + 1) * 24
+    buffer.writeUInt32LE(offset, start)
+    buffer[start + 4] = (symbol.weak ? 2 : 1) << 4
+    buffer.writeUInt16LE(symbol.defined ? 1 : 0, start + 6)
+    offset += Buffer.byteLength(symbol.name) + 1
+  })
   names.copy(buffer, stringsOffset)
   return buffer
 }
 
-function fixture(t, { arch = 'arm64', cuda = ['libcudart.so.13'], addon = ['libc.so.6'] } = {}) {
+function fixture(
+  t,
+  { arch = 'arm64', cuda = ['libcudart.so.13'], addon = ['libc.so.6'], symbols = [] } = {}
+) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'diffusion-prebuild-'))
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
   const moduleName = `qvac__diffusion-cpp-linux-${arch}`
@@ -63,7 +87,8 @@ function fixture(t, { arch = 'arm64', cuda = ['libcudart.so.13'], addon = ['libc
   fs.mkdirSync(backends, { recursive: true })
   fs.writeFileSync(path.join(target, `${moduleName}.bare`), elf(addon))
   fs.writeFileSync(path.join(backends, 'libqvac-diffusion-ggml-vulkan.so'), elf(['libvulkan.so.1']))
-  if (cuda) fs.writeFileSync(path.join(backends, 'libqvac-diffusion-ggml-cuda.so'), elf(cuda))
+  if (cuda)
+    fs.writeFileSync(path.join(backends, 'libqvac-diffusion-ggml-cuda.so'), elf(cuda, symbols))
   const result = spawnSync(process.execPath, [checker, directory], { encoding: 'utf8' })
   return { status: result.status, output: result.stdout + result.stderr }
 }
@@ -134,5 +159,75 @@ test('split publication retains CUDA and Vulkan in both Linux platform packages'
       encoding: 'utf8'
     })
     assert.equal(result.status, 0, result.stdout + result.stderr)
+  }
+})
+
+for (const name of [
+  '_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_replaceEmmPKcm',
+  '_ZSt21ios_base_library_initv',
+  '_ZNKSt8__detail20_Prime_rehash_policy11_M_next_bktEm',
+  '__cxa_throw',
+  '__gxx_personality_v0',
+  '_Znwm',
+  '_ZdlPv'
+]) {
+  test('rejects unresolved C++ runtime symbol ' + name, (t) => {
+    const result = fixture(t, { symbols: [{ name }] })
+    assert.equal(result.status, 1, result.output)
+    assert.ok(result.output.includes(name), result.output)
+    assert.match(result.output, /CUDA module has unresolved C\+\+ runtime symbols/)
+  })
+}
+
+test('accepts statically defined runtime symbols and optional weak references', (t) => {
+  const result = fixture(t, {
+    symbols: [
+      { name: '_ZSt21ios_base_library_initv', defined: true },
+      { name: '__cxa_pure_virtual', weak: true }
+    ]
+  })
+  assert.equal(result.status, 0, result.output)
+})
+
+test('accepts glibc-provided __cxa entry points', (t) => {
+  const result = fixture(t, {
+    cuda: ['libcudart.so.13', 'libc.so.6'],
+    symbols: ['__cxa_atexit', '__cxa_finalize', '__cxa_thread_atexit_impl'].map((name) => ({
+      name
+    }))
+  })
+  assert.equal(result.status, 0, result.output)
+})
+
+test('requires libc for its __cxa entry points', (t) => {
+  const result = fixture(t, { symbols: [{ name: '__cxa_finalize' }] })
+  assert.equal(result.status, 1, result.output)
+})
+
+test('standalone and integration ELF readers reject the same runtime-symbol failures', () => {
+  for (const [file, endMarker] of [
+    ['./verify-prebuild-linking.mjs', 'const prebuildsDir ='],
+    ['../test/integration/prebuild-dynamic-linking.test.js', "test('linux prebuild"]
+  ]) {
+    const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8')
+    const start = source.indexOf('function readU64(')
+    const end = source.indexOf(endMarker, start)
+    assert.ok(start >= 0 && end > start, file)
+    const read = vm.runInNewContext(source.slice(start, end) + '\nelfInfo', { Buffer })
+    const cases = [
+      { name: '_ZSt21ios_base_library_initv', expected: ['_ZSt21ios_base_library_initv'] },
+      { name: '_ZSt21ios_base_library_initv', defined: true, expected: [] },
+      { name: '__cxa_throw', expected: ['__cxa_throw'] },
+      { name: '__cxa_pure_virtual', weak: true, expected: [] },
+      { name: '__cxa_finalize', expected: [] },
+      { name: 'cudaGetDevice', expected: [] }
+    ]
+    for (const { expected, ...symbol } of cases) {
+      const result = read(elf(['libcudart.so.13', 'libc.so.6'], [symbol]))
+      assert.deepEqual(Array.from(result.unresolvedCxx), expected, file + ': ' + symbol.name)
+    }
+    const missingSymbols = elf(['libcudart.so.13'])
+    missingSymbols.writeUInt32LE(0, 0x140 + 4)
+    assert.throws(() => read(missingSymbols), /missing or invalid .dynsym/)
   }
 })

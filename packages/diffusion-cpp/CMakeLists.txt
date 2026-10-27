@@ -22,8 +22,8 @@ if(SD_OPENCL)
   list(APPEND VCPKG_MANIFEST_FEATURES "opencl")
 endif()
 
-# Linux CUDA is requested by vcpkg.json, matching packages/fabric.
-# SD_CUDA remains available to request CUDA explicitly on other targets.
+# CUDA is opt-in through SD_CUDA; Linux release prebuilds enable it in CI.
+# Ordinary source, unit-test, coverage and fuzz builds need no CUDA toolkit.
 # Vulkan and Metal use the registry ports' platform-specific defaults.
 #
 # GGML_BACKEND_DL is ON on Android and desktop Linux (set in the ggml

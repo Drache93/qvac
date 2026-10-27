@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Linux ARM64 and x64 releases include a dynamically loaded CUDA backend
+  built with the pinned CUDA 13 toolkit, including SM121a support for DGX
+  Spark and SM120a support for RTX 5090.
+- A distilled FLUX.2 Klein 4B CUDA example and measured Spark/RTX 5090
+  latency and recipes in the README. The example selects the existing
+  im2col VAE convolution path.
+
+### Changed
+
+- Linux release prebuilds enable CUDA through `SD_CUDA`; ordinary source,
+  unit-test, coverage and fuzz builds do not require the CUDA toolkit.
+  Source builds opt in with `npm run build:cuda`.
+- Both Linux prebuilds require the CUDA module alongside Vulkan, in PR
+  validation and the release artifact build, while retaining the addon's
+  independence from GPU runtime libraries.
+
 ## [0.31.0] - 2026-10-21
 
 This release adds Qwen-Image-2.1 generation and reference editing, including
@@ -58,23 +78,6 @@ and leak sanitizers remain fully enabled.
 - [#5044](https://github.com/tetherto/qvac/pull/5044) - QVAC-25559 feat[build]: split diffusion-cpp into per-platform packages.
 - [#4607](https://github.com/tetherto/qvac/pull/4607) - test[diffusion-cpp]: bounded FuzzTest for GGUF video-capability inspect.
 - [#5251](https://github.com/tetherto/qvac/pull/5251) - ci(diffusion-cpp): provision CUDA for Linux prebuilds.
-
-### Added
-
-- Linux ARM64 and x64 releases include a dynamically loaded CUDA backend
-  built with the pinned CUDA 13 toolkit, including SM121a support for DGX
-  Spark and SM120a support for RTX 5090.
-- A distilled FLUX.2 Klein 4B CUDA example and measured Spark/RTX 5090
-  latency and recipes in the README. The example selects the existing
-  im2col VAE convolution path.
-
-### Changed
-
-- Linux builds request CUDA through a platform-qualified vcpkg dependency
-  feature, matching Fabric; CI supplies the toolkit without extra CMake flags.
-- Both Linux prebuilds require the CUDA module alongside Vulkan, in PR
-  validation and the release artifact build, while retaining the addon's
-  independence from GPU runtime libraries.
 
 ## [0.30.0] - 2026-10-14
 
