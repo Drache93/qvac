@@ -78,10 +78,12 @@ for (const name of ['sdk', 'inference', 'core', 'harness']) {
   try {
     execFileSync('tar', ['-xzf', archive, '-C', temporary])
     for (const [relative, expected] of missing) {
+      // a native file sits in a prebuilds/ or weights/ folder at any depth, as .gitignore leaves them out
+      const segments = relative.split('/')
       if (
         path.isAbsolute(relative) ||
-        relative.split('/').includes('..') ||
-        !/^(?:prebuilds|weights)\//.test(relative)
+        segments.includes('..') ||
+        !segments.slice(0, -1).some((segment) => segment === 'prebuilds' || segment === 'weights')
       ) {
         throw new Error('Invalid native asset path')
       }
