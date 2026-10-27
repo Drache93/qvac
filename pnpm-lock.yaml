@@ -494,9 +494,6 @@ importers:
       corestore:
         specifier: ^7.12.6
         version: 7.16.1(bare-abort-controller@1.1.2)(bare-buffer@3.7.1)(bare-url@2.5.4)
-      elkjs:
-        specifier: ^0.11.1
-        version: 0.11.1
       fastify:
         specifier: ^5.0.0
         version: 5.10.0
@@ -21426,7 +21423,8 @@ snapshots:
 
   electron-to-chromium@1.5.396: {}
 
-  elkjs@0.11.1: {}
+  elkjs@0.11.1:
+    optional: true
 
   emoji-regex@8.0.0: {}
 

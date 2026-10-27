@@ -133,7 +133,6 @@
     "close-with-grace": "^2.1.0",
     "compact-encoding": "^3.4.0",
     "corestore": "^7.12.6",
-    "elkjs": "^0.11.1",
     "fastify": "^5.0.0",
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^5.0.0",

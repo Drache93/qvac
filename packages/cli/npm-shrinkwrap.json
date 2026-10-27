@@ -60,7 +60,6 @@
         "close-with-grace": "^2.1.0",
         "compact-encoding": "^3.4.0",
         "corestore": "^7.12.6",
-        "elkjs": "^0.11.1",
         "fastify": "^5.0.0",
         "fastify-plugin": "^6.0.0",
         "fastify-type-provider-zod": "^5.0.0",
@@ -5388,12 +5387,6 @@
       "engines": {
         "node": ">=8"
       }
-    },
-    "node_modules/elkjs": {
-      "version": "0.11.1",
-      "resolved": "https://registry.npmjs.org/elkjs/-/elkjs-0.11.1.tgz",
-      "integrity": "sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==",
-      "license": "EPL-2.0"
     },
     "node_modules/error-stack-parser": {
       "version": "2.1.4",
