@@ -3,19 +3,18 @@ import type {
   AssessModelFitResponse,
   ModelFitCandidate,
   ModelFitEstimateTarget,
-  ModelFitModelRef,
-  NativeProbeFit
+  ModelFitModelRef
 } from '@/schemas/assess-model-fit'
 import { isCanonicalModelType, normalizeModelType, ModelType } from '@/schemas/index'
 import { inferModelTypeFromModelSrc } from '@/schemas/model-src-utils'
 import { ModelTypeRequiredError } from '@/errors/index'
-import { projectFitFromLoad } from '@/resources/model-fit/fit-stub/project-fit-from-load'
+import type { FitStubUnavailableReason } from '@/model-fit/description/fetch'
+import { projectFitFromLoad } from '@/model-fit/description/project'
 import type { SystemResources } from '@/schemas/system-resources'
 import { getResourceCollector } from '@/resources/instance'
 import { getConfig } from '@/runtime/state'
-import { assessModelFitFromResources } from '@/resources/model-fit/assess'
-import { getPlatformCalibration } from '@/resources/model-fit/calibration/index'
-import { detectPlatform } from '@/resources/model-fit/platform'
+import { assessModelFitFromResources, type NativeCandidateFit } from '@/model-fit/assess'
+import { detectPlatform } from '@/model-fit/platform'
 
 /**
  * Runs a pre-download fit assessment worker-side.
@@ -23,24 +22,21 @@ import { detectPlatform } from '@/resources/model-fit/platform'
  * This lives on the worker because that is where the three things it needs
  * already are: the resource collector for a fresh memory sample, the runtime's
  * own platform/arch pair, and the registry client. No weights are read and
- * nothing is loaded — a single candidate additionally has the registry's
- * weightless description fetched, tens of KB, so the engine's own fitter can
- * answer instead of the coefficients modelling it.
+ * nothing is loaded — each candidate additionally has the registry's weightless
+ * description fetched, tens of KB, so the engine's own fitter can answer.
  */
 export async function handleAssessModelFit(
   request: AssessModelFitRequest
 ): Promise<AssessModelFitResponse> {
   const platform = detectPlatform()
-  const native = await resolveNativeFit(request.models)
+  const nativeFits = await resolveNativeFits(request.models)
 
   const result = assessModelFitFromResources({
     models: request.models.map(estimateTargetFor),
     execution: request.execution,
     resources: readResources(),
     platform,
-    calibration: platform ? getPlatformCalibration(platform) : undefined,
-    nativeFit: native.fit,
-    nativeFitUnavailable: native.unavailable
+    nativeFits
   })
 
   return { type: 'assessModelFit', ...result }
@@ -63,6 +59,7 @@ function modelTypeOf(candidate: ModelFitCandidate): string {
 
 /** The audio engines, whose estimator sizes a load by its window rather than a context. */
 const AUDIO_ENGINES: readonly string[] = [
+  ModelType.mossTranscribe,
   'whispercpp-transcription',
   'parakeet-transcription',
   'bci-whispercpp-transcription'
@@ -81,16 +78,29 @@ function contextUsesGpu(config: Record<string, unknown>): unknown {
 }
 
 /**
+ * MiniMax names its device instead of switching the GPU on, and the config
+ * schema refuses both at once. `auto` is what the switch means: the GPU when
+ * one is usable.
+ */
+function audiogenUsesGpu(config: Record<string, unknown>): boolean {
+  const device = config['device']
+  if (device !== undefined) return device === 'gpu' || device === 'auto'
+  return config['useGPU'] === true
+}
+
+/**
  * Engines that carry a GPU switch, each read at the key its own config spells
- * it under. These are the keys the fit builders read in `native-probe/engines`,
+ * it under. These are the keys the fit builders read in `model-fit/request/engines`,
  * so a projection and a device never disagree. Only bci defaults to on.
  */
 const GPU_SWITCH: Record<string, (config: Record<string, unknown>) => boolean> = {
+  [ModelType.mossTranscribe]: (config) => config['useGPU'] === true,
   [ModelType.ttsGgml]: (config) => config['useGPU'] === true,
-  [ModelType.audiogenGgml]: (config) => config['useGPU'] === true,
+  [ModelType.audiogenGgml]: audiogenUsesGpu,
   [ModelType.parakeetTranscription]: (config) => config['useGPU'] === true,
   [ModelType.whispercppTranscription]: (config) => contextUsesGpu(config) === true,
-  [ModelType.bciWhispercppTranscription]: (config) => contextUsesGpu(config) !== false
+  [ModelType.bciWhispercppTranscription]: (config) => contextUsesGpu(config) !== false,
+  [ModelType.ggmlOcr]: (config) => (config['backendDevice'] ?? 'cpu') !== 'cpu'
 }
 
 /**
@@ -199,6 +209,12 @@ export function estimateTargetFor(candidate: ModelFitCandidate): ModelFitEstimat
   const contextTokens = config['ctx_size']
   const artifacts = companionRefs(config)
   const device = resolvedDevice(modelType, config)
+  const windowMs =
+    modelType === ModelType.mossTranscribe
+      ? candidate.transcriptionWorkload === undefined
+        ? undefined
+        : candidate.transcriptionWorkload.audioSeconds * 1000
+      : audioWindowMs(config)
 
   return {
     model: {
@@ -214,7 +230,7 @@ export function estimateTargetFor(candidate: ModelFitCandidate): ModelFitEstimat
     workload: AUDIO_ENGINES.includes(modelType)
       ? {
           kind: 'audio',
-          windowMs: audioWindowMs(config),
+          ...(windowMs !== undefined && { windowMs }),
           streaming: config['streaming'] === true
         }
       : {
@@ -224,19 +240,11 @@ export function estimateTargetFor(candidate: ModelFitCandidate): ModelFitEstimat
   }
 }
 
-/**
- * The engine fitter's verdict for a single candidate, resolved through that
- * load's own plugin. Only for a one-candidate request: the probe measures one
- * model against the whole machine, which cannot be aggregated across a set.
- */
+/** The engine fitter's verdict for one candidate, through that load's plugin. */
 async function resolveNativeFit(
-  candidates: readonly ModelFitCandidate[]
-): Promise<{ fit?: NativeProbeFit; unavailable?: string }> {
-  if (candidates.length !== 1) return {}
-
-  const candidate = candidates[0]
-  if (!candidate) return {}
-
+  candidate: ModelFitCandidate,
+  alreadyCounted: number
+): Promise<NativeCandidateFit> {
   const modelType = modelTypeOf(candidate)
   if (!isCanonicalModelType(modelType)) {
     return { unavailable: `no plugin handles model type ${modelType}` }
@@ -247,22 +255,76 @@ async function resolveNativeFit(
   const outcome = await projectFitFromLoad(
     {
       modelType,
+      ...(candidate.transcriptionWorkload !== undefined && {
+        transcriptionWorkload: candidate.transcriptionWorkload
+      }),
+      ...(candidate.ttsWorkload !== undefined && { ttsWorkload: candidate.ttsWorkload }),
       ...(candidate.modelSrc !== undefined && { modelSrc: candidate.modelSrc }),
       ...(candidate.modelConfig !== undefined && { modelConfig: candidate.modelConfig })
     },
     estimateTargetFor(candidate).model.name,
-    budgetMs === undefined ? {} : { stub: { budgetMs } }
+    {
+      ...(budgetMs !== undefined && { stub: { budgetMs } }),
+      ...(alreadyCounted > 0 && { fit: { extraResidentBytes: alreadyCounted } })
+    }
   )
 
   if (outcome.status === 'projected') return { fit: outcome.fit }
   if (outcome.status === 'unsupported-load') return { unavailable: outcome.detail }
 
-  return {
-    unavailable:
-      outcome.message === undefined
-        ? `no registry description (${outcome.reason})`
-        : `no registry description (${outcome.reason}): ${outcome.message}`
+  return { unavailable: noStubDetail(outcome.reason, outcome.message) }
+}
+
+/** Why a load with no description staged for it has no engine verdict. */
+export function noStubDetail(reason: FitStubUnavailableReason, message?: string): string {
+  if (reason === 'files-only-engine') {
+    return 'the engine measures downloaded files only, and this model is not downloaded'
   }
+  return message === undefined
+    ? `no registry description (${reason})`
+    : `no registry description (${reason}): ${message}`
+}
+
+/** What a projection holds for the model's lifetime, the breakdown or the total. */
+function residentBytesOf(fit: NativeCandidateFit): number {
+  const projection = fit.fit?.projection
+  if (!projection) return 0
+
+  const { weightsBytes, contextBytes, deviceBytes, hostBytes } = projection
+  const resident =
+    weightsBytes === undefined || contextBytes === undefined
+      ? deviceBytes
+      : weightsBytes + contextBytes
+
+  return (resident ?? 0) + (hostBytes ?? 0)
+}
+
+/**
+ * One verdict per candidate, in request order. Each probe measures its own
+ * model against the whole machine, so the bytes compose where the verdicts do
+ * not, and `assess` combines them under one budget.
+ *
+ * Run one at a time, so a set never holds several fitters open at once.
+ *
+ * Each probe holds back what the earlier ones projected, since none of them is
+ * registered in this worker and the fitter would otherwise place every
+ * candidate in the same free memory. Every model is resident under either
+ * execution mode, so the holdback does not read it. The answer follows the
+ * order the caller listed the models in.
+ */
+async function resolveNativeFits(
+  candidates: readonly ModelFitCandidate[]
+): Promise<NativeCandidateFit[]> {
+  const fits: NativeCandidateFit[] = []
+  let alreadyCounted = 0
+
+  for (const candidate of candidates) {
+    const fit = await resolveNativeFit(candidate, alreadyCounted)
+    fits.push(fit)
+    alreadyCounted += residentBytesOf(fit)
+  }
+
+  return fits
 }
 
 function readResources(): SystemResources {

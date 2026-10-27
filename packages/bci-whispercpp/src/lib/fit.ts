@@ -1,12 +1,11 @@
-import path from 'bare-path'
-
-/** Where the CMake build stages the per-arch backends, as `index.ts` resolves it. */
-const PREBUILDS_DIR = path.join(__dirname, '..', 'prebuilds')
-
 export interface BciFitRequest {
-  /** Absolute path to the BCI model. */
+  /** Absolute path to the BCI model, or to the registry's weightless description of it. */
   modelPath: string
-  /** Sized alongside the projection; see `embedderFileBytes`. */
+  /**
+   * The embedder, or its weightless description. Its host memory is part of
+   * the projection. Omitted, `bci-embedder.bin` next to `modelPath` is read,
+   * as a load reads it.
+   */
   embedderPath?: string
   /** Longest single transcribe the projection must cover. */
   audioSeconds?: number
@@ -20,7 +19,7 @@ export interface BciFitRequest {
   decoders?: number
   /** Free memory that must remain for the projection to count as fitting. */
   marginBytes?: number
-  /** Where the dynamically-loaded ggml backends live. */
+  /** Directory scanned, as given, for the dynamically-loaded ggml backends. */
   backendsDir?: string
 }
 
@@ -28,7 +27,7 @@ export type BciFitStatus = 'fits' | 'does-not-fit' | 'error'
 
 export interface BciFitResult {
   status: BciFitStatus
-  /** Whisper's own wording, e.g. `model-unreadable`, `no-backend-device`. */
+  /** Whisper's own wording, e.g. `model-unreadable`, `no-backend-device`, or `embedder-unreadable`. */
   reason: string
   /** `tiny` | `base` | ... | `large v3`. */
   modelType: string
@@ -44,41 +43,37 @@ export interface BciFitResult {
   computeBytes: number
   /** Device-component bytes the runtime places in host RAM instead. */
   hostOverflowBytes: number
+  /** Host RAM the load needs beside the device projection, the embedder included. */
   hostBytes: number
   /**
-   * The embedder's size on disk, 0 when no path was given. The embedder has no
-   * fitter, so this is a size on disk. It is counted in neither `deviceBytes`
-   * nor `hostBytes`.
+   * Host RAM the embedder keeps: its day and month projections, its session
+   * map and the dense projection it caches per day, 0 when it could not be
+   * read. Counted in `hostBytes`.
    */
-  embedderFileBytes: number
+  embedderBytes: number
   report: string
 }
 
 interface FitBinding {
-  assessFit(request: BciFitRequest): BciFitResult
+  assessFit(request: BciFitRequest): Promise<BciFitResult>
 }
 
 /**
  * Projects a BCI load against the memory free right now, reading model
  * metadata and never weight data.
  *
- * Covers the whisper half of the load. A model the fitter cannot read comes
- * back as `status: "error"`; a broken request, or a host with no native
- * binding, throws.
+ * Covers the whisper model and the embedder, from the files or from the
+ * registry's weightless descriptions of them. A model or embedder the fitter
+ * cannot read resolves to `status: "error"`; a broken request, or a host
+ * with no native binding, rejects. Concurrent calls run one at a time.
  *
- * The backend directory defaults to the one a real load uses. The native side
- * registers backends once per process, so a fit that let it fall back to the
- * default search path would fix that path for every later load too.
+ * Unset, the backend directory is the one a real load uses, next to the loaded
+ * module. The native side registers backends once per process, so the
+ * directory a fit scans is the one every later load gets too.
  */
-export function assessFit(request: BciFitRequest): BciFitResult {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- native binding is resolved lazily from package prebuilds.
+export async function assessFit(request: BciFitRequest): Promise<BciFitResult> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- the native binding loads on first use.
   const binding = require('../binding.js') as FitBinding
 
-  return binding.assessFit({
-    ...request,
-    backendsDir:
-      typeof request.backendsDir === 'string' && request.backendsDir.length > 0
-        ? request.backendsDir
-        : PREBUILDS_DIR
-  })
+  return await binding.assessFit(request)
 }
