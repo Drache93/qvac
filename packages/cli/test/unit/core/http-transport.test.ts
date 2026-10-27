@@ -225,6 +225,23 @@ describe('HTTP transport lifecycle', () => {
     assert.equal(handled, false)
   })
 
+  it('rejects JSON bodies that would poison prototypes', async (t) => {
+    const app = createHttpServer()
+    t.after(() => app.close())
+    app.post('/json', (req) => req.body)
+    const post = (payload: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/json',
+        payload,
+        headers: { 'content-type': 'application/json' }
+      })
+    assert.equal((await post('{"__proto__":{"admin":true}}')).statusCode, 400)
+    assert.equal((await post('{"a":{"\\u005f_proto__":{}}}')).statusCode, 400)
+    assert.equal((await post('{"constructor":{"prototype":{"admin":true}}}')).statusCode, 400)
+    assert.deepEqual((await post('{"constructor":"plain"}')).json(), { constructor: 'plain' })
+  })
+
   it('validates after preValidation and serializes the declared response schema', async (t) => {
     const app = createHttpServer()
     t.after(() => app.close())

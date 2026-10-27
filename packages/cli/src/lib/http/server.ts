@@ -203,6 +203,17 @@ function decodePathPart(value: string): string {
   }
 }
 
+// Fastify's onProtoPoisoning: 'error'.
+function rejectPrototypeKeys(key: string, value: unknown): unknown {
+  if (
+    key === '__proto__' ||
+    (key === 'constructor' && typeof value === 'object' && value !== null && 'prototype' in value)
+  ) {
+    throw bodyError('HTTP_PROTOTYPE_POISONING', 'Object contains forbidden prototype property')
+  }
+  return value
+}
+
 function parseUrl(url: string): URL {
   try {
     return new URL(url, 'http://localhost')
@@ -408,8 +419,9 @@ class Scope {
       if (contentType === 'application/json' || contentType?.endsWith('+json')) {
         if (!body.length) throw bodyError('HTTP_EMPTY_JSON_BODY', 'Request body must be valid JSON')
         try {
-          req.body = JSON.parse(body.toString('utf8')) as unknown
-        } catch {
+          req.body = JSON.parse(body.toString('utf8'), rejectPrototypeKeys) as unknown
+        } catch (error) {
+          if ((error as HttpErrorShape).statusCode) throw error
           throw bodyError('HTTP_INVALID_JSON_BODY', 'Request body must be valid JSON')
         }
       } else if (body.length && contentType !== 'multipart/form-data') {
