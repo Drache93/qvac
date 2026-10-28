@@ -10,7 +10,7 @@ import {
   delegateSlots,
   resolveModel
 } from '../../dist/lib/runtime/defaults.js'
-import { projectRoot } from '../../dist/lib/runtime/project.js'
+import { projectRoot, workFolder } from '../../dist/lib/runtime/project.js'
 
 const GIB = 1024 ** 3
 const ids = (plugins) => plugins.map((p) => p.id)
@@ -102,6 +102,23 @@ test('the project policy writes the root only and reads a named list', (t) => {
     'never keys or cloud creds, and only what exists'
   )
   assert.deepEqual(policy.network, { mode: 'on' }, 'the network is open until a config limits it')
+})
+
+test('a folder with no marker is the project, but never /, home or above home', (t) => {
+  const home = path.join(scratch(t), 'me')
+  const loose = path.join(home, 'notes')
+  fs.mkdirSync(loose, { recursive: true })
+  const none = { existsSync: () => false }
+
+  assert.equal(workFolder(loose, none, { home }), loose)
+  assert.equal(workFolder('/app', none, { home }), '/app', 'a container workdir is the project')
+  assert.equal(workFolder(home, none, { home }), null)
+  assert.equal(workFolder(path.dirname(home), none, { home }), null, 'a folder holding home')
+  assert.equal(workFolder('/', none, { home }), null)
+
+  const d = defaults({ cwd: loose, platform: 'linux', totalMemoryBytes: 16 * GIB, home })
+  assert.deepEqual(d.core.folders, [{ path: loose, write: true }], 'and gets the coding setup')
+  assert.equal(d.harness.maxToolRounds, 40)
 })
 
 test('outside a project: no folders, 20 rounds, stock agent, no plugins', (t) => {

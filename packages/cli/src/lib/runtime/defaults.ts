@@ -2,7 +2,7 @@ import type { AgentProfile, WorkbenchConfig } from '../types.js'
 import fs from '#fs'
 import path from '#path'
 import { codingInstructions } from './agent-profile.js'
-import { projectRoot, testCommand } from './project.js'
+import { workFolder, testCommand } from './project.js'
 
 const GIB = 1024 ** 3
 
@@ -90,7 +90,7 @@ export function defaults({
   developerDir?: string | null
   exists?: (path: string) => boolean
 }): Partial<WorkbenchConfig> {
-  const root = projectRoot(cwd, { existsSync: exists }, { home })
+  const root = workFolder(cwd, { existsSync: exists }, { home })
   const chosen = resolveModel(model, totalMemoryBytes)
   if (!root) {
     return { core: { model: 'auto' }, harness: { maxToolRounds: 20 } }

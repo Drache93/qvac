@@ -31,6 +31,18 @@ export function projectRoot(
   }
 }
 
+// With no marker the folder you start in is the project, unless it is /, home or holds home
+export function workFolder(
+  cwd: string,
+  fs: Pick<ProjectFS, 'existsSync'>,
+  { home = null }: { home?: string | null } = {}
+) {
+  const dir = path.resolve(cwd)
+  const holdsHome = home !== null && (dir === home || home.startsWith(dir + path.sep))
+
+  return projectRoot(dir, fs, { home }) ?? (holdsHome || dir === path.dirname(dir) ? null : dir)
+}
+
 // How the project runs its tests, read from its manifests; null when nothing says.
 export function testCommand(root: string, fs: ProjectFS) {
   const has = (name: string) => fs.existsSync(path.join(root, name))

@@ -355,7 +355,10 @@ test('config keeps SDK plugin semantics and resolves host paths against its sour
     assert.equal(configPath, path.join(dir, 'qvac.config.json'))
     assert.deepEqual(config.plugins, ['sdk-plugin'])
     assert.deepEqual(config.core.folders, [{ path: path.join(dir, 'project'), write: false }])
-    assert.equal(config.harness.plugins[0].module, path.join(dir, 'host-plugin.mjs'))
+    assert.equal(
+      config.harness.plugins.find((p) => p.module).module,
+      path.join(dir, 'host-plugin.mjs')
+    )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -394,7 +397,7 @@ test('configured npm plugins may expose an ESM-only import entry', async () => {
     )
     const loaded = await loadConfig({ cwd: dir })
     assert.equal(
-      fs.realpathSync(loaded.config.harness.plugins[0].module),
+      fs.realpathSync(loaded.config.harness.plugins.find((p) => p.module).module),
       fs.realpathSync(path.join(plugin, 'index.mjs'))
     )
   } finally {

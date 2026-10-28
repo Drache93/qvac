@@ -37,8 +37,9 @@ machine room to work. Any model name you set wins.
 ### In a project
 
 A project is the nearest folder, going up from where you start, that holds `.git`,
-`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod` or `deno.json`. Your home folder and `/`
-never count, since both hold stray manifests and dotfiles.
+`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod` or `deno.json`. With none of them, the
+folder you start in is the project, as a container's `/app` is. Your home folder, `/` and the
+folders that hold your home never count, since they hold stray manifests and dotfiles.
 
 In a project, `qvac` is set up to code:
 
@@ -100,8 +101,8 @@ off.
 
 ### Outside a project
 
-No folders, `maxToolRounds: 20`, the stock agent instructions, and no coding plugins. Turn any of
-them on in `qvac.config` or `/plugins`.
+In your home folder, `/` or a folder above home: no folders, `maxToolRounds: 20`, the stock agent
+instructions, and no coding plugins. Turn any of them on in `qvac.config` or `/plugins`.
 
 ### Nothing runs without the sandbox
 
