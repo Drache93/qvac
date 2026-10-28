@@ -42,6 +42,8 @@ node benchmarks/coding/polyglot.mjs --model Qwen3.6-35B-A3B-UD-Q4_K_M --data-dir
 | `--budget n`     | the model's own      | caps each round's thinking in tokens                           |
 | `--disable list` | none                 | toolsets the agent is not offered, e.g. `exec`                 |
 | `--plain`        | off                  | the workflow alone, without the project's folder and test line |
+| `--protocol`     | `agent`              | `aider`: Aider's protocol, see below                           |
+| `--bwrap path`   | `/usr/bin/bwrap`     | the sandbox's `bwrap`, for a box that needs a wrapper          |
 | `--cli dir`      | this checkout        | another CLI copy, e.g. one pinned to a harness branch          |
 | `--timeout-min`  | `20`                 | per try                                                        |
 
@@ -53,5 +55,9 @@ tool call is the machine's, not the model's, and is run once more (`infraRetry`)
 ## Comparing with Aider's numbers
 
 Aider's own runs never show the model the test files and give it no shell. Our agent reads and
-runs the tests on its first try, as a coding agent does, so pass@1 here is not Aider's pass_rate_1.
-pass@2 is the closer comparison.
+runs the tests on its first try, as a coding agent does, so the default `agent` protocol scores the
+app, not a number on Aider's leaderboard.
+
+`--protocol aider` is the comparable run. The shell, `exec` and web toolsets are off, and the test files
+are removed from the exercise while the agent works and put back for scoring, so the only test
+output it ever sees is the failing run between its two tries. Its pass@2 is Aider's `pass_rate_2`.

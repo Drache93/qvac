@@ -50,6 +50,9 @@ const { values: opts } = parseArgs({
     // the workflow alone, without the project's folder and test command
     plain: { type: 'boolean', default: false },
     disable: { type: 'string' },
+    // aider: Aider's own protocol, with no shell or web and the tests hidden while the agent works
+    protocol: { type: 'string', default: 'agent' },
+    bwrap: { type: 'string' },
     budget: { type: 'string' },
     cli: { type: 'string', default: ROOT },
     'data-dir': { type: 'string' },
@@ -58,12 +61,19 @@ const { values: opts } = parseArgs({
   }
 })
 
-if (!opts.model || !opts['data-dir']) {
+if (!opts.model || !opts['data-dir'] || !['agent', 'aider'].includes(opts.protocol)) {
   console.error(
-    'usage: node benchmarks/coding/polyglot.mjs --model <name> --data-dir <set-up qvac data dir> [...]'
+    'usage: node benchmarks/coding/polyglot.mjs --model <name> --data-dir <set-up qvac data dir> [--protocol agent|aider] [...]'
   )
   process.exit(2)
 }
+
+const aider = opts.protocol === 'aider'
+const disabled = [
+  ...(opts.disable ? opts.disable.split(',') : []),
+  // Aider's model has no shell and no web, so it can neither run the tests nor look up a solution
+  ...(aider ? ['exec', 'coding', 'web-search', 'http-request'] : [])
+]
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 const out = path.resolve(opts.out || path.join(ROOT, 'output/bench/runs', `${stamp}-${opts.model}`))
@@ -78,7 +88,7 @@ fs.writeFileSync(
       agent: {
         // plan thinks after the prompt and after a failed step only; the harness strips it
         reasoning: opts.reasoning === 'off' ? 'disabled' : 'enabled',
-        disabledToolsets: opts.disable ? opts.disable.split(',') : [],
+        disabledToolsets: [...new Set(disabled)],
         // left out of the JSON when unset, so the CLI's own instructions apply
         instructions: opts.plain ? CODING_INSTRUCTIONS : undefined
       }
@@ -86,7 +96,7 @@ fs.writeFileSync(
     harness: {
       reasoningBudget: opts.budget === undefined ? undefined : Number(opts.budget),
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
-      plugins: sandboxCaches()
+      plugins: sandbox()
     }
   })
 )
@@ -108,19 +118,19 @@ for (const exercise of chosen) {
 summarize(path.join(out, 'results.jsonl'))
 
 // Go's build cache and Gradle's home live outside the exercise, so the sandbox lets every line write there
-function sandboxCaches() {
+function sandbox() {
   const languages = opts.languages.split(',')
   const writable = [
     ...(languages.includes('go') ? [run('go', ['env', 'GOCACHE']).stdout.trim()] : []),
     ...(languages.includes('java') ? [path.join(os.homedir(), '.gradle')] : [])
   ]
-  if (writable.length === 0) {
+  if (writable.length === 0 && !opts.bwrap) {
     return undefined
   }
 
   const id = process.platform === 'darwin' ? 'sandbox-macos' : 'sandbox-linux'
 
-  return [{ id, options: { writable } }]
+  return [{ id, options: { writable, ...(opts.bwrap ? { bwrap: opts.bwrap } : {}) } }]
 }
 
 function checkout(dir) {
@@ -196,6 +206,10 @@ function solve({ language, name, source }) {
   const row = { language, name, passed: false, passedOn: null, tries: [], calls: 0 }
   for (let attempt = 1; attempt <= Number(opts.tries); attempt++) {
     const transcript = path.join(out, 'runs', language, `${name}.try${attempt}.jsonl`)
+    if (aider) {
+      hideTests(work, meta.files.test)
+    }
+
     let agent = ask(prompt, { work, transcript, resume: attempt > 1 })
     // a run that failed before its first call is the machine's, not the model's: once more
     if (agent.end === 'failed' && agent.calls === 0) {
@@ -300,6 +314,11 @@ function shareModules(work) {
   fs.writeFileSync(path.join(work, '.gitignore'), 'node_modules\n')
 }
 
+// Aider's agent sees only the solution files; the scoring run gets the tests back
+function hideTests(work, tests) {
+  for (const test of tests) fs.rmSync(path.join(work, test), { force: true })
+}
+
 // the model may edit a test; the score is always against the original
 function restoreTests(work, tests) {
   run('git', ['checkout', '-q', 'HEAD', '--', ...tests], { cwd: work })
@@ -337,6 +356,6 @@ function summarize(file) {
   const any = rows.filter((r) => r.passed).length
   const secs = rows.reduce((s, r) => s + r.secs, 0)
   console.log(
-    `\n${rows.length} exercises · pass@1 ${pct(first)} · pass@2 ${pct(any)} · ${Math.round(secs / rows.length)}s each · ${os.hostname()}`
+    `\n${rows.length} exercises · ${opts.protocol} protocol · pass@1 ${pct(first)} · pass@2 ${pct(any)} · ${Math.round(secs / rows.length)}s each · ${os.hostname()}`
   )
 }
