@@ -1,10 +1,11 @@
 import { register } from 'node:module'
 
-register(new URL('./harness-resolve-hook.js', import.meta.url), {
-  data: { parentURL: import.meta.url }
-})
+// Hooks load by URL, which no loader rewrites, so they take this module's own .ts or .js
+const own = (name: string) => new URL(`./${name}${import.meta.url.slice(-3)}`, import.meta.url)
 
-register(new URL('./config-typescript-hook.js', import.meta.url))
+register(own('harness-resolve-hook'), { data: { parentURL: import.meta.url } })
+
+register(own('config-typescript-hook'))
 
 // Scope native transforms and TypeScript resolution to this config's local graph.
 // Installed SDK/harness packages keep Node's normal module identity and conditions.

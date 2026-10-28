@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { stripTypeScriptTypes, type LoadHook, type ResolveHook } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { configAliases } from './config-tsconfig.js'
+// Loader hooks run where only Node's own type stripping applies, so the sibling takes this file's extension
+const { configAliases }: typeof import('./config-tsconfig.js') = await import(
+  `./config-tsconfig${import.meta.url.slice(-3)}`
+)
 
 interface Graph {
   id: string
