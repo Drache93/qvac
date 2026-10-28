@@ -39,38 +39,6 @@ fetchRetryMaxtimeout: 120000
 # hyper-instrument's own lockfile points bare-v8 at a local link: path that
 # doesn't exist in this workspace; pin it to a real registry version instead.
 overrides:
-  # Maintained CLI/Core/Harness leaves; preserve unrelated SDK dependency policy.
-  "watch-drive>localwatch": "file:packages/cli/vendor/localwatch"
-  "@qvac/harness>@xmldom/xmldom": "file:packages/cli/vendor/xmldom"
-  "@qvac/harness>jsonrepair": "file:packages/cli/vendor/jsonrepair"
-  "@qvac/harness>xstate": "file:packages/cli/vendor/xstate"
-  "@qvac/rag>llm-splitter": "file:packages/cli/vendor/llm-splitter"
-  "@qvac/langdetect-text>tinyld": "file:packages/cli/vendor/tinyld"
-  "rag-extract>unpdf": "file:packages/cli/vendor/unpdf"
-  "rag-extract>web-streams-polyfill": "file:packages/cli/vendor/web-streams-polyfill"
-  "generate-object-property>is-property": "file:packages/cli/vendor/is-property"
-  "protocol-buffers-encodings>varint": "file:packages/cli/vendor/varint"
-  "signed-varint>varint": "file:packages/cli/vendor/varint"
-  "protocol-buffers-encodings>signed-varint": "file:packages/cli/vendor/signed-varint"
-  "@qvac/core>zod": "file:packages/cli/vendor/zod"
-  "@qvac/harness>zod": "file:packages/cli/vendor/zod"
-  "@qvac/rag>zod": "file:packages/cli/vendor/zod"
-  # The CLI bundles this maintained snapshot until its next registry release.
-  "bundlebee>bare-module-traverse": "2.7.2"
-  "bundlebee-import>bundlebee": "file:packages/cli/vendor/bundlebee"
-  # Keep the CLI/Core storage graph on the family exercised by local P2P tests.
-  "@qvac/core>corestore": "7.15.0"
-  "corestore@7.15.0>hypercore": "11.39.0"
-  # CLI's Bare bundle/native runtime must resolve the versions validated by Core.
-  bare-module: "7.1.0"
-  bare-module-traverse: "2.5.9"
-  bare-thread: "1.2.7"
-  bare-http1: "4.5.9"
-  bare-path: "3.0.1"
-  "@qvac/harness>@qvac/llm-llamacpp": "0.64.3"
-  "@qvac/harness>@qvac/translation-nmtcpp": "10.0.0"
-  "@qvac/inference>@qvac/llm-llamacpp": "0.64.3"
-  "@qvac/inference>@qvac/translation-nmtcpp": "10.0.0"
   hyper-instrument>bare-v8: "^1.0.1"
   # @electron/rebuild pins @electron/node-gyp to a git URL (exotic subdep);
   # pin it to the electron fork's published registry build so blockExoticSubdeps
@@ -79,32 +47,30 @@ overrides:
   # The speech addons declare their desktop platform packages so a standalone
   # npm install of one (its sanity job) can resolve "#host-addon". In the
   # workspace `npm run link:platform` stages the local build instead, which a
-  # copy from npm would replace. Scope these exclusions to the workspace
-  # versions: the CLI also consumes published addons that need their prebuilds.
-  # Keep the selectors aligned when those workspace versions change.
-  "@qvac/asr-ggml@0.11.1>@qvac/asr-ggml-linux-x64": "-"
-  "@qvac/asr-ggml@0.11.1>@qvac/asr-ggml-linux-arm64": "-"
-  "@qvac/asr-ggml@0.11.1>@qvac/asr-ggml-darwin-arm64": "-"
-  "@qvac/asr-ggml@0.11.1>@qvac/asr-ggml-darwin-x64": "-"
-  "@qvac/asr-ggml@0.11.1>@qvac/asr-ggml-win32-x64": "-"
-  "@qvac/tts-ggml@0.14.0>@qvac/tts-ggml-linux-x64": "-"
-  "@qvac/tts-ggml@0.14.0>@qvac/tts-ggml-linux-arm64": "-"
-  "@qvac/tts-ggml@0.14.0>@qvac/tts-ggml-darwin-arm64": "-"
-  "@qvac/tts-ggml@0.14.0>@qvac/tts-ggml-darwin-x64": "-"
-  "@qvac/tts-ggml@0.14.0>@qvac/tts-ggml-win32-x64": "-"
-  "@qvac/audiogen-ggml@0.9.0>@qvac/audiogen-ggml-linux-x64": "-"
-  "@qvac/audiogen-ggml@0.9.0>@qvac/audiogen-ggml-linux-arm64": "-"
-  "@qvac/audiogen-ggml@0.9.0>@qvac/audiogen-ggml-darwin-arm64": "-"
-  "@qvac/audiogen-ggml@0.9.0>@qvac/audiogen-ggml-darwin-x64": "-"
-  "@qvac/audiogen-ggml@0.9.0>@qvac/audiogen-ggml-win32-x64": "-"
+  # copy from npm would replace.
+  "@qvac/asr-ggml-linux-x64": "-"
+  "@qvac/asr-ggml-linux-arm64": "-"
+  "@qvac/asr-ggml-darwin-arm64": "-"
+  "@qvac/asr-ggml-darwin-x64": "-"
+  "@qvac/asr-ggml-win32-x64": "-"
+  "@qvac/tts-ggml-linux-x64": "-"
+  "@qvac/tts-ggml-linux-arm64": "-"
+  "@qvac/tts-ggml-darwin-arm64": "-"
+  "@qvac/tts-ggml-darwin-x64": "-"
+  "@qvac/tts-ggml-win32-x64": "-"
+  "@qvac/audiogen-ggml-linux-x64": "-"
+  "@qvac/audiogen-ggml-linux-arm64": "-"
+  "@qvac/audiogen-ggml-darwin-arm64": "-"
+  "@qvac/audiogen-ggml-darwin-x64": "-"
+  "@qvac/audiogen-ggml-win32-x64": "-"
   # diffusion-cpp's desktop platform packages are not on npm until the split
   # release publishes them. The workspace stages a source build with
   # `npm run link:platform` instead.
-  "@qvac/diffusion-cpp@0.31.0>@qvac/diffusion-cpp-linux-x64": "-"
-  "@qvac/diffusion-cpp@0.31.0>@qvac/diffusion-cpp-linux-arm64": "-"
-  "@qvac/diffusion-cpp@0.31.0>@qvac/diffusion-cpp-darwin-arm64": "-"
-  "@qvac/diffusion-cpp@0.31.0>@qvac/diffusion-cpp-darwin-x64": "-"
-  "@qvac/diffusion-cpp@0.31.0>@qvac/diffusion-cpp-win32-x64": "-"
+  "@qvac/diffusion-cpp-linux-x64": "-"
+  "@qvac/diffusion-cpp-linux-arm64": "-"
+  "@qvac/diffusion-cpp-darwin-arm64": "-"
+  "@qvac/diffusion-cpp-darwin-x64": "-"
+  "@qvac/diffusion-cpp-win32-x64": "-"
 
 blockExoticSubdeps: true
 
@@ -211,6 +177,8 @@ minimumReleaseAgeExclude:
   - bare-ws
   - bare-zlib
 
-# Harness runtime compatibility patches, applied by pnpm before linking packages.
+# Runtime compatibility patches, applied by pnpm before linking packages.
 patchedDependencies:
+  "localwatch@1.4.3": patches/localwatch@1.4.3.patch
   "pyodide@314.0.2": patches/pyodide@314.0.2.patch
+  "unpdf@1.6.2": patches/unpdf@1.6.2.patch
