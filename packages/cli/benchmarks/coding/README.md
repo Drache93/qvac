@@ -61,3 +61,7 @@ app, not a number on Aider's leaderboard.
 `--protocol aider` is the comparable run. The shell, `exec` and web toolsets are off, and the test files
 are removed from the exercise while the agent works and put back for scoring, so the only test
 output it ever sees is the failing run between its two tries. Its pass@2 is Aider's `pass_rate_2`.
+
+That output is cleaned as Aider cleans it, of timings and the exercise's full path. Aider sends
+all of it; a C++ build can print 80 KB of one repeated error, more than fits beside the first try
+in the model's context, so output past 16,000 characters keeps its first 12,000 and its last 4,000.

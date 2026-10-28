@@ -23,9 +23,13 @@ const TESTS = {
     ]
   ],
   javascript: ['sh', ['-c', 'node_modules/.bin/jest ./*']],
-  // the first run on a machine fetches Gradle and JUnit into ~/.gradle; after that it is offline
-  java: ['sh', ['-c', './gradlew test --offline -q 2>&1']]
+  // the first run on a machine fetches Gradle and JUnit into ~/.gradle; after that it is offline.
+  // Not -q: it hides the failed tests and the assertions the exercises' testLogging prints
+  java: ['sh', ['-c', './gradlew test --offline 2>&1']]
 }
+
+// test output past this keeps its head, where a compiler's first errors are, and its tail
+const OUTPUT_MAX = 16000
 
 // Exercism skips every test but the first; the score, and the agent, see all of them
 const SKIPS = [
@@ -138,7 +142,10 @@ function checkout(dir) {
     run('git', ['clone', '-q', REPO, dir])
   }
 
-  run('git', ['-C', dir, 'checkout', '-q', PINNED])
+  // shards started together share the clone, and a checkout of where it already is takes git's lock
+  if (run('git', ['-C', dir, 'rev-parse', 'HEAD']).stdout.trim() !== PINNED) {
+    run('git', ['-C', dir, 'checkout', '-q', PINNED])
+  }
 
   return dir
 }
@@ -230,7 +237,7 @@ function solve({ language, name, source }) {
     }
 
     prompt =
-      `${test.output.slice(-4000)}\n\n####\n\nSee the testing errors above.\n` +
+      `${feedback(test.output, work)}\n\n####\n\nSee the testing errors above.\n` +
       `The tests are correct, don't try and change them.\nFix the code in ${files} to resolve the errors.\n`
   }
 
@@ -334,6 +341,17 @@ function runTests(language, work) {
   })
 
   return { passed: r.status === 0, output: `${r.stdout ?? ''}${r.stderr ?? ''}` }
+}
+
+// as Aider's cleanup_test_output: no timings to vary the reply, the exercise folder by its name
+function feedback(output, work) {
+  const text = output.replace(/\bin \d+\.\d+s\b/g, '').replaceAll(work, path.basename(work))
+  if (text.length <= OUTPUT_MAX) {
+    return text
+  }
+
+  const cut = text.length - OUTPUT_MAX
+  return `${text.slice(0, 12000)}\n… ${cut} characters cut …\n${text.slice(-4000)}`
 }
 
 function run(command, args, options = {}) {
