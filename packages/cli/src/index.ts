@@ -21,9 +21,13 @@ if (sdkWords) {
     launcher: { runtime: process.execPath, script: fileURLToPath(import.meta.url) },
     runApp(options: LaunchOptions, env) {
       const bare = require('bare-runtime')()
-      // Some development dependency restores lose the executable bit.
+      // Some development dependency restores lose the executable bit; a read-only install keeps it.
       if (process.platform !== 'win32') {
-        fs.chmodSync(bare, 0o755)
+        try {
+          fs.accessSync(bare, fs.constants.X_OK)
+        } catch {
+          fs.chmodSync(bare, 0o755)
+        }
       }
 
       supervise(spawn(bare, [entry, JSON.stringify(options)], { stdio: 'inherit', env }))
