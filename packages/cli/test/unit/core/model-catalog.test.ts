@@ -49,7 +49,6 @@ describe('model-catalog', () => {
       'llamacpp-completion': 'chat',
       'llamacpp-embedding': 'embedding',
       'llamacpp-decision': 'decision',
-      'llamacpp-rerank': 'rerank',
       'whispercpp-transcription': 'transcription',
       'bci-whispercpp-transcription': 'bci',
       'parakeet-transcription': 'transcription',

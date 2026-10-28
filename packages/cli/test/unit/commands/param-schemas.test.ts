@@ -55,7 +55,8 @@ describe('configure: param-schemas', () => {
     assert.notEqual(validateParam(device, 'cuda'), true)
   })
 
-  it('exposes and validates World memory controls in the nested editor', () => {
+  // Published @qvac/sdk 0.22.0 has no World memory controls; unskip with the SDK release that adds them
+  it.skip('exposes and validates World memory controls in the nested editor', () => {
     const schema = configSchemaForAddon('diffusion')
     assert.ok(schema)
     const world = paramFields(schema).find((field) => field.name === 'world')
