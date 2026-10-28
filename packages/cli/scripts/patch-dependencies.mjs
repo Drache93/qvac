@@ -1,4 +1,5 @@
-// npm does not consume Bun's patchedDependencies, so replay the pinned harness patches without git.
+// npm does not consume Bun's or pnpm's patchedDependencies, so replay the harness's pinned
+// patches and the CLI's own patches/ without git.
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -14,13 +15,17 @@ export function patchDependencies(directory = root, { check = false } = {}) {
   const harness = packageRoot('@qvac/harness', directory)
   const changes = []
   const results = []
-  for (const { identity, patch } of harnessPatches(harness)) {
+  const patches = [
+    ...listPatches(path.join(harness, 'patches'), harness),
+    ...listPatches(path.join(directory, 'patches'), directory)
+  ]
+  for (const { identity, patch, from } of patches) {
     // an optional dependency left out of the install, such as pyodide, has nothing to patch
-    if (!installed(identity, harness)) {
+    if (!installed(identity, from)) {
       results.push({ package: identity, state: 'not installed' })
       continue
     }
-    const planned = planPackage(identity, { directory: harness, patch })
+    const planned = planPackage(identity, { directory: from, patch })
     changes.push(...planned)
     results.push({
       package: identity,
@@ -37,15 +42,16 @@ export function patchDependencies(directory = root, { check = false } = {}) {
   return { check, changes: changes.length, results }
 }
 
-// The snapshot manifest drops patchedDependencies, so the patches the harness ships are the list
-function harnessPatches(harness) {
-  const folder = path.join(harness, 'patches')
+// Each <name>@<version>.patch applies to that package as resolved from the folder's owner
+function listPatches(folder, from) {
+  if (!fs.existsSync(folder)) return []
   return fs
     .readdirSync(folder)
     .filter((file) => file.endsWith('.patch'))
     .map((file) => ({
       identity: decodeURIComponent(file.slice(0, -'.patch'.length)),
-      patch: path.join(folder, file)
+      patch: path.join(folder, file),
+      from
     }))
 }
 
@@ -93,7 +99,7 @@ export function planPackagePatch(identity, { target, patch }) {
   const installed = JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8'))
   if (installed.name !== name || installed.version !== version) {
     throw new Error(
-      `Cannot patch ${identity}: installed ${installed.name}@${installed.version}; update the pinned harness patch first`
+      `Cannot patch ${identity}: installed ${installed.name}@${installed.version}; update the pinned patch first`
     )
   }
   const changes = []
