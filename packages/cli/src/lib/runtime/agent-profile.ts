@@ -22,6 +22,8 @@ export const CODING_INSTRUCTIONS = [
   '   it in new together with the addition. Never send an empty old.',
   '4. Use write_file only for a new file or a full rewrite.',
   "5. After changing code, run the project's tests or linter with the shell and read the result.",
+  '   With no shell tool you cannot run, build or test anything, and no skill or file tool will:',
+  '   check the code by reading it against the task, then finish.',
   '6. Independent read-only questions (review these files, search these areas) go to',
   '   subagents with delegate: one self-contained task each, then combine their answers.',
   '7. If the same call fails twice, stop and explain what went wrong instead of retrying.',

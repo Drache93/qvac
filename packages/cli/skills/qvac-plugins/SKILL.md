@@ -1,9 +1,9 @@
 ---
 name: qvac-plugins
-description: Load this before adding or changing anything in qvac.config, plugins/ or extensions — a plugin (a tool the model can call) or an extension (a / command, key, footer note or colours in the terminal app).
+description: Load this only when the user asks you to write or change their QV.AC setup — qvac.config, a plugin under plugins/ or an extension (a / command, key, footer note or colours). It is how-to text for that work; it gives you no tools and cannot run, build or test anything.
 aliases: [plugin, plugins, extension, extensions]
 platform: [darwin, linux, win32]
-version: 2
+version: 3
 # Shipped by the QV.AC CLI into the user skills folder. "high" is the 9B tier: smaller models do not get it.
 # prettier-ignore
 metadata: { "openclaw": { "minCapabilityProfile": "high" } }
