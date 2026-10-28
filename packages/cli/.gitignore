@@ -1,7 +1,5 @@
 node_modules
 dist
-# Snapshot dist/ folders are the vendored code itself, so they are tracked
-!/vendor/**/dist/
 .DS_Store
 package-lock.json
 bun.lock
@@ -10,7 +8,3 @@ bun.lock
 output/
 out/
 *.tgz
-
-# Exact native files are materialized from vendor provenance before build/pack.
-/vendor/qvac/**/prebuilds/
-/vendor/qvac/*/weights/

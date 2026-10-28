@@ -525,12 +525,10 @@ For tests that touch `qvac sdk serve --openai`, `@qvac/ai-sdk-provider`, or agen
 [`test/AGENT_STACK_E2E.md`](../test/AGENT_STACK_E2E.md). It defines which layer owns SDK e2e,
 CLI contract tests, CLI in-process HTTP e2e, CLI spawned-binary e2e, provider integration, and plugin integration.
 
-The CLI ships a reviewed `@qvac/sdk` snapshot built from the workspace source,
-including the `./commands` subpath used by `bundle` and `verify`. Its inference
-snapshot and native backend versions are tested together. Snapshot provenance
-records source hashes; the distribution shrinkwrap fixes the installed graph.
-See [distribution development](../README.md#development) for regeneration and
-packing commands.
+The CLI depends on the published `@qvac/sdk`, which provides the `./commands`
+subpath used by `bundle` and `verify`, and on the published `@qvac/inference`.
+The distribution shrinkwrap fixes the installed graph. See
+[distribution development](../README.md#development) for the packing commands.
 
 To iterate against the workspace SDK, build and link it with:
 
@@ -541,18 +539,16 @@ node -e "console.log(require.resolve('@qvac/sdk/commands'))"
 
 This is a local development override. Restore the committed manifest and
 shrinkwrap before preparing a distribution, preserving any other intended edits.
-Regenerate the SDK snapshot with `node scripts/sync-qvac-vendors.mjs` when its
-source changes. `npm run pack:local` installs and validates the committed
-snapshots in a separate directory, leaving workspace links intact.
+`npm run pack:local` installs the committed shrinkwrap in a separate directory,
+leaving workspace links intact.
 
 **How CI tests the CLI/SDK pair:**
 
 - SDK pod checks retain the workspace SDK leg and, for CLI releases, a second
-  leg using the committed distribution snapshot.
-- Push CI builds the committed snapshots with `npm ci --install-links`.
+  leg using the committed shrinkwrap.
+- Push CI installs the committed shrinkwrap with `npm ci`.
 - npm and GitHub Packages publishing assemble an isolated distribution and
-  publish that validated archive. GPR changes the CLI name/version while
-  keeping bundled SDK package identities intact.
+  publish that validated archive. GPR changes the CLI name/version only.
 
 **Run locally:**
 

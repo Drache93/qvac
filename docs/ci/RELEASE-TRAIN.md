@@ -163,14 +163,11 @@ which requires the build and every check the train lists.
 - npm's sha of each published tarball must match the tarball the build job
   packed.
 - The CLI packs through `scripts/pack-distribution.mjs`, which installs its npm
-  distribution graph in isolation and runs its source and installed-tree gates.
+  distribution graph in isolation and runs its publish check.
   The CLI publishes that exact archive inside the same Nx dependency task graph;
   other packages retain their existing publish targets. Archive name, version and
   `gitHead` are checked before any train member publishes, and the final npm SHA
   comparison still applies. Dry runs use the same archive with `npm publish --dry-run`.
-- CLI train consumers preserve the committed runtime snapshots. Regenerate those
-  snapshots and the npm distribution lock deliberately when changing their SDK or
-  inference version; train staging does not replace them with another tarball.
 - A version npm already has is skipped.
 
 ## Recovery
