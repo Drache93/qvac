@@ -39,7 +39,7 @@ import {
   stageManifest,
 } from './lib/release-train.mjs'
 
-import { cliArchivePath, cliSnapshotRanges, validateCliArchive, withCliArchiveTarget } from './lib/cli-release.mjs'
+import { cliArchivePath, validateCliArchive, withCliArchiveTarget } from './lib/cli-release.mjs'
 
 const CATALOG = '.github/release-trains.json'
 const TARBALL_INDEX = 'tarballs.json'
@@ -137,10 +137,7 @@ function resolveTrain ([ref, base, headRef], options) {
   const projects = resolved.projects.map((name) => ({ name, dir: roots[name] }))
   const manifestAt = (sha, project) => {
     const manifest = gitShow(sha, `${project.dir}/package.json`)
-    return manifest && cliSnapshotRanges(JSON.parse(manifest), (relative) => {
-      const source = gitShow(sha, `${project.dir}/${relative}`)
-      return source && JSON.parse(source)
-    })
+    return manifest && JSON.parse(manifest)
   }
   const versionAtHead = (project) => {
     const manifest = manifestAt(head, project)

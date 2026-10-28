@@ -38,25 +38,3 @@ export function withCliArchiveTarget (root, dir, action) {
     writeFileSync(file, original)
   }
 }
-
-// A maintained file dependency has an exact version in its checked-in manifest.
-// Resolve it from the same commit before applying the normal train range policy.
-export function cliSnapshotRanges (manifest, readSnapshot) {
-  if (manifest.name !== '@qvac/cli') return manifest
-  const result = structuredClone(manifest)
-  for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
-    for (const [name, spec] of Object.entries(result[field] || {})) {
-      if (!spec.startsWith('file:')) continue
-      const relative = spec.slice(5)
-      if (!relative.startsWith('vendor/') || relative.includes('\\') || relative.split('/').includes('..')) {
-        throw new Error(`Invalid CLI snapshot path: ${spec}`)
-      }
-      const snapshot = readSnapshot(relative + '/package.json')
-      if (!snapshot || snapshot.name !== name || typeof snapshot.version !== 'string') {
-        throw new Error(`CLI snapshot identity mismatch: ${name}`)
-      }
-      result[field][name] = snapshot.version
-    }
-  }
-  return result
-}

@@ -1,13 +1,7 @@
 // These checks run without installing workspace dependencies or contacting a registry.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  readFileSync,
-  writeFileSync,
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-} from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -40,14 +34,14 @@ function script(source, name) {
     .join("\n");
 }
 
-test("CLI builds installed snapshots and publishes validated archives on every stream", () => {
+test("CLI installs from its lock and publishes validated archives on every stream", () => {
   assert.match(
     step(workflow, "Install dependencies"),
-    /npm ci --ignore-scripts --install-links/,
+    /npm ci --ignore-scripts\n/,
   );
   assert.ok(
-    workflow.indexOf("Prepare runtime snapshots") <
-      workflow.indexOf("Install dependencies"),
+    workflow.indexOf("Install dependencies") <
+      workflow.indexOf("Apply dependency patches"),
   );
   assert.doesNotMatch(
     workflow,
@@ -121,78 +115,3 @@ for (const count of [0, 1, 2]) {
     else assert.match(result.stdout, /must produce exactly one archive/);
   });
 }
-
-test("GPR name/version normalization preserves offline local dependency installation", (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "qvac-ci-normalize-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  mkdirSync(join(directory, "vendor/runtime"), { recursive: true });
-  writeFileSync(
-    join(directory, "vendor/runtime/package.json"),
-    JSON.stringify({ name: "@qvac/runtime-fixture", version: "1.0.0" }),
-  );
-  writeFileSync(
-    join(directory, "package.json"),
-    JSON.stringify({
-      name: "@qvac/cli-fixture",
-      version: "1.0.0",
-      dependencies: { "@qvac/runtime-fixture": "file:vendor/runtime" },
-    }),
-  );
-  const config = join(directory, "user.npmrc");
-  writeFileSync(
-    config,
-    "@tetherto:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n",
-  );
-  const env = {
-    ...process.env,
-    NPM_CONFIG_USERCONFIG: config,
-    NPM_CONFIG_CACHE: join(directory, "cache"),
-  };
-  delete env.NODE_AUTH_TOKEN;
-  function npm(args) {
-    const result = spawnSync(
-      process.platform === "win32" ? "npm.cmd" : "npm",
-      args,
-      { cwd: directory, env, encoding: "utf8" },
-    );
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout.trim();
-  }
-  assert.equal(
-    npm(["config", "get", "registry"]),
-    "https://registry.npmjs.org/",
-  );
-  npm([
-    "install",
-    "--package-lock-only",
-    "--ignore-scripts",
-    "--install-links",
-    "--offline",
-    "--no-audit",
-    "--no-fund",
-  ]);
-  npm([
-    "version",
-    "1.0.0-tmp.runid-123",
-    "--no-git-tag-version",
-    "--ignore-scripts",
-  ]);
-  const manifest = JSON.parse(readFileSync(join(directory, "package.json")));
-  manifest.name = "@tetherto/cli-fixture-mono";
-  writeFileSync(join(directory, "package.json"), JSON.stringify(manifest));
-  npm([
-    "ci",
-    "--ignore-scripts",
-    "--install-links",
-    "--offline",
-    "--no-audit",
-    "--no-fund",
-  ]);
-  const installed = JSON.parse(
-    readFileSync(
-      join(directory, "node_modules/@qvac/runtime-fixture/package.json"),
-    ),
-  );
-  assert.equal(installed.name, "@qvac/runtime-fixture");
-  assert.equal(installed.version, "1.0.0");
-});

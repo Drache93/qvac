@@ -171,7 +171,7 @@ jobs:
           TRAIN_PROJECTS: ${{ needs.train.outputs.projects }}
         run: pnpm exec nx run-many -t build --projects="$TRAIN_PROJECTS" --exclude-task-dependencies
 
-      # CLI source and installed-tree gates run inside pack-distribution below.
+      # The CLI's publish check runs inside pack-distribution below.
       # Other packages retain their workspace prepublishOnly checks.
       - name: Run prepublishOnly checks
         env:

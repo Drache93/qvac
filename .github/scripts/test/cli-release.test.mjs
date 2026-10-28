@@ -5,8 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { cliArchivePath, cliSnapshotRanges, validateCliArchive, withCliArchiveTarget } from '../lib/cli-release.mjs'
-import { rangeErrors, stageManifest } from '../lib/release-train.mjs'
+import { cliArchivePath, validateCliArchive, withCliArchiveTarget } from '../lib/cli-release.mjs'
 
 const script = fileURLToPath(new URL('../release-train.mjs', import.meta.url))
 function fixture (t) {
@@ -42,11 +41,6 @@ test('CLI remains in the Nx graph and temporary target is restored on failure', 
   assert.equal(fs.readFileSync(path.join(root, 'project.json'), 'utf8'), original)
 })
 
-test('CLI train staging preserves the maintained snapshot and lock graph', () => {
-  const manifest = { name: '@qvac/cli', dependencies: { '@qvac/sdk': 'file:vendor/qvac/sdk' }, overrides: { existing: '1.0.0' } }
-  assert.deepEqual(stageManifest(manifest, { '@qvac/sdk': '/tmp/sdk.tgz' }), manifest)
-})
-
 test('archive publishing uses exact checked tarball, suppresses lifecycle and forwards dry-run/provenance', (t) => {
   const root = fixture(t)
   const packageDir = path.join(root, 'package')
@@ -68,19 +62,4 @@ test('archive publishing uses exact checked tarball, suppresses lifecycle and fo
   const result = spawnSync(process.execPath, [script, 'publish-cli-archive'], { env: { ...env, QVAC_RELEASE_CLI_HEAD: 'wrong' }, encoding: 'utf8' })
   assert.notEqual(result.status, 0)
   assert.equal(fs.existsSync(trace), false, 'mismatched archive never invokes npm')
-})
-
-test('CLI snapshot versions undergo the existing train range check without path escapes', () => {
-  const manifest = { name: '@qvac/cli', dependencies: { '@qvac/sdk': 'file:vendor/qvac/sdk' } }
-  const normalized = cliSnapshotRanges(manifest, (relative) => {
-    assert.equal(relative, 'vendor/qvac/sdk/package.json')
-    return { name: '@qvac/sdk', version: '0.22.0' }
-  })
-  assert.deepEqual(rangeErrors({ '@qvac/cli': normalized }, { '@qvac/sdk': '0.22.0' }), [])
-  assert.match(rangeErrors({ '@qvac/cli': normalized }, { '@qvac/sdk': '0.23.0' })[0], /does not accept/)
-  assert.equal(manifest.dependencies['@qvac/sdk'], 'file:vendor/qvac/sdk')
-  assert.throws(() => cliSnapshotRanges(manifest, () => ({ name: 'wrong', version: '0.22.0' })), /identity mismatch/)
-  for (const spec of ['file:../outside', 'file:vendor/../outside', 'file:/absolute', 'file:vendor/\\outside']) {
-    assert.throws(() => cliSnapshotRanges({ name: '@qvac/cli', dependencies: { pkg: spec } }, () => assert.fail('unsafe read')), /Invalid CLI snapshot path/)
-  }
 })
