@@ -10,6 +10,7 @@ const harnessConfig = {
   maxToolRounds: 40,
   reasoningBudget: 512,
   thinking: 'plan',
+  wording: { toolRepeated: 'Once is enough.', guidelines: { 'one-action-at-a-time': false } },
   allowUnsandboxedShell: allow === 'allow',
   plugins: [{ id: 'coding' }, { id: 'sandbox-macos' }, { id: 'egress-proxy' }],
   policy: { files: { write: [dir] }, network: { mode: 'hosts', hosts: ['github.com'] } },
@@ -49,7 +50,7 @@ await configureHarness(harness, quiet, { platform: 'darwin' })
 const events = []
 for (const context of [
   { agent: { id: 'a' }, agents: { b: { id: 'b' } }, messages: [] },
-  { agent: { id: 'a' }, messages: [], maxToolRounds: 3 },
+  { agent: { id: 'a' }, messages: [], maxToolRounds: 3, wording: { toolRepeated: 'Mine.' } },
   { agent: { id: 'a' }, messages: [], parentRunId: 'p' },
   { agent: { id: 'a' }, messages: [], resume: true, generationParams: { reasoning_budget: -1 } }
 ]) {

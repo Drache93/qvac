@@ -53,6 +53,7 @@ export interface HarnessConfig {
   planMode?: boolean | undefined
   reasoningBudget?: number | undefined
   thinking?: string | undefined
+  wording?: Record<string, unknown> | undefined
   llm?: Record<string, unknown> | undefined
   allowUnsandboxedShell?: boolean | undefined
   [key: string]: unknown

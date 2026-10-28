@@ -454,6 +454,10 @@ export function shapeRun(context: Run, { options }: { options: HarnessConfig }):
     ...(context.policy || options.policy ? { policy: context.policy || options.policy! } : {}),
     ...((context.planMode ?? options.planMode) !== undefined
       ? { planMode: context.planMode ?? options.planMode! }
+      : {}),
+    // the model-facing text qvac.config words for every run; a run's own wording wins key by key
+    ...(options.wording || context.wording
+      ? { wording: { ...options.wording, ...context.wording } as NonNullable<Run['wording']> }
       : {})
   }
   if (!context.parentRunId && !context.resume) {

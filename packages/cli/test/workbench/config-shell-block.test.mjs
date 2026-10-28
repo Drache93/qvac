@@ -46,6 +46,15 @@ test('reasoningBudget and thinking shape every new run, and a resumed run keeps 
   assert.equal(resumed.generationParams.reasoning_budget, -1)
 })
 
+test('wording words every run, and a run that words a key itself keeps its own', (t) => {
+  const [top, own, child] = configure(t, 'allow').runs
+  const guidelines = { 'one-action-at-a-time': false }
+
+  assert.deepEqual(top.wording, { toolRepeated: 'Once is enough.', guidelines })
+  assert.deepEqual(child.wording, top.wording)
+  assert.deepEqual(own.wording, { toolRepeated: 'Mine.', guidelines })
+})
+
 test('allowUnsandboxedShell runs without the sandbox', (t) => {
   const { status, runs } = configure(t, 'allow')
 

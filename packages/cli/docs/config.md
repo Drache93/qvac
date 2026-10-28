@@ -170,11 +170,28 @@ the app stays.
 | `policy`                | see above                  | the access policy every run is held to                                                       |
 | `allowUnsandboxedShell` | `false`                    | `true` runs with no confinement when the sandbox fails to start                              |
 | `planMode`              | —                          | `true` starts every run in plan mode                                                         |
+| `wording`               | the harness's own          | the text the model reads from the harness, by key; see below                                 |
 | `llm`                   | —                          | the harness model settings, such as `{ contextSize }`                                        |
 | `delegation`            | local subagents            | `{ enabled, slots, maxExternal, targets, read }`; targets need `name`, `protocol`, `command` |
 
 Plugin entries are described in [Plugins](plugins.md#qvacconfig). `optional: true` makes a plugin
 that cannot start show as `skipped`.
+
+`wording` is the harness run's own `wording`: the nudge after a tool round (`toolContinuation`),
+the note after a repeated call (`toolRepeated`) and the rest of `CompletionContext['wording']`.
+Its `guidelines` rewords the system prompt's guidelines by id, a string for new text or `false` to
+drop one, and `skills-list` is the header above the skills:
+
+```js
+wording: {
+  guidelines: {
+    'one-action-at-a-time': 'Make every call you already know you need in one turn.',
+    'skill-before-capability': false
+  }
+}
+```
+
+The ids are in the harness's `lib/prompt.ts`. A run that words a key itself keeps its own.
 
 `policy` is the harness's `AccessPolicy` (`node_modules/@qvac/harness/lib/contract/policy.ts`). It is one
 layer under the harness ceiling and the agent's own policy, and a narrower layer never widens:
