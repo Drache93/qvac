@@ -1,1 +1,0 @@
-export declare const DEFAULT_RAG_MODEL = "EMBEDDINGGEMMA_300M_Q4_0";
