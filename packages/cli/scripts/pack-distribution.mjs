@@ -1,4 +1,4 @@
-// Build a reproducible npm archive without replacing workspace dependency links.
+// Build a reproducible npm archive from an isolated production install of the shrinkwrap.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -8,23 +8,26 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const destination = path.resolve(process.argv[2] || root)
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'qvac-distribution-'))
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-const run = (command, args, cwd = stage) => execFileSync(command, args, { cwd, stdio: 'inherit' })
+// npm.cmd is a batch file, which Windows only runs through a shell
+const windows = process.platform === 'win32'
+const npm = (args) =>
+  execFileSync(windows ? 'npm.cmd' : 'npm', args, { cwd: stage, stdio: 'inherit', shell: windows })
 
 try {
-  run(process.execPath, ['scripts/prepare-qvac-vendors.mjs'], root)
-  run(process.execPath, ['scripts/check-publish-ready.cjs'], root)
+  execFileSync(process.execPath, ['scripts/check-publish-ready.cjs'], {
+    cwd: root,
+    stdio: 'inherit'
+  })
   // These are the manifest's publication inputs. npm applies its files allowlist
-  // when creating the archive after the isolated dependency tree is installed.
+  // when creating the archive.
   for (const name of [
     'package.json',
     'npm-shrinkwrap.json',
-    '.npmignore',
     'dist',
     'scripts',
+    'patches',
     'skills',
     'docs',
-    'vendor',
     'README.md',
     'LICENSE',
     'NOTICE'
@@ -37,9 +40,9 @@ try {
       filter: (file) => !file.split(path.sep).includes('node_modules')
     })
   }
-  run(npm, ['ci', '--omit=dev', '--ignore-scripts', '--install-links', '--no-audit', '--no-fund'])
+  npm(['ci', '--omit=dev'])
   fs.mkdirSync(destination, { recursive: true })
-  run(npm, ['pack', '--ignore-scripts=false', '--pack-destination', destination])
+  npm(['pack', '--pack-destination', destination])
 } finally {
   fs.rmSync(stage, { recursive: true, force: true })
 }
