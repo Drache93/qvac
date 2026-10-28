@@ -1,5 +1,9 @@
 // Bare has no loader hooks, so a config's own import of @qvac/harness resolves from its folder only.
 export async function importConfig(url: string) {
+  if (url.endsWith('.ts')) {
+    throw new Error('a qvac.config.ts needs the Node launcher: run qvac, or rename it to .mjs')
+  }
+
   try {
     return await import(url)
   } catch (caught) {

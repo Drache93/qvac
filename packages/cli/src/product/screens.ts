@@ -546,8 +546,8 @@ function usageRows(
   m: UsageMetrics,
   compactions: { id: string; label: string; detail: string }
 ): ScreenRow[] {
-  const used = m.cacheTokens ?? 0
-  const pct = m.ctxSize && used !== null ? ` (${Math.round((used / m.ctxSize) * 100)}%)` : ''
+  const used = m.cacheTokens
+  const pct = m.ctxSize && used != null ? ` (${Math.round((used / m.ctxSize) * 100)}%)` : ''
 
   return [
     { id: 'window', label: 'Context window', detail: `${tokens(m.ctxSize)} tokens` },
@@ -556,7 +556,7 @@ function usageRows(
       label: 'In use',
       detail: `${tokens(used)} tokens${pct}`,
       badge: pct
-        ? { text: pct.trim().slice(1, -1), color: used / (m.ctxSize || 1) > 0.8 ? 'red' : 'teal' }
+        ? { text: pct.trim().slice(1, -1), color: used! / m.ctxSize! > 0.8 ? 'red' : 'teal' }
         : undefined
     },
     ...promptRows(m),

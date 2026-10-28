@@ -90,6 +90,15 @@ export function parseArgs(
     return parsed(['version'], { options, where: 'launcher' })
   }
 
+  // sdk parses its own words under Node, after a global flag as after `qvac sdk`
+  if (path[0] === 'sdk') {
+    return parsed(['sdk'], {
+      words: argv.slice(argv.indexOf('sdk') + 1),
+      options,
+      where: 'launcher'
+    })
+  }
+
   return routed({ path, words, options, leaf: read.leaf })
 }
 

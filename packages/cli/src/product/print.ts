@@ -322,14 +322,10 @@ async function respond(
   let command: RpcRequest
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      !('type' in parsed) ||
-      typeof parsed.type !== 'string'
-    ) {
-      throw new Error('invalid command')
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('not an object')
     }
+    // a missing type keeps its id and answers unknown command
     command = parsed as RpcRequest
   } catch {
     rpcSession.emit({ type: 'response', ok: false, error: 'invalid JSON' })
