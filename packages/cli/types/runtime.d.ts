@@ -57,11 +57,23 @@ declare module 'bare-supervisor/runner/sidecar' {
 }
 
 declare module 'corestore' {
+  interface Core {
+    readonly key: Uint8Array
+    readonly discoveryKey: Uint8Array
+    readonly length: number
+    readonly writable: boolean
+    readonly closing: Promise<void> | null
+    ready(): Promise<void>
+    update(options?: { wait?: boolean }): Promise<boolean>
+    get(index: number, options?: { wait?: boolean }): Promise<Uint8Array | null>
+    close(): Promise<void>
+  }
+
   export default class Corestore {
     constructor(path: string)
     readonly opened: boolean
     readonly closing: Promise<void> | null
-    get(options?: object): import('bundlebee/types').Core
+    get(options?: object): Core
     session(): Corestore
     replicate(connection: unknown): unknown
     close(): Promise<void>
