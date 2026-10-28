@@ -3,7 +3,8 @@
 Harbor loads it as -a qvac_agent:Qvac. Nothing is installed per task: the README's run mounts a
 built CLI, its Node, bwrap, the GPU libraries and the model folder under /opt/qvac, and the GPU
 device nodes. The agent is what the TUI loads in a project: the coding workflow, its
-tools, skills and plugins, and the shell in its sandbox.
+tools, skills and plugins, and the shell in its sandbox, with the container granted to it, since a
+task installs packages and edits system files as leaderboard agents may.
 """
 
 import json
@@ -21,6 +22,7 @@ ENV = {
     # the CUDA backend uses libstdc++ without linking it, and an image may carry an older one
     "LD_PRELOAD": f"{ROOT}/lib/libstdc++.so.6",
 }
+WRITABLE = ["/app", "/usr", "/etc", "/opt", "/root", "/home", "/var", "/srv", "/tmp", "/mnt"]
 QVAC = f"node {ROOT}/cli/dist/index.js --data-dir {DATA}"
 
 
@@ -56,11 +58,16 @@ class Qvac(BaseInstalledAgent):
             "core": {
                 "model": self.model_name.split("/")[-1],
                 "modelsDir": f"{ROOT}/models",
+                # a run writes only where its folders and the policy both allow
+                "folders": [{"path": p, "write": True} for p in WRITABLE],
                 "agent": {"reasoning": "disabled"},
             },
             # the mounted bwrap binds the container's /proc, which a rootless one cannot remount
             "harness": {
-                "plugins": [{"id": "sandbox-linux", "options": {"bwrap": f"{ROOT}/bin/bwrap"}}]
+                "plugins": [{"id": "sandbox-linux", "options": {"bwrap": f"{ROOT}/bin/bwrap"}}],
+                # the container is the user's to give: the shell reads it all and writes where
+                # tasks install and configure; / itself cannot be a folder
+                "policy": {"files": {"read": "all", "write": WRITABLE}},
             },
         }
         await self.exec_as_agent(

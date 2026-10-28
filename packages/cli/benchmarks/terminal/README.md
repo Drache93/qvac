@@ -5,10 +5,13 @@
 so a score is what the app does: our instructions, the coding plugin, its skills and the harness.
 
 The agent is what the TUI loads in a project, the task's working folder: the coding workflow and
-tools, the skills and plugins, and the shell in its bubblewrap sandbox, which writes only inside
-that folder. Leaderboard agents call a hosted model and run only their tool loop in the container.
-Ours runs the model there too, from a mounted GPU and model folder, so the tasks' CPU and memory
-caps (often 1 CPU, 2 GB) are not enforced (`--cpus ignore --memory ignore`). A report says so.
+tools, the skills and plugins, and the shell in its bubblewrap sandbox. Tasks install packages
+and edit system files, as leaderboard agents may, so the config's policy lets the shell read the
+whole container and write `/app` and the system folders (`/usr`, `/etc`, `/opt`, `/root`, `/home`,
+`/var`, `/srv`, `/tmp`, `/mnt`). Leaderboard agents call a hosted model and run only their tool
+loop in the container. Ours runs the model there too, from a mounted GPU and model folder, so the
+tasks' CPU and memory caps (often 1 CPU, 2 GB) are not enforced (`--cpus ignore --memory ignore`).
+A report says so.
 
 ## Setup, once per machine
 
