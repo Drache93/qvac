@@ -58,6 +58,8 @@ const { values: opts } = parseArgs({
     protocol: { type: 'string', default: 'agent' },
     bwrap: { type: 'string' },
     budget: { type: 'string' },
+    // every load of the model on this device, so no run's load differs from another's
+    ctx: { type: 'string' },
     cli: { type: 'string', default: ROOT },
     'data-dir': { type: 'string' },
     out: { type: 'string' },
@@ -100,6 +102,7 @@ fs.writeFileSync(
     harness: {
       reasoningBudget: opts.budget === undefined ? undefined : Number(opts.budget),
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
+      llm: opts.ctx === undefined ? undefined : { contextSize: Number(opts.ctx) },
       plugins: sandbox()
     }
   })
