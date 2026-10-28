@@ -9,6 +9,7 @@ import { ExternalAgents } from '@qvac/harness/plugins/external-agents'
 import { sharedImports } from '@qvac/harness/user-plugins'
 import { BUILT_IN_PLUGINS, PLUGIN_CATALOG } from './plugin-catalog.js'
 import { inlinePlugin } from './config-merge.js'
+import { hostShell } from './host-shell.js'
 import {
   emptyPluginState,
   readPluginState,
@@ -228,7 +229,16 @@ export async function configureHarness(
   const wanted = withConfigPlugins(state || emptyPluginState(), catalog)
   const from = (id: string) =>
     catalog.some((p) => p.id === id) ? sources[`harness.plugins.${id}`] : 'plugins.json'
-  await addCatalogPlugins(wanted, { add, claimed, built, status, platform, from, plugins })
+  await addCatalogPlugins(wanted, {
+    add,
+    claimed,
+    built,
+    status,
+    platform,
+    from,
+    plugins,
+    unsandboxed: options.allowUnsandboxedShell === true
+  })
   if (state?.mcp.servers.length) {
     await addMcpServers(harness, { servers: state.mcp.servers, add })
   }
@@ -356,7 +366,8 @@ async function addCatalogPlugins(
     status,
     platform,
     from,
-    plugins
+    plugins,
+    unsandboxed
   }: {
     add: Adder
     claimed: Set<string | null>
@@ -365,6 +376,7 @@ async function addCatalogPlugins(
     platform: string
     from(id: string): string | undefined
     plugins: PluginEntry[]
+    unsandboxed: boolean
   }
 ) {
   const { entries, skipped } = resolvePlugins(state, PLUGIN_CATALOG, platform)
@@ -379,7 +391,13 @@ async function addCatalogPlugins(
     })
   }
 
+  const sandboxed = () => [...built.values()].some((p) => p.provides?.includes('sandbox'))
   for (const entry of entries) {
+    // allowUnsandboxedShell: the coding shell runs unconfined when no sandbox started or none is on
+    if (unsandboxed && entry.needs?.includes('sandbox') && !sandboxed()) {
+      await add({ id: 'host-shell', name: 'Unconfined shell', source: 'config' }, hostShell)
+    }
+
     if (!claimed.has(entry.id)) {
       const optional = plugins.some((p) => p.id === entry.id && p.optional)
       await add({ id: entry.id, name: entry.name, source: from(entry.id), optional }, () =>
@@ -396,7 +414,12 @@ export function shellBlock(status: HostStatus, options: HarnessConfig) {
     (p) =>
       (p.id.startsWith('sandbox-') || (hosts && p.id === 'egress-proxy')) && p.state !== 'ready'
   )
+  const unconfined = status.plugins.some((p) => p.id === 'host-shell' && p.state === 'ready')
   if (!down.length) {
+    if (unconfined) {
+      status.shell = { blocked: false, unsandboxed: true, reason: 'no sandbox plugin is on' }
+    }
+
     return null
   }
 

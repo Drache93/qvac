@@ -109,9 +109,11 @@ instructions, and no coding plugins. Turn any of them on in `qvac.config` or `/p
 If a sandbox the config asks for fails to start (or, under a host list, the egress proxy), Core
 refuses every run, delegated runs included, with `The sandbox did not start (<reason>)`. `/plugins`
 says `Runs refused: sandbox unavailable (<reason>)`, and the plugin's entry in
-`cli-host-status.json` has `shellBlocked: true`. Fix the sandbox, or turn it off in `qvac.config`:
-leave it out of `harness.plugins`, or set `harness.allowUnsandboxedShell: true` to run with no
-confinement.
+`cli-host-status.json` has `shellBlocked: true`. Fix the sandbox, or set
+`harness.allowUnsandboxedShell: true` to run with no confinement: runs go ahead, and the coding
+shell runs each line in your own shell (the `host-shell` plugin in `/plugins`) wherever no sandbox
+started. `coding` turns its sandbox on with it, so leaving the sandbox out of `harness.plugins` does
+not turn it off.
 
 ## Merge rules
 

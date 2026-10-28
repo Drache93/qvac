@@ -22,12 +22,16 @@ fs.writeFileSync(
 process.env.QVAC_CLI_CONFIG = file
 
 const runs = []
+const added = []
 const harness = {
   toolNames: ['read_file', 'exec'],
   addPlugin(plugin) {
-    return plugin.name === 'sandbox-macos'
-      ? Promise.reject(new Error('sandbox-exec is missing'))
-      : Promise.resolve()
+    if (plugin.name === 'sandbox-macos') {
+      return Promise.reject(new Error('sandbox-exec is missing'))
+    }
+
+    added.push(plugin)
+    return Promise.resolve()
   },
   tools() {
     return Promise.resolve(
@@ -54,5 +58,18 @@ for (const context of [
   }
 }
 
+// the sandbox the coding plugin would get, driven as its session drives it
+const provider = added.find((p) => p.provides?.includes('sandbox'))
+let shell = null
+if (provider) {
+  const workspace = await provider.setup({}).services.sandbox.open(dir, {})
+  const ran = await workspace.exec('echo out; echo err >&2; pwd; exit 3', { cwd: dir })
+  const slow = await workspace.exec('sleep 5', { cwd: dir, timeoutMs: 200 })
+  const job = await workspace.start('sleep 30', { cwd: dir })
+  await job.stop()
+  shell = { ran, slow: slow.exitCode, stopped: true }
+}
+
 const status = JSON.parse(fs.readFileSync(path.join(dir, 'cli-host-status.json'), 'utf8'))
-console.log(JSON.stringify({ status, runs, events }))
+const order = added.map((p) => p.name)
+console.log(JSON.stringify({ status, runs, events, order, shell }))

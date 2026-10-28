@@ -55,6 +55,26 @@ test('allowUnsandboxedShell runs without the sandbox', (t) => {
   assert.equal(runs[0].policy.network.mode, 'hosts')
 })
 
+test('allowUnsandboxedShell gives coding an unconfined shell when its sandbox fails', (t) => {
+  const { status, order, shell } = configure(t, 'allow')
+
+  assert.equal(status.plugins.find((p) => p.id === 'host-shell').state, 'ready')
+  assert.ok(order.indexOf('host-shell') < order.indexOf('coding'), 'before coding needs it')
+  assert.deepEqual(shell.ran, { stdout: `out\n${status.dir}\n`, stderr: 'err\n', exitCode: 3 })
+  assert.equal(shell.slow, 124, 'a line past its timeout is killed')
+  assert.equal(shell.stopped, true)
+})
+
+test('without allowUnsandboxedShell no unconfined shell stands in', (t) => {
+  const { status, shell } = configure(t)
+
+  assert.equal(
+    status.plugins.some((p) => p.id === 'host-shell'),
+    false
+  )
+  assert.equal(shell, null)
+})
+
 function configure(t, allow = '') {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'qvac-shell-')))
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
