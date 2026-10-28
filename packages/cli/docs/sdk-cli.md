@@ -457,9 +457,7 @@ The CLI reads configuration from `qvac.config.{json,js,mjs,ts}` in your project 
 
 If no config file is found, the CLI bundles all built-in plugins.
 
-`qvac.config.ts`, including configs used by `qvac sdk bundle` and `qvac sdk verify`, uses Node's native TypeScript transform with no extra compiler setup. Type annotations, enums, namespaces and parameter properties work. Local imports may omit extensions or use `.js` for a `.ts` source; the loader reads the nearest `tsconfig.json` for JSONC comments, `extends`, `baseUrl` and `paths`. Package imports retain Node's `import` export conditions.
-
-The config runs with native JavaScript semantics. JSX, decorators and compiler-specific emit options are not supported; compile configs that need them to `.js` or `.mjs` first. Assignment-style class fields (`useDefineForClassFields:false`, including the default for targets below ES2022) are rejected explicitly; set `useDefineForClassFields:true` when using native class fields. Other compiler options such as `module` and `target` do not transpile the runtime. Configs imported by Bare workers must also use syntax and imports supported by Bare.
+> **Note:** `qvac.config.ts` is supported via `tsx` internally (no user setup required).
 
 This file is primarily the SDK runtime config, but `qvac sdk bundle sdk` also reads this **bundler-only** key (ignored by the SDK at runtime):
 

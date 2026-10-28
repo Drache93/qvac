@@ -565,16 +565,3 @@ See [the local Nemotron diarization example](examples/asr/nemotron-diarization-f
 ```bash
 npx tsx examples/asr/nemotron-diarization-filesystem.ts ./nemotron-diarization.gguf meeting.wav
 ```
-
-### Config loaders in command hosts
-
-Hosts embedding `@qvac/sdk/commands` can supply a TypeScript config importer with
-`withConfigModuleLoader(importModule, () => runCommand())`. The importer receives
-an absolute file URL and returns a module namespace. The SDK validates its default
-export as usual. The loader applies only to that callback and its asynchronous
-work; nested and concurrent command scopes remain independent.
-
-The QVAC CLI supplies its native TypeScript loader for `qvac sdk bundle` and
-`qvac sdk verify`. Direct SDK command callers without a host loader retain the
-optional `tsx` fallback for TypeScript configs. JavaScript and JSON configs need
-no TypeScript loader.
