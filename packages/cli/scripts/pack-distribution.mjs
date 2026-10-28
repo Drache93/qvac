@@ -1,4 +1,4 @@
-// Build a reproducible npm archive from an isolated production install of the shrinkwrap.
+// Pack the npm archive from a clean copy of the publication inputs, so no local node_modules leaks in.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -40,7 +40,6 @@ try {
       filter: (file) => !file.split(path.sep).includes('node_modules')
     })
   }
-  npm(['ci', '--omit=dev'])
   fs.mkdirSync(destination, { recursive: true })
   npm(['pack', '--pack-destination', destination])
 } finally {
