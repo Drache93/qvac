@@ -66,6 +66,8 @@ const { values: opts } = parseArgs({
     wording: { type: 'string' },
     // the skills the agent may load, comma-separated; '' offers none
     skills: { type: 'string' },
+    // a JSON file of core.agent.toolConfigs, e.g. {"edit_file": {"forms": "all"}}
+    'tool-configs': { type: 'string' },
     // a JSON file of harness.plugins entries added to the sandbox, e.g. the coding-guards plugin
     plugins: { type: 'string' },
     // every load of the model on this device, so no run's load differs from another's
@@ -105,6 +107,9 @@ fs.writeFileSync(
         // plan thinks after the prompt and after a failed step only; the harness strips it
         reasoning: opts.reasoning === 'off' ? 'disabled' : 'enabled',
         disabledToolsets: [...new Set(disabled)],
+        toolConfigs: opts['tool-configs']
+          ? JSON.parse(fs.readFileSync(opts['tool-configs'], 'utf8'))
+          : undefined,
         enabledSkills:
           opts.skills === undefined ? undefined : opts.skills.split(',').filter(Boolean),
         // left out of the JSON when unset, so the CLI's own instructions apply

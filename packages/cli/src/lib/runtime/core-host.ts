@@ -11,7 +11,7 @@ import process from 'bare-process'
 import { spawnSync } from 'bare-subprocess'
 import { storeInUse } from './store-lock.js'
 import { fileURLToPath } from 'bare-url'
-import { applyAgentProfile } from './agent-profile.js'
+import { applyAgentProfile, applyToolConfigs } from './agent-profile.js'
 import { enableSkills, installSkills } from './skills.js'
 import type { AssistantStorage } from '@qvac/harness/storage'
 import type { MeshInvite } from '@qvac/core/invite'
@@ -291,6 +291,10 @@ async function applyProfile(host: CoreHost, options: LaunchOptions) {
     profile,
     sources: options.sources ?? {}
   })
+  if (profile.toolConfigs) {
+    await applyToolConfigs(host.engine, { meshId: meshId!, agent, configs: profile.toolConfigs })
+  }
+
   // a list in qvac.config is the whole list, so the CLI's own skills are not added to it
   if (!profile.enabledSkills) {
     await enableSkills(host.engine, { meshId: meshId!, agent, names: host.cliSkills })

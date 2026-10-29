@@ -9,7 +9,11 @@ export type AgentProfile = Partial<
     Agent,
     'name' | 'reasoning' | 'approvalMode' | 'ctxSize' | 'disabledToolsets' | 'enabledSkills'
   >
-> & { instructions?: string | undefined }
+> & {
+  instructions?: string | undefined
+  // each tool's settings by tool name, e.g. { edit_file: { forms: 'all' } }
+  toolConfigs?: Record<string, Record<string, unknown>> | undefined
+}
 export interface FolderGrant {
   path: string
   write?: boolean | undefined

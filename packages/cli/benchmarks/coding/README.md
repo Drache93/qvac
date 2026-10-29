@@ -32,24 +32,25 @@ change.
 node benchmarks/coding/polyglot.mjs --model Qwen3.6-35B-A3B-UD-Q4_K_M --data-dir <bench-data>
 ```
 
-| flag             | default              | what it does                                                   |
-| ---------------- | -------------------- | -------------------------------------------------------------- |
-| `--languages`    | `python,go,rust,cpp` | add `javascript,java` once set up                              |
-| `--limit n`      | all                  | n exercises, taken from every language in turn                 |
-| `--exercises`    | all                  | `bowling` or `go/bowling`, comma-separated                     |
-| `--tries`        | `2`                  |                                                                |
-| `--reasoning`    | `on`                 | `off`, or `plan`: think after the prompt and after a failure   |
-| `--budget n`     | the model's own      | caps each round's thinking in tokens                           |
-| `--ctx n`        | the harness's choice | the context window of every load (`harness.llm.contextSize`)   |
-| `--wording file` | none                 | a JSON file of `harness.wording`, e.g. guidelines to drop      |
-| `--skills list`  | the CLI's skills     | the skills the agent may load; `''` offers none                |
-| `--plugins file` | the sandbox only     | a JSON file of `harness.plugins` entries added to the sandbox  |
-| `--disable list` | none                 | toolsets the agent is not offered, e.g. `exec`                 |
-| `--plain`        | off                  | the workflow alone, without the project's folder and test line |
-| `--protocol`     | `agent`              | `aider`: Aider's protocol, see below                           |
-| `--bwrap path`   | `/usr/bin/bwrap`     | the sandbox's `bwrap`, for a box that needs a wrapper          |
-| `--cli dir`      | this checkout        | another CLI copy, e.g. one pinned to a harness branch          |
-| `--timeout-min`  | `20`                 | per try                                                        |
+| flag                  | default              | what it does                                                    |
+| --------------------- | -------------------- | --------------------------------------------------------------- |
+| `--languages`         | `python,go,rust,cpp` | add `javascript,java` once set up                               |
+| `--limit n`           | all                  | n exercises, taken from every language in turn                  |
+| `--exercises`         | all                  | `bowling` or `go/bowling`, comma-separated                      |
+| `--tries`             | `2`                  |                                                                 |
+| `--reasoning`         | `on`                 | `off`, or `plan`: think after the prompt and after a failure    |
+| `--budget n`          | the model's own      | caps each round's thinking in tokens                            |
+| `--ctx n`             | the harness's choice | the context window of every load (`harness.llm.contextSize`)    |
+| `--wording file`      | none                 | a JSON file of `harness.wording`, e.g. guidelines to drop       |
+| `--skills list`       | the CLI's skills     | the skills the agent may load; `''` offers none                 |
+| `--plugins file`      | the sandbox only     | a JSON file of `harness.plugins` entries added to the sandbox   |
+| `--tool-configs file` | none                 | a JSON file of `core.agent.toolConfigs`, e.g. `edit_file` forms |
+| `--disable list`      | none                 | toolsets the agent is not offered, e.g. `exec`                  |
+| `--plain`             | off                  | the workflow alone, without the project's folder and test line  |
+| `--protocol`          | `agent`              | `aider`: Aider's protocol, see below                            |
+| `--bwrap path`        | `/usr/bin/bwrap`     | the sandbox's `bwrap`, for a box that needs a wrapper           |
+| `--cli dir`           | this checkout        | another CLI copy, e.g. one pinned to a harness branch           |
+| `--timeout-min`       | `20`                 | per try                                                         |
 
 A run writes `output/bench/runs/<stamp>-<model>/`: `results.jsonl` (one row per exercise: tries,
 seconds, tool calls, tokens), each try's transcript under `runs/`, and the final code under `work/`.

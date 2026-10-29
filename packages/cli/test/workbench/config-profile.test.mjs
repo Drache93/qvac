@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   applyAgentProfile,
+  applyToolConfigs,
   CODING_INSTRUCTIONS,
   STOCK_BIOS
 } from '../../dist/lib/runtime/agent-profile.js'
@@ -126,4 +127,34 @@ test('a default adds to the toolsets the user hid, and a config list is the whol
     sources: { 'core.agent.disabledToolsets': 'config' }
   })
   assert.deepEqual(replaced, { disabledToolsets: [] })
+})
+
+test('tool settings from qvac.config are written only where Core holds something else', async () => {
+  const set = []
+  const engine = {
+    listToolConfigs: () =>
+      Promise.resolve({
+        configs: [
+          { toolName: 'edit_file', settings: { forms: 'all' } },
+          { toolName: 'read_file', settings: { lines: 100 }, deletedAt: 1 }
+        ]
+      }),
+    setToolConfigs: (call) => {
+      set.push(call)
+      return Promise.resolve(call)
+    }
+  }
+  const agent = { id: 'a1' }
+
+  const changed = await applyToolConfigs(engine, {
+    meshId: 'm',
+    agent,
+    configs: { edit_file: { forms: 'all' }, read_file: { lines: 100 }, grep: { context: 2 } }
+  })
+
+  assert.deepEqual(changed, ['read_file', 'grep'], 'a deleted row is written again')
+  assert.deepEqual(set, [
+    { agentId: 'a1', meshId: 'm', toolName: 'read_file', settings: { lines: 100 } },
+    { agentId: 'a1', meshId: 'm', toolName: 'grep', settings: { context: 2 } }
+  ])
 })

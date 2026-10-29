@@ -110,3 +110,33 @@ export async function applyAgentProfile(
 
   return changed
 }
+
+// Each tool's settings from qvac.config, written only where Core holds something else.
+export async function applyToolConfigs(
+  engine: Capabilities,
+  {
+    meshId,
+    agent,
+    configs
+  }: { meshId: string; agent: Agent; configs: Record<string, Record<string, unknown>> }
+) {
+  const { configs: stored } = await engine.listToolConfigs({ agentId: agent.id, meshId })
+  const current = new Map(
+    (stored ?? [])
+      .filter((config) => !config.deletedAt)
+      .map((config) => [config.toolName, JSON.stringify(config.settings)])
+  )
+  const changed = Object.keys(configs).filter(
+    (toolName) => current.get(toolName) !== JSON.stringify(configs[toolName])
+  )
+  for (const toolName of changed) {
+    await engine.setToolConfigs({
+      agentId: agent.id,
+      meshId,
+      toolName,
+      settings: configs[toolName]
+    })
+  }
+
+  return changed
+}

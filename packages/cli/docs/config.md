@@ -155,6 +155,7 @@ not turn it off.
 | `agent.approvalMode`     | —                                   | `'ask'`, or `'skip-all'` to run writes without asking                                                                             |
 | `agent.ctxSize`          | —                                   | the agent's context size in tokens                                                                                                |
 | `agent.enabledSkills`    | the CLI's skills added              | the skills the agent may load; a list here is the whole list (`[]` offers none, and no `skill` tool)                              |
+| `agent.toolConfigs`      | —                                   | each tool's settings by name, e.g. `{ edit_file: { forms: 'all' } }` for insert and multi-edit; written to the agent in Core      |
 | `agent.disabledToolsets` | `['exec']` with the coding shell    | toolsets the agent is not offered; the default adds to what `/tools` hid, a list here is the whole list (`[]` brings `exec` back) |
 
 `core.agent` is written to the agent when Core starts, and only the fields that differ are sent.
