@@ -115,7 +115,20 @@ fs.writeFileSync(
   JSON.stringify({ ...opts, out, pinned: PINNED }, null, 2)
 )
 
-const chosen = exercises(bench)
+// a rerun into the same --out picks up after the exercises it already has
+const done = new Set(
+  fs.existsSync(path.join(out, 'results.jsonl'))
+    ? fs
+        .readFileSync(path.join(out, 'results.jsonl'), 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const row = JSON.parse(line)
+          return `${row.language}/${row.name}`
+        })
+    : []
+)
+const chosen = exercises(bench).filter((e) => !done.has(`${e.language}/${e.name}`))
 console.log(`${chosen.length} exercises → ${out}`)
 for (const exercise of chosen) {
   const row = solve(exercise)
@@ -192,6 +205,8 @@ function spread(list, limit) {
 function solve({ language, name, source }) {
   const meta = JSON.parse(fs.readFileSync(path.join(source, '.meta/config.json'), 'utf8'))
   const work = path.join(out, 'work', language, name)
+  // left by a run that stopped mid-exercise
+  fs.rmSync(work, { recursive: true, force: true })
   fs.cpSync(source, work, { recursive: true, filter: (p) => !p.includes(`${path.sep}.meta`) })
   if (language === 'javascript') {
     shareModules(work)
@@ -351,7 +366,11 @@ function runTests(language, work) {
 
 // as Aider's cleanup_test_output: no timings to vary the reply, the exercise folder by its name
 function feedback(output, work) {
-  const text = output.replace(/\bin \d+\.\d+s\b/g, '').replaceAll(work, path.basename(work))
+  // a NUL from a test's output cannot go into the prompt's argument
+  const text = output
+    .replace(/\bin \d+\.\d+s\b/g, '')
+    .replaceAll(work, path.basename(work))
+    .replaceAll('\0', '')
   if (text.length <= OUTPUT_MAX) {
     return text
   }
