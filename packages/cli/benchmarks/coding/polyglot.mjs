@@ -62,6 +62,8 @@ const { values: opts } = parseArgs({
     wording: { type: 'string' },
     // the skills the agent may load, comma-separated; '' offers none
     skills: { type: 'string' },
+    // a JSON file of harness.plugins entries added to the sandbox, e.g. the coding-guards plugin
+    plugins: { type: 'string' },
     // every load of the model on this device, so no run's load differs from another's
     ctx: { type: 'string' },
     cli: { type: 'string', default: ROOT },
@@ -110,7 +112,10 @@ fs.writeFileSync(
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
       llm: opts.ctx === undefined ? undefined : { contextSize: Number(opts.ctx) },
       wording: opts.wording ? JSON.parse(fs.readFileSync(opts.wording, 'utf8')) : undefined,
-      plugins: sandbox()
+      plugins: [
+        ...sandbox(),
+        ...(opts.plugins ? JSON.parse(fs.readFileSync(opts.plugins, 'utf8')) : [])
+      ]
     }
   })
 )

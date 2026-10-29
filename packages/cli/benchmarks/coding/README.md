@@ -43,6 +43,7 @@ node benchmarks/coding/polyglot.mjs --model Qwen3.6-35B-A3B-UD-Q4_K_M --data-dir
 | `--ctx n`        | the harness's choice | the context window of every load (`harness.llm.contextSize`)   |
 | `--wording file` | none                 | a JSON file of `harness.wording`, e.g. guidelines to drop      |
 | `--skills list`  | the CLI's skills     | the skills the agent may load; `''` offers none                |
+| `--plugins file` | the sandbox only     | a JSON file of `harness.plugins` entries added to the sandbox  |
 | `--disable list` | none                 | toolsets the agent is not offered, e.g. `exec`                 |
 | `--plain`        | off                  | the workflow alone, without the project's folder and test line |
 | `--protocol`     | `agent`              | `aider`: Aider's protocol, see below                           |
