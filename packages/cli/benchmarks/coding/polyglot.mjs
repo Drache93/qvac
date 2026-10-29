@@ -236,10 +236,11 @@ function solve({ language, name, source }) {
 
   const started = Date.now()
   const row = { language, name, passed: false, passedOn: null, tries: [], calls: 0 }
+  const tests = testFiles(work, meta.files)
   for (let attempt = 1; attempt <= Number(opts.tries); attempt++) {
     const transcript = path.join(out, 'runs', language, `${name}.try${attempt}.jsonl`)
     if (aider) {
-      hideTests(work, meta.files.test)
+      hideTests(work, tests)
     }
 
     let agent = ask(prompt, { work, transcript, resume: attempt > 1 })
@@ -251,7 +252,7 @@ function solve({ language, name, source }) {
       }
     }
 
-    restoreTests(work, meta.files.test)
+    restoreTests(work, tests)
     const test = runTests(language, work)
     row.calls += agent.calls
     row.tries.push({ ...agent, testsPassed: test.passed })
@@ -344,6 +345,16 @@ function shareModules(work) {
     path.join(work, 'node_modules')
   ])
   fs.writeFileSync(path.join(work, '.gitignore'), 'node_modules\n')
+}
+
+// a few exercises keep test cases outside files.test, e.g. go/alphametics' cases_test.go
+const TEST_LIKE =
+  /(^|\/)tests?\/|_test\.go$|Test\.java$|\.(spec|test)\.js$|(^|\/)test_[^/]*\.py$|_test\.py$/
+
+function testFiles(work, files) {
+  const listed = run('git', ['ls-files'], { cwd: work }).stdout.split('\n').filter(Boolean)
+  const others = listed.filter((file) => TEST_LIKE.test(file) && !files.solution.includes(file))
+  return [...new Set([...files.test, ...others])]
 }
 
 // Aider's agent sees only the solution files; the scoring run gets the tests back
