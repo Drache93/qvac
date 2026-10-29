@@ -40,6 +40,10 @@ const SKIPS = [
   [/^\s*#\[ignore\]\s*$/gm, '']
 ]
 
+// a few exercises keep test cases outside files.test, e.g. go/alphametics' cases_test.go
+const TEST_LIKE =
+  /(^|\/)tests?\/|_test\.go$|Test\.java$|\.(spec|test)\.js$|(^|\/)test_[^/]*\.py$|_test\.py$/
+
 // one install of the test packages every JS exercise shares; `npm install` in it once
 const JS_DEPS = path.join(ROOT, 'output/bench/js-deps')
 
@@ -351,10 +355,6 @@ function shareModules(work) {
   ])
   fs.writeFileSync(path.join(work, '.gitignore'), 'node_modules\n')
 }
-
-// a few exercises keep test cases outside files.test, e.g. go/alphametics' cases_test.go
-const TEST_LIKE =
-  /(^|\/)tests?\/|_test\.go$|Test\.java$|\.(spec|test)\.js$|(^|\/)test_[^/]*\.py$|_test\.py$/
 
 function testFiles(work, files) {
   const listed = run('git', ['ls-files'], { cwd: work }).stdout.split('\n').filter(Boolean)
