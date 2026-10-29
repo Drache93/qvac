@@ -44,7 +44,14 @@ export function codingInstructions({ root, test }: { root: string; test?: string
   return `${CODING_INSTRUCTIONS}\n\n${where.join('\n')}`
 }
 
-const FIELDS = ['name', 'reasoning', 'approvalMode', 'ctxSize', 'disabledToolsets'] as const
+const FIELDS = [
+  'name',
+  'reasoning',
+  'approvalMode',
+  'ctxSize',
+  'disabledToolsets',
+  'enabledSkills'
+] as const
 
 // Any earlier version of the coding instructions starts with the same lead line, so it updates too.
 const codingBio = (bio: string | null | undefined) =>

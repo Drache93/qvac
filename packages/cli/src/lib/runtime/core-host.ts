@@ -291,7 +291,10 @@ async function applyProfile(host: CoreHost, options: LaunchOptions) {
     profile,
     sources: options.sources ?? {}
   })
-  await enableSkills(host.engine, { meshId: meshId!, agent, names: host.cliSkills })
+  // a list in qvac.config is the whole list, so the CLI's own skills are not added to it
+  if (!profile.enabledSkills) {
+    await enableSkills(host.engine, { meshId: meshId!, agent, names: host.cliSkills })
+  }
 }
 
 // macOS hostnames follow the network (often an IP), so its Computer Name is the one people recognise.

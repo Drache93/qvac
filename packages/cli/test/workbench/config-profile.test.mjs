@@ -100,6 +100,18 @@ test('disabled toolsets are sent only when the list differs', async () => {
   assert.deepEqual(more, { disabledToolsets: ['exec', 'web'] })
 })
 
+test('a skills list in qvac.config is sent as the whole list', async () => {
+  const engine = fakeEngine()
+  const agent = { id: 'a1', bio: CODING_INSTRUCTIONS, enabledSkills: ['qvac-plugins'] }
+
+  const none = await applyAgentProfile(engine, {
+    meshId: 'm',
+    agent,
+    profile: { instructions: CODING_INSTRUCTIONS, enabledSkills: [] }
+  })
+  assert.deepEqual(none, { enabledSkills: [] })
+})
+
 test('a default adds to the toolsets the user hid, and a config list is the whole list', async () => {
   const agent = { id: 'a1', bio: CODING_INSTRUCTIONS, disabledToolsets: ['web'] }
   const profile = { instructions: CODING_INSTRUCTIONS, disabledToolsets: ['exec'] }

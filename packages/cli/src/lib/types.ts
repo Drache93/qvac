@@ -5,7 +5,10 @@ import type { HarnessPlugin } from '@qvac/harness/plugins'
 
 export type Agent = NonNullable<Awaited<ReturnType<Capabilities['listAgents']>>['agents']>[number]
 export type AgentProfile = Partial<
-  Pick<Agent, 'name' | 'reasoning' | 'approvalMode' | 'ctxSize' | 'disabledToolsets'>
+  Pick<
+    Agent,
+    'name' | 'reasoning' | 'approvalMode' | 'ctxSize' | 'disabledToolsets' | 'enabledSkills'
+  >
 > & { instructions?: string | undefined }
 export interface FolderGrant {
   path: string

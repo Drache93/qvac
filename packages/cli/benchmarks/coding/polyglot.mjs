@@ -60,6 +60,8 @@ const { values: opts } = parseArgs({
     budget: { type: 'string' },
     // a JSON file of harness.wording, e.g. guidelines to reword or drop
     wording: { type: 'string' },
+    // the skills the agent may load, comma-separated; '' offers none
+    skills: { type: 'string' },
     // every load of the model on this device, so no run's load differs from another's
     ctx: { type: 'string' },
     cli: { type: 'string', default: ROOT },
@@ -97,6 +99,8 @@ fs.writeFileSync(
         // plan thinks after the prompt and after a failed step only; the harness strips it
         reasoning: opts.reasoning === 'off' ? 'disabled' : 'enabled',
         disabledToolsets: [...new Set(disabled)],
+        enabledSkills:
+          opts.skills === undefined ? undefined : opts.skills.split(',').filter(Boolean),
         // left out of the JSON when unset, so the CLI's own instructions apply
         instructions: opts.plain ? CODING_INSTRUCTIONS : undefined
       }

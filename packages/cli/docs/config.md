@@ -154,6 +154,7 @@ not turn it off.
 | `agent.reasoning`        | `'enabled'` for 9B+                 | `'inherit'`, `'enabled'` or `'disabled'`                                                                                          |
 | `agent.approvalMode`     | —                                   | `'ask'`, or `'skip-all'` to run writes without asking                                                                             |
 | `agent.ctxSize`          | —                                   | the agent's context size in tokens                                                                                                |
+| `agent.enabledSkills`    | the CLI's skills added              | the skills the agent may load; a list here is the whole list (`[]` offers none, and no `skill` tool)                              |
 | `agent.disabledToolsets` | `['exec']` with the coding shell    | toolsets the agent is not offered; the default adds to what `/tools` hid, a list here is the whole list (`[]` brings `exec` back) |
 
 `core.agent` is written to the agent when Core starts, and only the fields that differ are sent.
