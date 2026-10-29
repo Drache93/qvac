@@ -58,6 +58,8 @@ const { values: opts } = parseArgs({
     protocol: { type: 'string', default: 'agent' },
     bwrap: { type: 'string' },
     budget: { type: 'string' },
+    // a JSON file of harness.wording, e.g. guidelines to reword or drop
+    wording: { type: 'string' },
     // every load of the model on this device, so no run's load differs from another's
     ctx: { type: 'string' },
     cli: { type: 'string', default: ROOT },
@@ -103,6 +105,7 @@ fs.writeFileSync(
       reasoningBudget: opts.budget === undefined ? undefined : Number(opts.budget),
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
       llm: opts.ctx === undefined ? undefined : { contextSize: Number(opts.ctx) },
+      wording: opts.wording ? JSON.parse(fs.readFileSync(opts.wording, 'utf8')) : undefined,
       plugins: sandbox()
     }
   })

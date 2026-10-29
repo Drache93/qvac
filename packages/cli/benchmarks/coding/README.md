@@ -41,6 +41,7 @@ node benchmarks/coding/polyglot.mjs --model Qwen3.6-35B-A3B-UD-Q4_K_M --data-dir
 | `--reasoning`    | `on`                 | `off`, or `plan`: think after the prompt and after a failure   |
 | `--budget n`     | the model's own      | caps each round's thinking in tokens                           |
 | `--ctx n`        | the harness's choice | the context window of every load (`harness.llm.contextSize`)   |
+| `--wording file` | none                 | a JSON file of `harness.wording`, e.g. guidelines to drop      |
 | `--disable list` | none                 | toolsets the agent is not offered, e.g. `exec`                 |
 | `--plain`        | off                  | the workflow alone, without the project's folder and test line |
 | `--protocol`     | `agent`              | `aider`: Aider's protocol, see below                           |
