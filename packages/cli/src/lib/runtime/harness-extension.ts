@@ -10,6 +10,7 @@ import { sharedImports } from '@qvac/harness/user-plugins'
 import { BUILT_IN_PLUGINS, PLUGIN_CATALOG } from './plugin-catalog.js'
 import { inlinePlugin } from './config-merge.js'
 import { hostShell } from './host-shell.js'
+import { hasPackage, pluginEntry } from './installed-plugins.js'
 import {
   emptyPluginState,
   readPluginState,
@@ -229,7 +230,12 @@ export async function configureHarness(
   const wanted = withConfigPlugins(state || emptyPluginState(), catalog)
   const from = (id: string) =>
     catalog.some((p) => p.id === id) ? sources[`harness.plugins.${id}`] : 'plugins.json'
-  await addCatalogPlugins(wanted, {
+  const installed = wanted.enabled.filter((id) => hasPackage(dataDir, id, fs))
+  if (installed.length) {
+    await addInstalledPlugins(installed, { add, dataDir, options: wanted.options })
+  }
+
+  await addCatalogPlugins(withoutIds(wanted, installed), {
     add,
     claimed,
     built,
@@ -340,6 +346,38 @@ async function addConfigPlugins(
 
   return claimed
 }
+
+// Folders under <dataDir>/plugins that plugins.json turns on load like a config module plugin.
+async function addInstalledPlugins(
+  ids: string[],
+  {
+    add,
+    dataDir,
+    options
+  }: { add: Adder; dataDir: string; options: Record<string, Record<string, unknown>> }
+) {
+  const self = import.meta.cache[import.meta.url]!
+  const imports = await sharedImports()
+  for (const id of ids) {
+    const { read, ...rest } = options[id] || {}
+    await add({ id, name: id, source: 'installed' }, () =>
+      configPlugin(
+        {
+          module: pluginEntry(dataDir, id, fs),
+          options: rest,
+          read: (read as string[] | undefined) || []
+        },
+        self,
+        imports
+      )
+    )
+  }
+}
+
+const withoutIds = (state: PluginState, ids: string[]) => ({
+  ...state,
+  enabled: state.enabled.filter((id) => !ids.includes(id))
+})
 
 function readStateOrReport(dataDir: string, status: HostStatus) {
   try {

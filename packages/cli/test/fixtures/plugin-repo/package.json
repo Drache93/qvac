@@ -1,0 +1,7 @@
+{
+  "name": "echo",
+  "type": "module",
+  "exports": {
+    ".": "./lib/main.js"
+  }
+}

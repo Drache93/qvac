@@ -108,6 +108,28 @@ default off with `space` writes it to `disabled`.
 }
 ```
 
+### Installed plugins
+
+Plugins you add yourself live in `plugins/<name>/` in your storage folder, one folder each.
+
+```sh
+qvac plugins install https://github.com/you/qvac-plugin-notes.git
+qvac plugins install hyper://<key> notes
+qvac plugins list
+qvac plugins enable notes
+qvac plugins disable notes
+```
+
+- `install` clones a git repo (the folder is named after the repo unless you give a name) or copies
+  a hyper:// drive (a name is required). It does not turn the plugin on: run `enable`.
+- It does not run `npm install`. The plugin ships its own dependencies.
+- The folder's `package.json` names the entry (`exports["."]`, then `main`, then `index.js`). The
+  entry default-exports a plugin or a function that returns one, like `docs/plugins/greeter.mjs`.
+- `options["<name>"]` in `plugins.json` gives the plugin its options, and its `read` list names the
+  tools it may read. `disable` keeps them.
+- `list` shows each folder as `enabled` or `disabled`, and an enabled name with no folder as
+  `missing`. Changes apply at the next start.
+
 ### `qvac.config`
 
 For plugins that are not in the catalog, or to pin one for a project. `use` is a package specifier

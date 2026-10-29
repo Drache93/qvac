@@ -17,6 +17,7 @@ import { host } from './commands/host/index.js'
 import { invite } from './commands/invite/index.js'
 import { logs } from './commands/logs/index.js'
 import { models } from './commands/models/index.js'
+import { plugins } from './commands/plugins/index.js'
 import { sdk } from './commands/sdk/index.js'
 import { sdkArguments } from './commands/sdk/arguments.js'
 import { serve } from './commands/serve/index.js'
@@ -24,7 +25,20 @@ import { status } from './commands/status/index.js'
 import { workspace } from './commands/workspace/index.js'
 import { CHAT, DEVICE, FLAGS, envName, flags, paramKey } from './flags.js'
 
-const COMMANDS = [serve, invite, workspace, models, status, logs, config, chat, help, host, sdk]
+const COMMANDS = [
+  serve,
+  invite,
+  workspace,
+  models,
+  plugins,
+  status,
+  logs,
+  config,
+  chat,
+  help,
+  host,
+  sdk
+]
 // Asking for help or the version is never ambient, so neither reads an env var.
 const NO_ENV = new Set(['version'])
 const FALSE = new Set(['', '0', 'false', 'no', 'off'])
