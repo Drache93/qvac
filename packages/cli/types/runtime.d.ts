@@ -82,7 +82,10 @@ declare module 'corestore' {
 declare module 'hyperswarm' {
   export default class Hyperswarm {
     on(event: 'connection', listener: (connection: unknown) => void): this
-    join(key: Uint8Array): unknown
+    join(
+      key: Uint8Array,
+      options?: { client?: boolean; server?: boolean }
+    ): { flushed(): Promise<void> }
     destroy(): Promise<void>
   }
 }
@@ -97,4 +100,22 @@ declare module 'fs-native-lock' {
 declare module 'fs-native-extensions' {
   const fsx: { tryLock(fd: number): boolean; unlock(fd: number): void }
   export default fsx
+}
+
+declare module 'hyperdrive' {
+  import type Corestore from 'corestore'
+  export default class Hyperdrive {
+    constructor(store: Corestore, key: Uint8Array)
+    readonly discoveryKey: Uint8Array
+    ready(): Promise<void>
+    findingPeers(): () => void
+    update(options?: { wait?: boolean }): Promise<boolean>
+    list(folder: string, options: { recursive: boolean }): AsyncIterable<{ key: string }>
+    get(key: string): Promise<Uint8Array | null>
+    close(): Promise<void>
+  }
+}
+declare module 'hypercore-id-encoding' {
+  const ids: { decode(id: string): Uint8Array }
+  export default ids
 }

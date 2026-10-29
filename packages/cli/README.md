@@ -155,6 +155,7 @@ invite when it can mint one), then one line per event: `download`, `peers`, `unp
 | `qvac models list`           | on disk, loaded, and the catalog that suits this device (`--json`) |
 | `qvac models pull <model>`   | download, with percent, size, speed and time left                  |
 | `qvac models remove <model>` | delete from disk; refused while loaded, asks unless `--yes`        |
+| `qvac plugins list`          | installed plugins; also `install`, `enable`, `disable`             |
 | `qvac status`                | this device, workspace, peers, models loaded, storage (`--json`)   |
 | `qvac logs [-f] [--tail N]`  | the end of `assistant.log` and `harness.log`; `-f` follows         |
 | `qvac config`                | the merged configuration, each value with its source (`--json`)    |
