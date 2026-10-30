@@ -7,7 +7,7 @@ the app does: our instructions, the coding plugin, the sandbox and the harness.
 Each exercise is a fresh git copy. The agent gets the exercise's instructions and two tries; the
 second carries the failing test output, as in Aider's benchmark. Exercism skips every test but the
 first, so the copy un-skips them all. Before each scoring run every file but the solution files and
-the ones the agent added is put back, so a changed test or build file never sways the score.
+the ones the agent added is put back, and test files the agent wrote are removed, so a changed test or\nbuild file, or the agent's own test, never sways the score.
 
 ## Setup, once per machine
 

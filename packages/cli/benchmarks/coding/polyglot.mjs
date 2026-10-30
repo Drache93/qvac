@@ -372,11 +372,15 @@ function hideTests(work, tests) {
   for (const test of tests) fs.rmSync(path.join(work, test), { force: true })
 }
 
-// the model may edit a test or a build file; the score runs the original's, with only the solution
-// files and any new ones the model's, as Aider's agent edits nothing else
+// the model may edit a test or a build file, or write tests of its own; the score runs the original's,
+// with only the solution files and any new code the model's, as Aider's agent edits nothing else
 function restoreExercise(work, solution) {
   const keep = solution.map((file) => `:(exclude,literal)${file}`)
   run('git', ['checkout', '-q', 'HEAD', '--', '.', ...keep], { cwd: work })
+  const added = run('git', ['ls-files', '--others', '--exclude-standard'], { cwd: work })
+  for (const file of added.stdout.split('\n').filter((f) => TEST_LIKE.test(f))) {
+    fs.rmSync(path.join(work, file), { force: true })
+  }
 }
 
 function runTests(language, work) {
