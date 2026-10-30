@@ -51,6 +51,7 @@ In a project, `qvac` is set up to code:
 | `harness.maxToolRounds`      | `40`                                                      | real coding tasks take many tool calls                                  |
 | `harness.reasoningBudget`    | unset (the model's own)                                   | caps each round's thinking in tokens; `0` turns it off for every round  |
 | `harness.thinking`           | unset (every round)                                       | `'plan'`: think after your message or a failed step, act without        |
+| `harness.sampler`            | unset (the model's preset, else llama.cpp's)              | `temp`, `top_p`, `top_k`, `repeat_penalty` and the like for every round |
 | `harness.plugins`            | `coding`, the platform sandbox, and `lsp` (optional)      | a shell whose file access is confined to the policy                     |
 | `harness.policy.files.write` | `[<root>]`                                                | writes stay inside the project                                          |
 | `harness.policy.files.read`  | the project, toolchain folders that exist, `~/.gitconfig` | builds can find their compilers; your keys stay out of reach            |

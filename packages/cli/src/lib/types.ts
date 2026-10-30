@@ -60,6 +60,7 @@ export interface HarnessConfig {
   planMode?: boolean | undefined
   reasoningBudget?: number | undefined
   thinking?: string | undefined
+  sampler?: Record<string, number> | undefined
   wording?: Record<string, unknown> | undefined
   llm?: Record<string, unknown> | undefined
   allowUnsandboxedShell?: boolean | undefined
