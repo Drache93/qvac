@@ -266,7 +266,7 @@ function solve({ language, name, source }) {
       }
     }
 
-    restoreTests(work, tests)
+    restoreExercise(work, meta.files.solution)
     const test = runTests(language, work)
     row.calls += agent.calls
     row.tries.push({ ...agent, testsPassed: test.passed })
@@ -372,9 +372,11 @@ function hideTests(work, tests) {
   for (const test of tests) fs.rmSync(path.join(work, test), { force: true })
 }
 
-// the model may edit a test; the score is always against the original
-function restoreTests(work, tests) {
-  run('git', ['checkout', '-q', 'HEAD', '--', ...tests], { cwd: work })
+// the model may edit a test or a build file; the score runs the original's, with only the solution
+// files and any new ones the model's, as Aider's agent edits nothing else
+function restoreExercise(work, solution) {
+  const keep = solution.map((file) => `:(exclude,literal)${file}`)
+  run('git', ['checkout', '-q', 'HEAD', '--', '.', ...keep], { cwd: work })
 }
 
 function runTests(language, work) {
