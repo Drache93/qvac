@@ -62,6 +62,8 @@ const { values: opts } = parseArgs({
     protocol: { type: 'string', default: 'agent' },
     bwrap: { type: 'string' },
     budget: { type: 'string' },
+    // a JSON file of harness.sampler, e.g. {"temp": 0.6, "top_k": 20, "repeat_penalty": 1}
+    sampler: { type: 'string' },
     // a JSON file of harness.wording, e.g. guidelines to reword or drop
     wording: { type: 'string' },
     // the skills the agent may load, comma-separated; '' offers none
@@ -120,6 +122,7 @@ fs.writeFileSync(
       reasoningBudget: opts.budget === undefined ? undefined : Number(opts.budget),
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
       llm: opts.ctx === undefined ? undefined : { contextSize: Number(opts.ctx) },
+      sampler: opts.sampler ? JSON.parse(fs.readFileSync(opts.sampler, 'utf8')) : undefined,
       wording: opts.wording ? JSON.parse(fs.readFileSync(opts.wording, 'utf8')) : undefined,
       plugins: [
         ...sandbox(),
