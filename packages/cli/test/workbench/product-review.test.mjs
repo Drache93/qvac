@@ -438,6 +438,11 @@ test('thinking collapses once later steps follow and the live turn shows what ru
   })
   await settle(app)
   assert.match(screen(app), /Thinking… \d+s/)
+  assert.match(
+    screen(app),
+    /Let me look at the tests first\./,
+    'a live thought shows as it streams'
+  )
   assert.equal(screen(app).match(/Thinking|Working/g).length, 1, 'the run state shows once, inline')
   engine.watches['chunks:chat-1'].push({
     chunks: [
@@ -451,7 +456,24 @@ test('thinking collapses once later steps follow and the live turn shows what ru
   await settle(app)
   const view = screen(app)
   assert.match(view, /✓ Thought · 31 chars/)
+  assert.doesNotMatch(view, /Let me look at the tests first\./, 'a finished thought folds away')
   assert.match(view, /Running exec npm test…/)
+})
+
+test('a long live thought shows only its last lines until ctrl+t opens it', async () => {
+  const { app, engine } = await boot()
+  const text = ['one', 'two', 'three', 'four', 'five', 'six'].map((w) => `step ${w}`).join('\n')
+  engine.watches['chunks:chat-1'].push({
+    chunks: [chunk(0, 'run-request'), chunk(1, 'thinking', { thinking: { text } })]
+  })
+  await settle(app)
+  let view = screen(app)
+  assert.match(view, /step four[\s\S]*step five[\s\S]*step six/)
+  assert.doesNotMatch(view, /step three/)
+  press(app, 'ctrl+t')
+  await settle(app)
+  view = screen(app)
+  assert.match(view, /step one[\s\S]*step six/)
 })
 
 test('the answer is set apart from the steps before it by one blank line', async () => {
