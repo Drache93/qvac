@@ -589,3 +589,43 @@ test('a message steered into the running turn shows as answered there, not as a 
   assert.match(view, /↳ answered in the turn above/)
   assert.doesNotMatch(view, /Ended without an answer/)
 })
+
+test('d on the Models page always answers: on disk is said, a new download shows at once', async () => {
+  const retried = []
+  const { app } = await boot({
+    startPage: 'models',
+    engine: {
+      listModels: () =>
+        Promise.resolve({ models: [model('Local'), model('Big', { isCached: false })] }),
+      retryModelDownload: (input) => {
+        retried.push(input.name)
+        return Promise.resolve({})
+      }
+    }
+  })
+  app.product.models = [model('Local'), model('Big', { isCached: false })]
+  app.selection = 0
+  press(app, 'd')
+  assert.match(app.notice, /Local is already on this device/)
+  assert.deepEqual(retried, [])
+
+  app.selection = 1
+  await settle(app, press(app, 'd'))
+  assert.deepEqual(retried, ['Big'])
+  assert.match(screen(app), /Starting download/)
+})
+
+test('a run whose chat model is not on disk says it waits on the download', async () => {
+  const { app } = await boot()
+  app.product.models = [model('Local', { isCached: false })]
+  assert.equal(app.modelWait(), 'Waiting for Local to download')
+  app.modelDownloads.set('Local', {
+    name: 'Local',
+    phase: 'downloading',
+    downloaded: 50,
+    total: 100
+  })
+  assert.equal(app.modelWait(), 'Downloading Local · 50%')
+  app.product.models = [model('Local')]
+  assert.equal(app.modelWait(), undefined)
+})

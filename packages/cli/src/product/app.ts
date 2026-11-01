@@ -160,6 +160,8 @@ export class ProductApp {
   run: ReturnType<typeof activeRun>
   meshStatus: WatchFrame<'meshStatusWatch'> | null
   modelDownloads: Map<string, NonNullable<WatchFrame<'modelDownloadsWatch'>['downloads']>[number]>
+  // models a press of d asked for, shown as starting until their download is reported
+  pendingDownloads: Set<string>
   downloadRate: DownloadRate
   product: Awaited<ReturnType<typeof snapshot>> | null
   hostStatus: HostStatus | null
@@ -239,6 +241,7 @@ export class ProductApp {
     this.runStarted = 0
     this.meshStatus = null
     this.modelDownloads = new Map()
+    this.pendingDownloads = new Set()
     this.downloadRate = new DownloadRate()
     this.product = null
     this.hostStatus = null
@@ -2190,6 +2193,20 @@ export class ProductApp {
     return body
   }
 
+  // the chat model is not on disk yet: a run waits on its download, which Core may not report as its phase
+  modelWait(): string | undefined {
+    const name = this.agent?.modelName
+    const model = name ? this.product?.models.find((m) => m.name === name) : undefined
+    if (!name || !model || model.isCached) {
+      return undefined
+    }
+
+    const download = this.modelDownloads.get(name)
+    return download?.total
+      ? `Downloading ${name} · ${Math.min(100, Math.round((100 * (download.downloaded || 0)) / download.total))}%`
+      : `Waiting for ${name} to download`
+  }
+
   renderedTurns(width: number) {
     const spin = SPIN[this.frame % SPIN.length]
     const all = renderTurns(this.turns, width, {
@@ -2200,7 +2217,8 @@ export class ProductApp {
       before: (file: unknown) =>
         typeof file === 'string' ? (this.before.get(file) ?? undefined) : undefined,
       cwd: this.options.cwd,
-      elapsed: Date.now() - this.runStarted
+      elapsed: Date.now() - this.runStarted,
+      modelWait: this.modelWait()
     })
     if (this.awaiting && !this.run) {
       all.push(

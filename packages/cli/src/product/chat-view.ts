@@ -13,6 +13,7 @@ export interface RenderOptions {
   before?: (path?: unknown) => string | null | undefined
   cwd?: string | undefined
   elapsed?: number | undefined
+  modelWait?: string | undefined
 }
 interface View {
   body: number
@@ -23,6 +24,8 @@ interface View {
   before(path?: unknown): string | null | undefined
   cwd: string
   elapsed: number
+  // set while the chat model is not on disk yet
+  modelWait?: string | undefined
   live?: boolean
   streaming?: boolean
 }
@@ -357,6 +360,10 @@ function activity(turn: AgentTurn, last: Row | undefined, view: View) {
   }
 
   const phase = turn.run?.progress?.phase
+  if (!phase && view.modelWait) {
+    return view.modelWait
+  }
+
   if (!phase || phase === 'generating') {
     return last?.type === 'content' ? 'Writing…' : progressText(turn, view.elapsed)
   }
@@ -382,7 +389,8 @@ export function renderTurns(list: readonly Turn[], width: number, opts: RenderOp
     spin = '·',
     before = () => undefined,
     cwd = '',
-    elapsed = 0
+    elapsed = 0,
+    modelWait
   } = opts
   const view = {
     body: Math.max(8, width - 2),
@@ -392,7 +400,8 @@ export function renderTurns(list: readonly Turn[], width: number, opts: RenderOp
     spin,
     before,
     cwd,
-    elapsed
+    elapsed,
+    modelWait
   }
 
   let running = false
