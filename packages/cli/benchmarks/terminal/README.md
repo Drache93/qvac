@@ -28,37 +28,47 @@ The SDK counts a model in a read-only folder as not downloaded, so the container
 folder of hard links to the models instead, which no task can use to delete the originals:
 `cp -al ~/.qvac/models <models>`.
 
-Make one folder with what every container mounts at `/opt/qvac`:
+Then make what every container mounts at `/opt/qvac`, with `patchelf` on the path:
+`sh runtime.sh <runtime> <cli>`. Images carry glibc from 2.31 (Debian bullseye) up, and Bare needs
+2.34, so the agent brings its own:
 
-- `bin/node`: this machine's Node. An image with an older glibc than the machine's cannot run it.
-- `bin/bwrap.real`: this machine's `bwrap`, and `bin/bwrap`, a script that runs it with
-  `LD_LIBRARY_PATH=/opt/qvac/lib`, adds `--unsetenv LD_LIBRARY_PATH --unsetenv LD_PRELOAD` so the
-  lines it runs use the image's own libraries, and swaps `--proc <dir>` for `--ro-bind /proc <dir>`
-  under rootless Podman, which cannot mount a fresh `/proc`.
-- `lib/`: `libcuda.so.1`, `libnvidia-ml.so.1`, `libnvidia-ptxjitcompiler.so.1`, CUDA 13's
-  `libcudart.so.13`, `libcublas.so.13` and `libcublasLt.so.13`, `libstdc++.so.6` and
-  `libgcc_s.so.1`, and bwrap's `libselinux.so.1`, `libcap.so.2` and `libpcre2-8.so.0`.
+- `lib/`: this machine's loader, C library and libstdc++, and bwrap's libraries. Only the patched
+  binaries load them, so the task's own programs keep the image's.
+- `cuda/`: the driver's and CUDA 13's libraries, the one folder on the agent's `LD_LIBRARY_PATH`.
+- `bin/`: Node as it is (it needs only glibc 2.28), and `bwrap`, a script around the patched
+  `bwrap.real` that unsets `LD_LIBRARY_PATH` and `LD_PRELOAD` for the lines it runs and swaps
+  `--proc <dir>` for `--ro-bind /proc <dir>` under rootless Podman, which cannot mount a fresh
+  `/proc`.
+- `<cli>`: a hard-link copy of this CLI whose Bare binaries load `lib/`'s loader and libraries.
 
 ## Running
 
 From this folder:
 
 ```sh
-A=<that folder> M=<models>
-mounts=$(python3 - "$A" "$M" "$(cd ../.. && pwd)" <<'PY'
+A=<runtime> M=<models> C=<cli>
+mounts=$(python3 - "$A" "$M" "$C" <<'PY'
 import json, sys
 a, models, cli = sys.argv[1:]
 bind = lambda s, t, ro=True: dict(type="bind", source=s, target=t, **({"read_only": True} if ro else {}))
 gpu = ["/dev/nvidia0", "/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia-uvm-tools"]
 print(json.dumps([bind(d, d, False) for d in gpu] + [bind(f"{a}/bin", "/opt/qvac/bin"),
-  bind(f"{a}/lib", "/opt/qvac/lib"), bind(cli, "/opt/qvac/cli"), bind(models, "/opt/qvac/models", False)]))
+  bind(f"{a}/lib", "/opt/qvac/lib"), bind(f"{a}/cuda", "/opt/qvac/cuda"), bind(cli, "/opt/qvac/cli"),
+  bind(models, "/opt/qvac/models", False)]))
 PY
 )
 PYTHONPATH=. harbor run -p <tasks> -e docker -n 1 --cpus ignore --memory ignore \
   -a qvac_agent:Qvac -m qvac/Qwen3.6-35B-A3B-UD-Q4_K_M --mounts "$mounts" -o <jobs>
 ```
 
-`-n` is how many tasks run at once; each loads its own copy of the model onto the GPU.
+`-n` is how many tasks run at once; each loads its own copy of the model onto the GPU (about
+23 GB for the 35B, so three fit an 80 GB card). The run thinks and takes up to 150 tool rounds;
+`QVAC_TB_REASONING` and `QVAC_TB_ROUNDS` change them.
+
+With `pidns = "host"` (below), a line run in a container is not stopped with it, so a run Harbor
+timed out would keep its model on the GPU and the next tasks could not load theirs. The agent
+stops its own process tree when Harbor cancels it, and Podman's leftover container inits are worth
+clearing after a job.
 
 Rootless Podman works through its Docker API (`podman system service`, and `DOCKER_HOST` at its
 socket). On Ubuntu 22.04, Podman 3.4 writes networks its packaged CNI plugins cannot read: point
