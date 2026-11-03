@@ -10,6 +10,7 @@ const harnessConfig = {
   maxToolRounds: 40,
   reasoningBudget: 512,
   thinking: 'plan',
+  sampler: { temp: 0.6, top_k: 20 },
   wording: { toolRepeated: 'Once is enough.', guidelines: { 'one-action-at-a-time': false } },
   allowUnsandboxedShell: allow === 'allow',
   plugins: [{ id: 'coding' }, { id: 'sandbox-macos' }, { id: 'egress-proxy' }],
@@ -52,7 +53,8 @@ for (const context of [
   { agent: { id: 'a' }, agents: { b: { id: 'b' } }, messages: [] },
   { agent: { id: 'a' }, messages: [], maxToolRounds: 3, wording: { toolRepeated: 'Mine.' } },
   { agent: { id: 'a' }, messages: [], parentRunId: 'p' },
-  { agent: { id: 'a' }, messages: [], resume: true, generationParams: { reasoning_budget: -1 } }
+  { agent: { id: 'a' }, messages: [], resume: true, generationParams: { reasoning_budget: -1 } },
+  { agent: { id: 'a' }, messages: [], generationParams: { temp: 1 } }
 ]) {
   for await (const event of harness.completion(context)) {
     events.push(event)

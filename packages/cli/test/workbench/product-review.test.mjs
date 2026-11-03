@@ -438,6 +438,11 @@ test('thinking collapses once later steps follow and the live turn shows what ru
   })
   await settle(app)
   assert.match(screen(app), /Thinking… \d+s/)
+  assert.match(
+    screen(app),
+    /Let me look at the tests first\./,
+    'a live thought shows as it streams'
+  )
   assert.equal(screen(app).match(/Thinking|Working/g).length, 1, 'the run state shows once, inline')
   engine.watches['chunks:chat-1'].push({
     chunks: [
@@ -451,7 +456,24 @@ test('thinking collapses once later steps follow and the live turn shows what ru
   await settle(app)
   const view = screen(app)
   assert.match(view, /✓ Thought · 31 chars/)
+  assert.doesNotMatch(view, /Let me look at the tests first\./, 'a finished thought folds away')
   assert.match(view, /Running exec npm test…/)
+})
+
+test('a long live thought shows only its last lines until ctrl+t opens it', async () => {
+  const { app, engine } = await boot()
+  const text = ['one', 'two', 'three', 'four', 'five', 'six'].map((w) => `step ${w}`).join('\n')
+  engine.watches['chunks:chat-1'].push({
+    chunks: [chunk(0, 'run-request'), chunk(1, 'thinking', { thinking: { text } })]
+  })
+  await settle(app)
+  let view = screen(app)
+  assert.match(view, /step four[\s\S]*step five[\s\S]*step six/)
+  assert.doesNotMatch(view, /step three/)
+  press(app, 'ctrl+t')
+  await settle(app)
+  view = screen(app)
+  assert.match(view, /step one[\s\S]*step six/)
 })
 
 test('the answer is set apart from the steps before it by one blank line', async () => {
@@ -588,4 +610,44 @@ test('a message steered into the running turn shows as answered there, not as a 
   const view = screen(app)
   assert.match(view, /↳ answered in the turn above/)
   assert.doesNotMatch(view, /Ended without an answer/)
+})
+
+test('d on the Models page always answers: on disk is said, a new download shows at once', async () => {
+  const retried = []
+  const { app } = await boot({
+    startPage: 'models',
+    engine: {
+      listModels: () =>
+        Promise.resolve({ models: [model('Local'), model('Big', { isCached: false })] }),
+      retryModelDownload: (input) => {
+        retried.push(input.name)
+        return Promise.resolve({})
+      }
+    }
+  })
+  app.product.models = [model('Local'), model('Big', { isCached: false })]
+  app.selection = 0
+  press(app, 'd')
+  assert.match(app.notice, /Local is already on this device/)
+  assert.deepEqual(retried, [])
+
+  app.selection = 1
+  await settle(app, press(app, 'd'))
+  assert.deepEqual(retried, ['Big'])
+  assert.match(screen(app), /Starting download/)
+})
+
+test('a run whose chat model is not on disk says it waits on the download', async () => {
+  const { app } = await boot()
+  app.product.models = [model('Local', { isCached: false })]
+  assert.equal(app.modelWait(), 'Waiting for Local to download')
+  app.modelDownloads.set('Local', {
+    name: 'Local',
+    phase: 'downloading',
+    downloaded: 50,
+    total: 100
+  })
+  assert.equal(app.modelWait(), 'Downloading Local · 50%')
+  app.product.models = [model('Local')]
+  assert.equal(app.modelWait(), undefined)
 })

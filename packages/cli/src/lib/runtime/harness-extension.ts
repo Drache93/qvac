@@ -465,7 +465,7 @@ export function shapeRun(context: Run, { options }: { options: HarnessConfig }):
     if (rounds !== undefined) run.maxToolRounds = rounds
   }
 
-  // how much each round thinks; a resumed run keeps what it started with
+  // how each round samples and thinks; a resumed run keeps what it started with
   if (!context.resume) {
     const params = thinking(context.generationParams, options)
     if (params !== undefined) run.generationParams = params
@@ -474,12 +474,13 @@ export function shapeRun(context: Run, { options }: { options: HarnessConfig }):
   return run
 }
 
-// reasoningBudget caps each round; thinking 'plan' thinks only after the user or a failed round
+// sampler sets the sampling under what the run asks for; reasoningBudget caps each round; thinking
+// 'plan' thinks only after the user or a failed round
 function thinking(
   params: CompletionContext['generationParams'],
-  { reasoningBudget, thinking: rounds }: HarnessConfig
+  { reasoningBudget, thinking: rounds, sampler }: HarnessConfig
 ) {
-  const shaped = { ...params }
+  const shaped = { ...sampler, ...params }
   if (Number.isInteger(reasoningBudget)) {
     shaped.reasoning_budget = reasoningBudget!
   }

@@ -179,6 +179,8 @@ function dashboardFooter(
   const problem = app.error || (app.ready ? '' : app.status)
   if (problem) {
     footer.unshift(...paragraph(problem, width, 'red').slice(0, 3))
+  } else if (app.notice) {
+    footer.unshift(...paragraph(app.notice, width, 'muted').slice(0, 2))
   }
 
   return footer
@@ -410,13 +412,22 @@ function modelRows(
   const chat = m.name === app.agent?.modelName ? paint('  ·  chat model', 'teal') : ''
   const detail = f.inner >= 64 ? modelKind(m) : [size, precision, modelKind(m)].join(' · ')
 
-  return [f.two(lead + facts, modelState(m, download)), paint(`  ${detail}`, 'muted') + chat, '']
+  const pending = app.pendingDownloads.has(m.name)
+  return [
+    f.two(lead + facts, modelState(m, download, pending)),
+    paint(`  ${detail}`, 'muted') + chat,
+    ''
+  ]
 }
 
-function modelState(model: Model, download: Download | undefined) {
+function modelState(model: Model, download: Download | undefined, pending = false) {
   if (download && !['complete', 'completed'].includes(download.phase)) {
     const percent = download.total ? ` ${percentOf(download.downloaded, download.total)}%` : ''
     return paint(`${download.phase}${percent}`, 'teal')
+  }
+
+  if (pending && !model.isCached) {
+    return paint('◌ Starting download', 'teal')
   }
 
   if (model.isLoading) {

@@ -62,6 +62,8 @@ const { values: opts } = parseArgs({
     protocol: { type: 'string', default: 'agent' },
     bwrap: { type: 'string' },
     budget: { type: 'string' },
+    // a JSON file of harness.sampler, e.g. {"temp": 0.6, "top_k": 20, "repeat_penalty": 1}
+    sampler: { type: 'string' },
     // a JSON file of harness.wording, e.g. guidelines to reword or drop
     wording: { type: 'string' },
     // the skills the agent may load, comma-separated; '' offers none
@@ -120,6 +122,7 @@ fs.writeFileSync(
       reasoningBudget: opts.budget === undefined ? undefined : Number(opts.budget),
       thinking: opts.reasoning === 'plan' ? 'plan' : undefined,
       llm: opts.ctx === undefined ? undefined : { contextSize: Number(opts.ctx) },
+      sampler: opts.sampler ? JSON.parse(fs.readFileSync(opts.sampler, 'utf8')) : undefined,
       wording: opts.wording ? JSON.parse(fs.readFileSync(opts.wording, 'utf8')) : undefined,
       plugins: [
         ...sandbox(),
@@ -266,7 +269,7 @@ function solve({ language, name, source }) {
       }
     }
 
-    restoreTests(work, tests)
+    restoreExercise(work, meta.files.solution)
     const test = runTests(language, work)
     row.calls += agent.calls
     row.tries.push({ ...agent, testsPassed: test.passed })
@@ -372,9 +375,15 @@ function hideTests(work, tests) {
   for (const test of tests) fs.rmSync(path.join(work, test), { force: true })
 }
 
-// the model may edit a test; the score is always against the original
-function restoreTests(work, tests) {
-  run('git', ['checkout', '-q', 'HEAD', '--', ...tests], { cwd: work })
+// the model may edit a test or a build file, or write tests of its own; the score runs the original's,
+// with only the solution files and any new code the model's, as Aider's agent edits nothing else
+function restoreExercise(work, solution) {
+  const keep = solution.map((file) => `:(exclude,literal)${file}`)
+  run('git', ['checkout', '-q', 'HEAD', '--', '.', ...keep], { cwd: work })
+  const added = run('git', ['ls-files', '--others', '--exclude-standard'], { cwd: work })
+  for (const file of added.stdout.split('\n').filter((f) => TEST_LIKE.test(f))) {
+    fs.rmSync(path.join(work, file), { force: true })
+  }
 }
 
 function runTests(language, work) {

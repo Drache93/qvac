@@ -21,7 +21,7 @@ test('a sandbox that fails to start refuses every run', (t) => {
   assert.equal(sandbox.shellBlocked, true)
 
   assert.deepEqual(runs, [])
-  assert.equal(events.length, 4)
+  assert.equal(events.length, 5)
   for (const event of events) {
     assert.equal(event.type, 'error')
     assert.match(event.message, /sandbox did not start \(sandbox-macos: sandbox-exec is missing\)/)
@@ -36,14 +36,16 @@ test('maxToolRounds goes on top-level runs that set none', (t) => {
   assert.equal(child.maxToolRounds, undefined, 'a delegated run keeps what its parent gave it')
 })
 
-test('reasoningBudget and thinking shape every new run, and a resumed run keeps its own', (t) => {
-  const [top, own, child, resumed] = configure(t, 'allow').runs
+test('sampler and thinking shape every new run, and a resumed run keeps its own', (t) => {
+  const [top, own, child, resumed, sampled] = configure(t, 'allow').runs
+  const shaped = { temp: 0.6, top_k: 20, reasoning_budget: 512, reasoning_rounds: 'plan' }
 
   for (const run of [top, own, child]) {
-    assert.deepEqual(run.generationParams, { reasoning_budget: 512, reasoning_rounds: 'plan' })
+    assert.deepEqual(run.generationParams, shaped)
   }
 
-  assert.equal(resumed.generationParams.reasoning_budget, -1)
+  assert.deepEqual(resumed.generationParams, { reasoning_budget: -1 })
+  assert.deepEqual(sampled.generationParams, { ...shaped, temp: 1 }, "a run's own sampling wins")
 })
 
 test('wording words every run, and a run that words a key itself keeps its own', (t) => {

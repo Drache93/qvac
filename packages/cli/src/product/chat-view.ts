@@ -13,6 +13,7 @@ export interface RenderOptions {
   before?: (path?: unknown) => string | null | undefined
   cwd?: string | undefined
   elapsed?: number | undefined
+  modelWait?: string | undefined
 }
 interface View {
   body: number
@@ -23,6 +24,8 @@ interface View {
   before(path?: unknown): string | null | undefined
   cwd: string
   elapsed: number
+  // set while the chat model is not on disk yet
+  modelWait?: string | undefined
   live?: boolean
   streaming?: boolean
 }
@@ -249,6 +252,17 @@ function toolRows(item: Row, view: View) {
 
 const chars = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n))
 
+// the rows of a live thought shown while it is folded: enough to follow, never the screen
+const THINKING_TAIL = 3
+
+// the model's own line breaks kept, blank ones dropped, each line wrapped to the width
+function thoughtRows(text: string, width: number) {
+  return text
+    .split('\n')
+    .filter((line) => line.trim())
+    .flatMap((line) => wrap(line, width))
+}
+
 // Live while it is the newest step of a running turn; a finished line once anything follows.
 function thinkingLines(item: { text?: string | undefined }, view: View) {
   const text = (item.text || '').trim()
@@ -256,8 +270,15 @@ function thinkingLines(item: { text?: string | undefined }, view: View) {
     ? paint(`  ${view.spin} Thinking… ${Math.floor(view.elapsed / 1000)}s`, 'teal')
     : paint('  ✓ ', 'green') + paint(`Thought · ${chars(text.length)} chars`, 'muted')
   const open = view.thinking || view.expand
+  // folded, only the end is wrapped, so a long thought costs the same each frame
+  const rows = open
+    ? thoughtRows(text, view.body - 4)
+    : view.streaming
+      ? thoughtRows(text.slice(-2000), view.body - 4)
+      : []
+  const shown = open ? rows : rows.slice(-THINKING_TAIL)
 
-  return [head, ...(open ? wrap(text, view.body - 4).map((r) => paint('    ' + r, 'muted')) : [])]
+  return [head, ...shown.map((r) => paint('    ' + r, 'muted'))]
 }
 
 const ITEMS: Record<string, (item: Row, view: View) => string[]> = {
@@ -357,6 +378,10 @@ function activity(turn: AgentTurn, last: Row | undefined, view: View) {
   }
 
   const phase = turn.run?.progress?.phase
+  if (!phase && view.modelWait) {
+    return view.modelWait
+  }
+
   if (!phase || phase === 'generating') {
     return last?.type === 'content' ? 'Writing…' : progressText(turn, view.elapsed)
   }
@@ -382,7 +407,8 @@ export function renderTurns(list: readonly Turn[], width: number, opts: RenderOp
     spin = '·',
     before = () => undefined,
     cwd = '',
-    elapsed = 0
+    elapsed = 0,
+    modelWait
   } = opts
   const view = {
     body: Math.max(8, width - 2),
@@ -392,7 +418,8 @@ export function renderTurns(list: readonly Turn[], width: number, opts: RenderOp
     spin,
     before,
     cwd,
-    elapsed
+    elapsed,
+    modelWait
   }
 
   let running = false

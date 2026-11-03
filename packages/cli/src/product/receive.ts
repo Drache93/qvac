@@ -164,6 +164,7 @@ function meshStatusChanged(app: ProductApp, msg: Value<WatchFrame<'meshStatusWat
 
 function downloadsChanged(app: ProductApp, msg: Value<WatchFrame<'modelDownloadsWatch'>>): Command {
   app.modelDownloads = new Map((msg.value.downloads || []).map((d) => [d.name, d]))
+  for (const name of app.modelDownloads.keys()) app.pendingDownloads.delete(name)
   return app.watch('downloads')
 }
 

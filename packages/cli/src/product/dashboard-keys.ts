@@ -263,7 +263,7 @@ function modelKey(app: ProductApp, { msg, model }: { msg: KeyMessage; model: Mod
   }
 
   if (msg.is('d')) {
-    return app.action(() => app.engine!.retryModelDownload({ name }))
+    return download(app, model)
   }
 
   if (msg.is('x')) {
@@ -283,7 +283,7 @@ function modelKey(app: ProductApp, { msg, model }: { msg: KeyMessage; model: Mod
 
 function chooseModel(app: ProductApp, model: Model) {
   if (app.page === 'catalog' && !model.isCached) {
-    return app.action(() => app.engine!.retryModelDownload({ name: model.name }))
+    return download(app, model)
   }
 
   if (!['llm', 'completion'].includes(model.taskType || model.type || '')) {
@@ -374,4 +374,23 @@ function submitDeviceName(app: ProductApp, value: string) {
 function submitJoin(app: ProductApp, value: string) {
   app.joinValue = value
   return app.action(() => app.engine!.previewMeshInvite({ invite: value }), 'product.join-preview')
+}
+
+// a press always answers: on disk or already downloading is said, and a new download shows on its row at once
+function download(app: ProductApp, model: Model) {
+  const { name } = model
+  const running = app.modelDownloads.get(name)
+  if (model.isCached) {
+    app.notice = `${name} is already on this device`
+    return null
+  }
+
+  if (running && !['complete', 'completed'].includes(running.phase)) {
+    app.notice = `${name} is already downloading`
+    return null
+  }
+
+  app.notice = ''
+  app.pendingDownloads.add(name)
+  return app.action(() => app.engine!.retryModelDownload({ name }))
 }
